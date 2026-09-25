@@ -6,8 +6,8 @@ import { createServer as createViteServer } from 'vite';
 
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = process.cwd();
+
 
 const app = express();
 const PORT = 3000;
