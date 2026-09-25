@@ -1,0 +1,6 @@
+{
+  "name": "Uttarakhand Gateways",
+  "description": "Explore your dream property in Uttarakhand's most beautiful destinations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
