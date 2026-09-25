@@ -1,6 +1,6 @@
 {
   "name": "Uttarakhand Gateways",
-  "description": "Exclusive properties, flats, plots, and Himalayan villas for sale across Uttarakhand's prime destinations.",
+  "description": "Explore your dream property in Uttarakhand's most beautiful destinations.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
