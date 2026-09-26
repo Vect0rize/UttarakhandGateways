@@ -17,9 +17,6 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// -------------------------------------------------------------
-// VITE SPA INTEGRATION
-// -------------------------------------------------------------
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');
