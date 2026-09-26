@@ -9,11 +9,10 @@ const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json());
 
-// Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
-    time: new Date().toISOString(),
+    time: new Date().toISOString()
   });
 });
 
@@ -23,9 +22,9 @@ async function startServer() {
 
     const vite = await createViteServer({
       server: {
-        middlewareMode: true,
+        middlewareMode: true
       },
-      appType: 'spa',
+      appType: 'spa'
     });
 
     app.use(vite.middlewares);
@@ -40,7 +39,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
+    console.log(`Server running on port ${PORT}`);
   });
 }
 
