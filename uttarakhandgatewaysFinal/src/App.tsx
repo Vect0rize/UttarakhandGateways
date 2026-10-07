@@ -6,6 +6,8 @@ import { SearchBar } from './components/SearchBar';
 import { PropertyCard } from './components/PropertyCard';
 import { PropertyDetailPage } from './components/PropertyDetailPage';
 import { AdminAccountsModal } from './components/AdminAccountsModal';
+import { AdminReportsModal } from './components/AdminReportsModal';
+import { ReportListingModal } from './components/ReportListingModal';
 import { LandUnitConverterModal } from './components/LandUnitConverterModal';
 import { UploadPropertyModal } from './components/UploadPropertyModal';
 import { ListRentalModal } from './components/ListRentalModal';
@@ -169,6 +171,8 @@ export default function App() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isRentalModalOpen, setIsRentalModalOpen] = useState(false);
   const [isAdminAccountsOpen, setIsAdminAccountsOpen] = useState(false);
+  const [isAdminReportsOpen, setIsAdminReportsOpen] = useState(false);
+  const [reportingProperty, setReportingProperty] = useState<Property | null>(null);
   const [isInboxOpen, setIsInboxOpen] = useState(false);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [uploadToast, setUploadToast] = useState<string | null>(null);
@@ -1065,7 +1069,7 @@ export default function App() {
           if (el) el.scrollIntoView({ behavior: 'smooth' });
         }}
         unreadInboxCount={
-          chatThreads.reduce((sum, t) => sum + (t.unreadCount || 0), 0) +
+          chatThreads.reduce((sum, t) => sum + (t.unreadCount || 0), 0)
         }
         onOpenUnitConverter={handleOpenUnitConverter}
         favoriteCount={favorites.length}
@@ -1101,6 +1105,7 @@ export default function App() {
             allProperties={properties}
             onSelectProperty={handleSelectProperty}
             onOpenLegalPolicy={handleOpenLegalPolicy}
+            onReportListing={(property) => setReportingProperty(property)}
           />
         </main>
       ) : (
@@ -1481,6 +1486,20 @@ export default function App() {
       <AdminAccountsModal
         isOpen={isAdminAccountsOpen}
         onClose={() => setIsAdminAccountsOpen(false)}
+        onOpenReports={() => { setIsAdminAccountsOpen(false); setIsAdminReportsOpen(true); }}
+      />
+
+      <AdminReportsModal
+        isOpen={isAdminReportsOpen}
+        onClose={() => setIsAdminReportsOpen(false)}
+        allProperties={properties}
+        onSelectProperty={(property) => { setSelectedProperty(property); setIsAdminReportsOpen(false); }}
+      />
+
+      <ReportListingModal
+        isOpen={Boolean(reportingProperty)}
+        property={reportingProperty}
+        onClose={() => setReportingProperty(null)}
       />
 
       {/* Common List Chooser Modal */}
