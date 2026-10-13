@@ -771,7 +771,7 @@ export const ListRentalModal: React.FC<ListRentalModalProps> = ({
                       aria-label={isHindi ? 'माप की इकाई' : 'Area Unit'}
                       className="px-3 py-2 bg-slate-50 dark:bg-slate-800 text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none cursor-pointer shrink-0"
                     >
-                      {RENTAL_AREA_UNITS.map((u) => (
+                      {AREA_UNITS.map((u) => (
                         <option key={u.value} value={u.value} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
                           {isHindi ? u.labelHi : u.labelEn}
                         </option>
