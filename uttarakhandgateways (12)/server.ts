@@ -775,6 +775,28 @@ Style & Tone:
   }
 });
 
+
+app.get('/.well-known/assetlinks.json', (req, res) => {
+  const assetLinksPath = path.join(
+    process.cwd(),
+    'public',
+    '.well-known',
+    'assetlinks.json'
+  );
+
+  if (!fs.existsSync(assetLinksPath)) {
+    return res.status(404).json({
+      error: 'assetlinks.json not found'
+    });
+  }
+
+  return res.sendFile(assetLinksPath, {
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
+});
+
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');
