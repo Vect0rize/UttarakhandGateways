@@ -663,7 +663,13 @@ export default function App() {
     try {
       const res = await fetch(`/api/properties/${encodeURIComponent(updatedProperty.id)}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': currentUser?.id || '',
+          'x-user-contact': currentUser?.contact || '',
+          'x-user-name': currentUser?.username || '',
+        },
         body: JSON.stringify(updatedProperty),
       });
 
@@ -728,6 +734,13 @@ export default function App() {
     try {
       const res = await fetch(`/api/properties/${encodeURIComponent(propertyId)}`, {
         method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': currentUser?.id || '',
+          'x-user-contact': currentUser?.contact || '',
+          'x-user-name': currentUser?.username || '',
+        },
       });
 
       if (!res.ok) {
