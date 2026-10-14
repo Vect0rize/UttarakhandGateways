@@ -5,8 +5,6 @@ import {
   Home, 
   Maximize2, 
   Bookmark, 
-  ChevronLeft, 
-  ChevronRight, 
   MoreVertical, 
   Edit3, 
   Tag, 
@@ -46,7 +44,6 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
 }) => {
   const { isHindi } = useLanguage();
   const { currentUser, openAuthModal } = useAuth();
-  const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [imgError, setImgError] = useState(false);
   const [ripples, setRipples] = useState<Array<{ id: number; x: number; y: number }>>([]);
   const [showOwnerMenu, setShowOwnerMenu] = useState(false);
@@ -63,7 +60,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
 
   useEffect(() => {
     setImgError(false);
-  }, [activeImageIndex, property.images]);
+  }, [property.id]);
 
   // Click outside to close owner dropdown menu
   useEffect(() => {
@@ -88,7 +85,9 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
     ? property.images.filter(Boolean)
     : [];
 
-  const currentImage = (!imgError && (images[activeImageIndex] || images[0])) || fallbackImage;
+  // Stable primary cover image: always stays fixed on card without switching
+  const primaryImage = images.length > 0 ? images[0] : fallbackImage;
+  const currentImage = !imgError ? primaryImage : fallbackImage;
 
   const triggerRipple = (e: React.MouseEvent<HTMLElement>) => {
     if (!cardRef.current) return;
@@ -100,18 +99,6 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
     setTimeout(() => {
       setRipples((prev) => prev.filter((r) => r.id !== id));
     }, 700);
-  };
-
-  const nextImage = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (images.length <= 1) return;
-    setActiveImageIndex((prev) => (prev + 1) % images.length);
-  };
-
-  const prevImage = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (images.length <= 1) return;
-    setActiveImageIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
   const cleanArea = formatPropertyArea(property, isHindi);
@@ -298,26 +285,13 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
           </div>
         </div>
 
-        {/* Photo Nav Arrows on Hover */}
+        {/* Stable Photo Counter Badge (if multiple photos) */}
         {images.length > 1 && (
-          <>
-            <button
-              type="button"
-              onClick={prevImage}
-              className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/65 hover:bg-black/90 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity border border-white/20 z-20 cursor-pointer shadow-md"
-              aria-label="Previous"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={nextImage}
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/65 hover:bg-black/90 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity border border-white/20 z-20 cursor-pointer shadow-md"
-              aria-label="Next"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </>
+          <div className="absolute bottom-3 right-3 z-10 pointer-events-none">
+            <span className="bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/20">
+              📷 {images.length}
+            </span>
+          </div>
         )}
       </div>
 
