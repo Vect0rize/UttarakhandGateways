@@ -697,6 +697,33 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
             </button>
 
+            {/* Light / Dark Mode Toggle Option in Menu */}
+            <div className="flex items-center justify-between py-2 px-3 bg-white dark:bg-[#0a271d] rounded-xl border border-emerald-200/80 dark:border-emerald-800 shadow-xs">
+              <span className="text-xs font-semibold text-slate-700 dark:text-emerald-200 flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-emerald-600/20 text-emerald-700 dark:text-emerald-300 flex items-center justify-center text-xs font-bold shadow-xs">
+                  {isDark ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-emerald-700" />}
+                </span>
+                <span>{isHindi ? 'थीम (Theme)' : 'Theme'}</span>
+              </span>
+              <button
+                type="button"
+                onClick={onToggleTheme}
+                className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-800 text-xs font-bold text-emerald-900 dark:text-emerald-200 cursor-pointer hover:bg-emerald-200"
+              >
+                {isDark ? (
+                  <>
+                    <Sun className="w-3.5 h-3.5 text-amber-400" />
+                    <span>{isHindi ? 'लाइट मोड' : 'Light Mode'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Moon className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>{isHindi ? 'डार्क मोड' : 'Dark Mode'}</span>
+                  </>
+                )}
+              </button>
+            </div>
+
             {/* Hindi / English Language Option */}
             <div className="flex items-center justify-between py-2 px-3 bg-white dark:bg-[#0a271d] rounded-xl border border-emerald-200/80 dark:border-emerald-800 shadow-xs">
               <span className="text-xs font-semibold text-slate-700 dark:text-emerald-200 flex items-center gap-2">
