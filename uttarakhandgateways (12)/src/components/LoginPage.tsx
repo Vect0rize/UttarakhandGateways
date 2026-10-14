@@ -38,6 +38,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     sendOtp,
     sendRegistrationOtp,
     verifyOtp,
+    verifyRegistrationOtp,
     checkEmailRegistered,
   } = useAuth();
   
@@ -207,7 +208,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     }
 
     setIsSubmitting(true);
-    const res = verifyOtp(trimmedCode, trimmedEmail, username.trim() || undefined, password.trim() || undefined);
+    const res = mode === 'register'
+      ? verifyRegistrationOtp(trimmedCode, trimmedEmail, username.trim(), password.trim())
+      : verifyOtp(trimmedCode, trimmedEmail, undefined, password.trim() || undefined);
     setIsSubmitting(false);
 
     if (!res.success) {
