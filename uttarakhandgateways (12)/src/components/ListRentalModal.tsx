@@ -62,6 +62,7 @@ const RENTAL_PRESET_AMENITIES = [
   '24/7 Water Supply',
   'Electricity / Power Backup',
   'Dedicated Car Parking',
+  'Modular Kitchen',
   'High-Speed Wi-Fi / Fiber',
   'Mountain & Valley View',
   'Geyser / Hot Water',
@@ -130,7 +131,6 @@ export const ListRentalModal: React.FC<ListRentalModalProps> = ({
   // Landlord / Seller Info
   const [sellerName, setSellerName] = useState(currentUser?.username || '');
   const [sellerPhone, setSellerPhone] = useState('');
-  const [sellerEmail, setSellerEmail] = useState(currentUser?.contact || '');
   const [sellerType, setSellerType] = useState<'Owner' | 'Broker'>('Owner');
 
   const [formSubmitted, setFormSubmitted] = useState(false);
@@ -274,6 +274,10 @@ export const ListRentalModal: React.FC<ListRentalModalProps> = ({
       setErrorMessage(isHindi ? 'कृपया प्रॉपर्टी का क्षेत्रफल दर्ज करें।' : 'Please enter the property area.');
       return;
     }
+    if (!sellerPhone.trim() || sellerPhone.trim().replace(/\D/g, '').length < 10) {
+      setErrorMessage(isHindi ? 'कृपया वैध 10-अंकीय संपर्क फ़ोन नंबर दर्ज करें (अनिवार्य)।' : 'Please enter a valid 10-digit contact phone number (Compulsory).');
+      return;
+    }
 
     const effectiveImages = imageUrls.length > 0 ? imageUrls : [
       'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80'
@@ -356,11 +360,10 @@ export const ListRentalModal: React.FC<ListRentalModalProps> = ({
       amenities: isLandOrPlot ? [] : finalAmenities,
       furnishing: isLandOrPlot ? undefined : furnishing,
       sellerName: sellerName.trim() || currentUser?.username || (sellerType === 'Broker' ? 'Verified Rental Broker' : 'Direct Property Owner'),
-      sellerPhone: sellerPhone.trim() || '+91 98971 23456',
-      sellerEmail: sellerEmail.trim() || currentUser?.contact || undefined,
+      sellerPhone: sellerPhone.trim(),
       sellerType: sellerType,
       ownerId: currentUser?.id || `guest-${Date.now()}`,
-      ownerContact: currentUser?.contact || sellerPhone.trim(),
+      ownerContact: sellerPhone.trim() || currentUser?.contact,
       ownerUsername: currentUser?.username || sellerName.trim() || 'Property Owner',
       isSold: false,
       isAvailableForRent: true,
@@ -1128,7 +1131,7 @@ export const ListRentalModal: React.FC<ListRentalModalProps> = ({
                   <span>8. Landlord / Host Information</span>
                 </h4>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       Landlord / Host Name *
@@ -1144,29 +1147,19 @@ export const ListRentalModal: React.FC<ListRentalModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Contact Phone *
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Phone className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                        <span>Contact Phone (Compulsory) *</span>
+                      </span>
+                      <span className="text-[10px] text-rose-600 dark:text-rose-400 font-bold uppercase tracking-wider">Required</span>
                     </label>
                     <input
                       type="tel"
                       required
                       value={sellerPhone}
                       onChange={(e) => setSellerPhone(e.target.value)}
-                      placeholder="+91 98971 23456"
-                      className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs sm:text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Contact Email *
-                    </label>
-                    <input
-                      type="email"
-                      required
-                      value={sellerEmail}
-                      onChange={(e) => setSellerEmail(e.target.value)}
-                      placeholder="landlord@example.com"
+                      placeholder="e.g. 9897123456"
                       className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs sm:text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
                     />
                   </div>
