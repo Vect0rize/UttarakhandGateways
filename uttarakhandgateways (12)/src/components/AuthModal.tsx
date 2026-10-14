@@ -29,6 +29,7 @@ export const AuthModal: React.FC = () => {
     sendOtp,
     verifyOtp,
     sendRegistrationOtp,
+    verifyRegistrationOtp,
     checkEmailRegistered,
     currentUser 
   } = useAuth();
@@ -197,7 +198,9 @@ export const AuthModal: React.FC = () => {
     }
 
     setIsSubmitting(true);
-    const res = verifyOtp(trimmedCode, trimmedEmail, username.trim() || undefined, password.trim() || undefined);
+    const res = mode === 'register'
+      ? verifyRegistrationOtp(trimmedCode, trimmedEmail, username.trim(), password.trim())
+      : verifyOtp(trimmedCode, trimmedEmail, undefined, password.trim() || undefined);
     setIsSubmitting(false);
 
     if (!res.success) {
