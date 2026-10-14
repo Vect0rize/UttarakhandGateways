@@ -322,7 +322,14 @@ export default function App() {
         const serverProps: Property[] = Array.isArray(data)
           ? data
           : (Array.isArray(data.properties) ? data.properties : []);
-        if (active) setProperties(serverProps);
+        if (active) {
+          setProperties((prev) => {
+            if (prev.length === serverProps.length && JSON.stringify(prev) === JSON.stringify(serverProps)) {
+              return prev;
+            }
+            return serverProps;
+          });
+        }
         try {
           localStorage.setItem('uk_gateways_uploaded_properties', JSON.stringify(serverProps));
         } catch {}
@@ -371,7 +378,12 @@ export default function App() {
       // The server is the single source of truth.
       // An empty server catalog means there are genuinely no properties.
       // NEVER restore old properties from localStorage automatically.
-      setProperties(serverProps);
+      setProperties((prev) => {
+        if (prev.length === serverProps.length && JSON.stringify(prev) === JSON.stringify(serverProps)) {
+          return prev;
+        }
+        return serverProps;
+      });
 
       // Keep localStorage as a cache only.
       // It must NEVER repopulate the server automatically.
