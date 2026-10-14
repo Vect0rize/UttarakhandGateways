@@ -203,7 +203,7 @@ export const UploadPropertyModal: React.FC<UploadPropertyModalProps> = ({
   
   // Seller information
   const [sellerName, setSellerName] = useState(currentUser?.username || '');
-  const [sellerEmail, setSellerEmail] = useState('');
+  const [sellerPhone, setSellerPhone] = useState('');
   const [sellerType, setSellerType] = useState<'Owner' | 'Broker'>(initialSellerType || 'Owner');
 
   useEffect(() => {
@@ -446,6 +446,11 @@ export const UploadPropertyModal: React.FC<UploadPropertyModalProps> = ({
       return;
     }
 
+    if (!sellerPhone.trim() || sellerPhone.trim().replace(/\D/g, '').length < 10) {
+      alert(isHindi ? 'कृपया वैध 10-अंकीय संपर्क फ़ोन नंबर दर्ज करें (अनिवार्य)।' : 'Please enter a valid 10-digit contact phone number (Compulsory).');
+      return;
+    }
+
     if (!description.trim()) {
       alert(isHindi ? 'कृपया प्रॉपर्टी का विस्तृत विवरण दर्ज करें।' : 'Please enter the property description.');
       return;
@@ -521,10 +526,10 @@ export const UploadPropertyModal: React.FC<UploadPropertyModalProps> = ({
       legalStatus: reraStatus.trim() || undefined,
       featured: false,
       sellerName: sellerName.trim() || undefined,
-      sellerEmail: sellerEmail.trim() || undefined,
+      sellerPhone: sellerPhone.trim(),
       sellerType,
       ownerId: currentUser?.id,
-      ownerContact: currentUser?.contact,
+      ownerContact: sellerPhone.trim() || currentUser?.contact,
       ownerUsername: currentUser?.username,
       isSold: false,
       isAvailableForRent: false,
@@ -1178,15 +1183,19 @@ export const UploadPropertyModal: React.FC<UploadPropertyModalProps> = ({
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
-                      <span>{isHindi ? 'ईमेल (वैकल्पिक)' : 'Email Address'}</span>
-                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-normal">(Optional)</span>
+                      <span className="flex items-center gap-1.5">
+                        <Phone className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                        <span>{isHindi ? 'संपर्क फ़ोन नंबर *' : 'Contact Phone Number *'}</span>
+                      </span>
+                      <span className="text-[10px] text-rose-600 dark:text-rose-400 font-bold uppercase tracking-wider">Compulsory</span>
                     </label>
                     <input
-                      type="email"
-                      value={sellerEmail}
-                      onChange={(e) => setSellerEmail(e.target.value)}
-                      placeholder="Optional (e.g. name@gmail.com)"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      type="tel"
+                      required
+                      value={sellerPhone}
+                      onChange={(e) => setSellerPhone(e.target.value)}
+                      placeholder="e.g. 9897123456"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
                     />
                   </div>
                 </div>
