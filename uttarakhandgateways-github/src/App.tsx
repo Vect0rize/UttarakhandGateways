@@ -53,6 +53,8 @@ import { EmiCalculatorModal } from './components/EmiCalculatorModal';
 import { ListChooserModal } from './components/ListChooserModal';
 import { LoginSuccessAnimation } from './components/LoginSuccessAnimation';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { HomeLoanBanner } from './components/HomeLoanBanner';
+import { HomeLoanPage } from './components/HomeLoanPage';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -68,7 +70,7 @@ const INITIAL_FILTERS: FilterState = {
   sortBy: 'price-low',
 };
 
-export type ActivePageView = 'home' | 'buy' | 'rent' | 'login' | 'register' | 'sell-gui' | 'rent-gui' | 'inbox' | 'dashboard';
+export type ActivePageView = 'home' | 'buy' | 'rent' | 'login' | 'register' | 'sell-gui' | 'rent-gui' | 'inbox' | 'dashboard' | 'home-loan';
 
 export default function App() {
   const { isHindi } = useLanguage();
@@ -105,6 +107,7 @@ export default function App() {
       if (p === 'rent-gui' || p === 'rent-list' || path === '/rent-gui' || path === '/rent-list') return 'rent-gui';
       if (p === 'inbox' || path === '/inbox') return 'inbox';
       if (p === 'dashboard' || path === '/dashboard' || path === '/lister-dashboard') return 'dashboard';
+      if (p === 'home-loan' || p === 'emi-calculator' || path === '/home-loan' || path === '/emi-calculator' || path === '/homeloan') return 'home-loan';
     } catch {}
     return 'home';
   };
@@ -282,22 +285,7 @@ export default function App() {
   }, [theme]);
 
   const toggleTheme = () => {
-    // Add silky smooth animation transition class
-    document.documentElement.classList.add('theme-transitioning');
-    
-    // Use modern browser View Transition API if supported for seamless morph
-    if (typeof (document as any).startViewTransition === 'function') {
-      (document as any).startViewTransition(() => {
-        setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
-      });
-    } else {
-      setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
-    }
-
-    // Clean up transition class after animation completes
-    window.setTimeout(() => {
-      document.documentElement.classList.remove('theme-transitioning');
-    }, 500);
+    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
   };
 
   // Synchronize browser tab title (home page is strictly "Uttarakhand Gateways")
@@ -1296,6 +1284,20 @@ export default function App() {
   const urlPropId = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('property') : null;
 
   // Standalone Web Pages (Inbox, Login, Buy, Rent, Sell GUI, Rent GUI)
+  
+  if (activePage === 'home-loan') {
+    return (
+      <ErrorBoundary fallbackTitle="Unable to load Home Loan Eligibility & EMI Calculator" onReset={() => navigateToPage('home')}>
+        <HomeLoanPage
+          onBackToMain={() => navigateToPage('home')}
+          onNavigatePage={(page) => navigateToPage(page as ActivePageView)}
+          isDark={isDark}
+          onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+        />
+      </ErrorBoundary>
+    );
+  }
+
   if (activePage === 'inbox') {
     return (
       <ErrorBoundary fallbackTitle="Unable to load Inbox" onReset={() => navigateToPage('home')}>
@@ -1540,7 +1542,6 @@ export default function App() {
           setIsEmiCalculatorOpen(true);
         }}
         onOpenDashboard={() => navigateToPage('dashboard')}
-        onOpenLegalModal={handleOpenLegalPolicy}
         unreadInboxCount={
           chatThreads.reduce((sum, t) => sum + (t.unreadCount || 0), 0)
         }
@@ -1877,6 +1878,25 @@ export default function App() {
           </div>
           <PropertyCalculator isModal={false} />
         </div>
+
+        {/* Banner beneath Land Calculator: Home Loan Graphics & Check Eligibility */}
+        <HomeLoanBanner
+          isDark={isDark}
+          onOpenEligibility={() => {
+            try {
+              window.open('?page=home-loan', '_blank');
+            } catch {
+              navigateToPage('home-loan');
+            }
+          }}
+          onOpenBankOffers={() => {
+            try {
+              window.open('?page=home-loan#banks', '_blank');
+            } catch {
+              navigateToPage('home-loan');
+            }
+          }}
+        />
 
         {/* About & Contact Section */}
         <AboutAndContact />

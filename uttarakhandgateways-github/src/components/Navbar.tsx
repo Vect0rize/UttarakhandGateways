@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Logo } from './Logo';
 import { 
   Bookmark, 
@@ -18,16 +18,7 @@ import {
   Crown,
   ArrowLeft,
   BarChart3,
-  IndianRupee,
-  ChevronDown,
-  Sparkles,
-  ShieldCheck,
-  Scale,
-  Compass,
-  Building,
-  Home,
-  CheckCircle2,
-  FileText
+  IndianRupee
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
@@ -47,7 +38,6 @@ interface NavbarProps {
   onOpenUnitConverter?: () => void;
   onOpenCalculator?: () => void;
   onOpenDashboard?: () => void;
-  onOpenLegalModal?: (policyId?: any) => void;
   onOpenSellModal?: () => void;
   onOpenRentalModal?: () => void;
   isRentActive?: boolean;
@@ -89,7 +79,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenCalculator,
   onOpenEmiCalculator,
   onOpenDashboard,
-  onOpenLegalModal,
   onOpenAdminAccounts,
   unreadInboxCount = 0,
   favoriteCount,
@@ -103,9 +92,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [desktopMenuOpen, setDesktopMenuOpen] = useState(false);
-  const [isThemeAnimating, setIsThemeAnimating] = useState(false);
-  const desktopMenuRef = useRef<HTMLDivElement>(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showSwitchAccountModal, setShowSwitchAccountModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -122,38 +108,8 @@ export const Navbar: React.FC<NavbarProps> = ({
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Close desktop mega-menu on click outside or escape key
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (desktopMenuRef.current && !desktopMenuRef.current.contains(e.target as Node)) {
-        setDesktopMenuOpen(false);
-      }
-    };
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setDesktopMenuOpen(false);
-        setMobileMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, []);
-
-  const handleThemeToggle = () => {
-    setIsThemeAnimating(true);
-    onToggleTheme();
-    window.setTimeout(() => {
-      setIsThemeAnimating(false);
-    }, 550);
-  };
-
   const scrollToSection = (id: string) => {
     setMobileMenuOpen(false);
-    setDesktopMenuOpen(false);
     const element = document.getElementById(id);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
@@ -206,533 +162,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             </a>
           </div>
 
-          {/* Desktop Navigation - Main Options at Nav Bar */}
-          <nav className="hidden lg:flex items-center gap-1 xl:gap-2 px-3 py-1 rounded-full bg-emerald-50/70 dark:bg-[#07241a]/70 border border-emerald-200/70 dark:border-emerald-900/70 shadow-xs whitespace-nowrap">
-            {/* Buy */}
-            <button
-              type="button"
-              onClick={() => {
-                if (isPropertyViewActive && onReturnToProperties) onReturnToProperties();
-                onBuyClick?.();
-                scrollToSection('properties-section');
-              }}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                !isRentActive && !isPropertyViewActive
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-slate-700 dark:text-emerald-200 hover:bg-emerald-100/70 dark:hover:bg-[#0c3829]'
-              }`}
-            >
-              {isHindi ? 'खरीदें' : 'Buy'}
-            </button>
-
-            {/* Rent */}
-            <button
-              type="button"
-              onClick={() => {
-                if (isPropertyViewActive && onReturnToProperties) onReturnToProperties();
-                onRentClick?.();
-                scrollToSection('properties-section');
-              }}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                isRentActive && !isPropertyViewActive
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-slate-700 dark:text-emerald-200 hover:bg-emerald-100/70 dark:hover:bg-[#0c3829]'
-              }`}
-            >
-              {isHindi ? 'किराया' : 'Rent'}
-            </button>
-
-            {/* Properties */}
-            <button
-              type="button"
-              onClick={() => {
-                if (isPropertyViewActive && onReturnToProperties) onReturnToProperties();
-                scrollToSection('properties-section');
-              }}
-              className="px-3 py-1.5 rounded-full text-xs font-bold text-slate-700 dark:text-emerald-200 hover:bg-emerald-100/70 dark:hover:bg-[#0c3829] transition-all cursor-pointer"
-            >
-              {isHindi ? 'संपत्तियां' : 'Properties'}
-            </button>
-
-            {/* Home Loan Calculator */}
-            <button
-              type="button"
-              onClick={() => {
-                if (onOpenEmiCalculator) onOpenEmiCalculator();
-                else scrollToSection('calculator-section');
-              }}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold text-slate-700 dark:text-emerald-200 hover:bg-emerald-100/70 dark:hover:bg-[#0c3829] transition-all cursor-pointer group"
-            >
-              <IndianRupee className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform" />
-              <span>{isHindi ? 'होम लोन' : 'Home Loan'}</span>
-            </button>
-          </nav>
-
           {/* Right Action Bar */}
           <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-
-            {/* LAPTOP / DESKTOP SIDE MENU TRIGGER - Positioned on side, not middle */}
-            <div className="hidden lg:block relative" ref={desktopMenuRef}>
-              <button 
-                type="button"
-                onClick={() => setDesktopMenuOpen(!desktopMenuOpen)}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border transition-all cursor-pointer font-extrabold text-xs select-none shadow-xs ${
-                  desktopMenuOpen 
-                    ? 'bg-emerald-600 border-emerald-500 text-white shadow-md ring-2 ring-emerald-500/30 scale-[1.02]' 
-                    : 'bg-emerald-50/90 dark:bg-[#07241a] hover:bg-emerald-100 dark:hover:bg-[#0c3829] border-emerald-300/80 dark:border-emerald-800 text-slate-800 dark:text-emerald-200'
-                }`}
-                title={isHindi ? 'अन्य सभी सेवाएं व टूल्स' : 'More Platform Services & Tools'}
-              >
-                <Menu className="w-4 h-4 text-emerald-600 dark:text-emerald-300" />
-                <span>{isHindi ? 'मेनू' : 'Menu'}</span>
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${desktopMenuOpen ? 'rotate-180' : ''}`} />
-              </button>
-
-              {/* LAPTOP ALL-OPTIONS MEGA-MENU DROPDOWN */}
-              {desktopMenuOpen && (
-                <div 
-                  className="absolute top-full right-0 mt-3 w-[min(840px,calc(100vw-32px))] bg-white/98 dark:bg-[#061c14]/98 backdrop-blur-2xl border border-emerald-200/90 dark:border-emerald-800/90 rounded-3xl shadow-2xl shadow-emerald-950/25 p-5 sm:p-6 animate-in fade-in slide-in-from-top-3 duration-200 z-50 text-slate-800 dark:text-slate-100 max-h-[82vh] overflow-y-auto"
-                >
-                  {/* Header with Title and Close Button */}
-                  <div className="flex items-center justify-between pb-3.5 border-b border-emerald-100 dark:border-emerald-900/60">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
-                        <Compass className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                          <span>{isHindi ? 'उत्तराखंड गेटवेज सम्पूर्ण मेनू' : 'Uttarakhand Gateways Hub'}</span>
-                          <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300">
-                            All Options
-                          </span>
-                        </h3>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                          {isHindi ? 'प्रॉपर्टीज, वित्तीय कैलकुलेटर, पर्वतीय कानूनी गाइड व त्वरित सेटिंग्स' : 'Browse properties, loan calculators, mountain land legal policies & tools'}
-                        </p>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => setDesktopMenuOpen(false)}
-                      className="p-1.5 rounded-full bg-slate-100 dark:bg-emerald-950/60 hover:bg-slate-200 text-slate-600 dark:text-emerald-300 transition-colors cursor-pointer"
-                      aria-label="Close Menu"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  {/* Mega Menu Grid: 4 Clean Columns */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 pt-4">
-                    
-                    {/* COLUMN 1: Properties & Market */}
-                    <div className="space-y-2.5">
-                      <span className="text-[11px] font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
-                        <Home className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>{isHindi ? 'प्रॉपर्टीज व बाजार' : 'Properties & Search'}</span>
-                      </span>
-
-                      <div className="space-y-1">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDesktopMenuOpen(false);
-                            if (isPropertyViewActive && onReturnToProperties) onReturnToProperties();
-                            else scrollToSection('hero');
-                          }}
-                          className="w-full text-left p-2 rounded-xl hover:bg-emerald-50 dark:hover:bg-[#0a2e20] transition-colors flex items-start gap-2.5 group cursor-pointer"
-                        >
-                          <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
-                            <Home className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-300" />
-                          </div>
-                          <div>
-                            <span className="text-xs font-bold text-slate-900 dark:text-white block group-hover:text-emerald-600">
-                              {isHindi ? 'होम (Home)' : 'Home'}
-                            </span>
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
-                              {isHindi ? 'मुख्य पृष्ठ पर जाएं' : 'Main landing & hero'}
-                            </span>
-                          </div>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDesktopMenuOpen(false);
-                            onBuyClick?.();
-                          }}
-                          className="w-full text-left p-2 rounded-xl hover:bg-emerald-50 dark:hover:bg-[#0a2e20] transition-colors flex items-start gap-2.5 group cursor-pointer"
-                        >
-                          <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
-                            <Building className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-300" />
-                          </div>
-                          <div>
-                            <span className="text-xs font-bold text-slate-900 dark:text-white block group-hover:text-emerald-600">
-                              {isHindi ? 'खरीदें (Buy)' : 'Buy Properties'}
-                            </span>
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
-                              {isHindi ? 'विला, कॉटेज व MDDA प्लॉट्स' : 'Villas, cottages & plots'}
-                            </span>
-                          </div>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDesktopMenuOpen(false);
-                            onRentClick?.();
-                          }}
-                          className="w-full text-left p-2 rounded-xl hover:bg-teal-50 dark:hover:bg-[#0a2e20] transition-colors flex items-start gap-2.5 group cursor-pointer"
-                        >
-                          <div className="w-7 h-7 rounded-lg bg-teal-100 dark:bg-teal-950 flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
-                            <Home className="w-3.5 h-3.5 text-teal-700 dark:text-teal-300" />
-                          </div>
-                          <div>
-                            <span className="text-xs font-bold text-slate-900 dark:text-white block group-hover:text-teal-600">
-                              {isHindi ? 'किराया (Rent)' : 'Rent / Lease'}
-                            </span>
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
-                              {isHindi ? 'होमस्टे व मासिक रेंटल' : 'Homestays & long leases'}
-                            </span>
-                          </div>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDesktopMenuOpen(false);
-                            scrollToSection('properties-section');
-                          }}
-                          className="w-full text-left p-2 rounded-xl hover:bg-emerald-50 dark:hover:bg-[#0a2e20] transition-colors flex items-start gap-2.5 group cursor-pointer"
-                        >
-                          <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-[#07251b] flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
-                            <Compass className="w-3.5 h-3.5 text-emerald-600" />
-                          </div>
-                          <div>
-                            <span className="text-xs font-bold text-slate-900 dark:text-white block group-hover:text-emerald-600">
-                              {isHindi ? 'सभी संपत्तियां' : 'All Listings'}
-                            </span>
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
-                              {allProperties.length} {isHindi ? 'सत्यापित लिस्टिंग्स' : 'verified listings'}
-                            </span>
-                          </div>
-                        </button>
-
-                        {onToggleFavoritesOnly && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setDesktopMenuOpen(false);
-                              onToggleFavoritesOnly();
-                            }}
-                            className="w-full text-left p-2 rounded-xl hover:bg-emerald-50 dark:hover:bg-[#0a2e20] transition-colors flex items-start gap-2.5 group cursor-pointer"
-                          >
-                            <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/60 flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
-                              <Bookmark className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                            </div>
-                            <div>
-                              <span className="text-xs font-bold text-slate-900 dark:text-white block group-hover:text-emerald-600 flex items-center gap-1.5">
-                                <span>{isHindi ? 'सहेजी गई संपत्तियां' : 'Saved Properties'}</span>
-                                {favoriteCount > 0 && (
-                                  <span className="text-[9px] font-black px-1.5 py-0.2 rounded-full bg-emerald-600 text-white">
-                                    {favoriteCount}
-                                  </span>
-                                )}
-                              </span>
-                              <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
-                                {isHindi ? 'आपकी शॉर्टलिस्ट' : 'Your saved shortlist'}
-                              </span>
-                            </div>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* COLUMN 2: Calculators & Finance */}
-                    <div className="space-y-2.5">
-                      <span className="text-[11px] font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
-                        <Calculator className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>{isHindi ? 'फाइनेंस व टूल्स' : 'Finance & Tools'}</span>
-                      </span>
-
-                      <div className="space-y-1">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDesktopMenuOpen(false);
-                            if (onOpenEmiCalculator) onOpenEmiCalculator();
-                            else scrollToSection('calculator-section');
-                          }}
-                          className="w-full text-left p-2 rounded-xl hover:bg-emerald-50 dark:hover:bg-[#0a2e20] transition-colors flex items-start gap-2.5 group cursor-pointer"
-                        >
-                          <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
-                            <IndianRupee className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-300" />
-                          </div>
-                          <div>
-                            <span className="text-xs font-bold text-slate-900 dark:text-white block group-hover:text-emerald-600 flex items-center gap-1.5">
-                              <span>{isHindi ? 'होम लोन ईएमआई' : 'Home Loan Calculator'}</span>
-                              <span className="text-[9px] font-black px-1 py-0.2 bg-emerald-600 text-white rounded">NEW</span>
-                            </span>
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
-                              SBI, BoB, HDFC Live Rates
-                            </span>
-                          </div>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDesktopMenuOpen(false);
-                            if (onOpenUnitConverter) onOpenUnitConverter();
-                            else scrollToSection('calculator-section');
-                          }}
-                          className="w-full text-left p-2 rounded-xl hover:bg-emerald-50 dark:hover:bg-[#0a2e20] transition-colors flex items-start gap-2.5 group cursor-pointer"
-                        >
-                          <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
-                            <Scale className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-300" />
-                          </div>
-                          <div>
-                            <span className="text-xs font-bold text-slate-900 dark:text-white block group-hover:text-emerald-600">
-                              {isHindi ? 'नाली-बीघा कन्वर्टर' : 'UKG Land Converter'}
-                            </span>
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
-                              Nali, Bigha, Gaj, Mutthi, Guntha
-                            </span>
-                          </div>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDesktopMenuOpen(false);
-                            onOpenDashboard?.();
-                          }}
-                          className="w-full text-left p-2 rounded-xl hover:bg-emerald-50 dark:hover:bg-[#0a2e20] transition-colors flex items-start gap-2.5 group cursor-pointer"
-                        >
-                          <div className="w-7 h-7 rounded-lg bg-teal-100 dark:bg-teal-950 flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
-                            <BarChart3 className="w-3.5 h-3.5 text-teal-700 dark:text-teal-300" />
-                          </div>
-                          <div>
-                            <span className="text-xs font-bold text-slate-900 dark:text-white block group-hover:text-emerald-600">
-                              {isHindi ? 'लिस्टर्स ग्रोथ डैशबोर्ड' : 'Lister Analytics'}
-                            </span>
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
-                              {isHindi ? 'व्यूज, शेयर व लीड ट्रैकिंग' : 'Track views, inquiries & shares'}
-                            </span>
-                          </div>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* COLUMN 3: Mountain Legal & Guidance */}
-                    <div className="space-y-2.5">
-                      <span className="text-[11px] font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
-                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>{isHindi ? 'पर्वतीय कानून व योजनाएं' : 'Mountain Legal Guide'}</span>
-                      </span>
-
-                      <div className="space-y-1">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDesktopMenuOpen(false);
-                            if (onOpenLegalModal) onOpenLegalModal('landLaws');
-                            else scrollToSection('footer-section');
-                          }}
-                          className="w-full text-left p-2 rounded-xl hover:bg-emerald-50 dark:hover:bg-[#0a2e20] transition-colors flex items-start gap-2.5 group cursor-pointer"
-                        >
-                          <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
-                            <FileText className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-300" />
-                          </div>
-                          <div>
-                            <span className="text-xs font-bold text-slate-900 dark:text-white block group-hover:text-emerald-600">
-                              {isHindi ? 'उत्तराखंड भू-कानून गाइड' : '250 Sqm Land Rules'}
-                            </span>
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
-                              Section 143/154 & Non-Residents
-                            </span>
-                          </div>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDesktopMenuOpen(false);
-                            if (onOpenLegalModal) onOpenLegalModal('homestay');
-                            else if (onOpenEmiCalculator) onOpenEmiCalculator();
-                          }}
-                          className="w-full text-left p-2 rounded-xl hover:bg-amber-50 dark:hover:bg-[#0a2e20] transition-colors flex items-start gap-2.5 group cursor-pointer"
-                        >
-                          <div className="w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-950/60 flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
-                            <span className="text-xs">🏔️</span>
-                          </div>
-                          <div>
-                            <span className="text-xs font-bold text-slate-900 dark:text-white block group-hover:text-amber-700 dark:group-hover:text-amber-300">
-                              {isHindi ? 'होमस्टे 33% सब्सिडी 2018' : 'Homestay Subsidy 2018'}
-                            </span>
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
-                              Up to ₹15L capital grant
-                            </span>
-                          </div>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDesktopMenuOpen(false);
-                            if (onOpenLegalModal) onOpenLegalModal('terms');
-                            else scrollToSection('footer-section');
-                          }}
-                          className="w-full text-left p-2 rounded-xl hover:bg-emerald-50 dark:hover:bg-[#0a2e20] transition-colors flex items-start gap-2.5 group cursor-pointer"
-                        >
-                          <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-[#07251b] flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                          </div>
-                          <div>
-                            <span className="text-xs font-bold text-slate-900 dark:text-white block group-hover:text-emerald-600">
-                              {isHindi ? '100% सत्यापन नीति' : 'Title Verification'}
-                            </span>
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
-                              MDDA, Khatauni & Freehold
-                            </span>
-                          </div>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* COLUMN 4: Actions & Quick Settings */}
-                    <div className="space-y-2.5">
-                      <span className="text-[11px] font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>{isHindi ? 'सुविधाएं व सेटिंग्स' : 'Actions & Settings'}</span>
-                      </span>
-
-                      <div className="space-y-1">
-                        {/* Post Listing Free CTA */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDesktopMenuOpen(false);
-                            if (!currentUser) {
-                              openAuthModal('login', isHindi ? 'प्रॉपर्टी लिस्ट करने हेतु लॉगिन आवश्यक है।' : 'Sign in to list property.', () => {
-                                if (onOpenListChooser) onOpenListChooser();
-                                else setShowListChooserModal(true);
-                              });
-                            } else {
-                              if (onOpenListChooser) onOpenListChooser();
-                              else setShowListChooserModal(true);
-                            }
-                          }}
-                          className="w-full text-left p-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xs flex items-center justify-between group cursor-pointer hover:from-emerald-700 hover:to-teal-700 transition-all"
-                        >
-                          <div>
-                            <span className="text-xs font-extrabold block">
-                              + {isHindi ? 'निशुल्क लिस्ट करें' : 'Post Property'}
-                            </span>
-                            <span className="text-[10px] text-emerald-100 block">
-                              {isHindi ? 'शून्य ब्रोकरेज' : '100% Free Listing'}
-                            </span>
-                          </div>
-                          <span className="bg-amber-400 text-slate-950 text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase">
-                            FREE
-                          </span>
-                        </button>
-
-                        {/* Inbox Direct Link */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDesktopMenuOpen(false);
-                            requireAuth(() => {
-                              window.open('?page=inbox', '_blank');
-                            }, isHindi ? 'संदेश देखने हेतु लॉगिन करें।' : 'Please sign in to view Inbox.');
-                          }}
-                          className="w-full text-left p-2 rounded-xl hover:bg-emerald-50 dark:hover:bg-[#0a2e20] transition-colors flex items-center justify-between group cursor-pointer"
-                        >
-                          <div className="flex items-center gap-2">
-                            <MessageSquare className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                            <span className="text-xs font-bold text-slate-900 dark:text-white">
-                              {isHindi ? 'इनबॉक्स व चैट' : 'Direct Messages'}
-                            </span>
-                          </div>
-                          {unreadInboxCount > 0 && (
-                            <span className="bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.2 rounded-full">
-                              {unreadInboxCount}
-                            </span>
-                          )}
-                        </button>
-
-                        {/* Theme Quick Switcher inside Menu */}
-                        <div className="pt-2 border-t border-slate-100 dark:border-emerald-900/60 flex items-center justify-between px-1">
-                          <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                            {isHindi ? 'थीम मोड' : 'Theme Mode'}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={handleThemeToggle}
-                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-emerald-950 text-slate-800 dark:text-emerald-200 text-xs font-bold cursor-pointer hover:bg-slate-200"
-                          >
-                            {isDark ? (
-                              <>
-                                <Sun className={`w-3.5 h-3.5 text-amber-400 ${isThemeAnimating ? 'animate-theme-spin' : ''}`} />
-                                <span>Light</span>
-                              </>
-                            ) : (
-                              <>
-                                <Moon className={`w-3.5 h-3.5 text-emerald-700 ${isThemeAnimating ? 'animate-theme-spin' : ''}`} />
-                                <span>Dark</span>
-                              </>
-                            )}
-                          </button>
-                        </div>
-
-                        {/* Language Switcher inside Menu */}
-                        <div className="flex items-center justify-between px-1 pt-1">
-                          <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                            {isHindi ? 'भाषा' : 'Language'}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={toggleLanguage}
-                            className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200 text-xs font-bold cursor-pointer hover:bg-emerald-200"
-                          >
-                            <span>{isHindi ? 'English' : 'हिन्दी'}</span>
-                          </button>
-                        </div>
-
-                        {/* About & Contact Full Links */}
-                        <div className="pt-2 border-t border-slate-100 dark:border-emerald-900/60 space-y-1">
-                          <button 
-                            type="button"
-                            onClick={() => {
-                              setDesktopMenuOpen(false);
-                              scrollToSection('about-section');
-                            }} 
-                            className="w-full text-left p-1.5 rounded-xl hover:bg-emerald-50 dark:hover:bg-[#0a2e20] transition-colors flex items-center gap-2 group cursor-pointer text-xs font-bold text-slate-800 dark:text-emerald-200"
-                          >
-                            <Users className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                            <span>{isHindi ? 'हमारे बारे में' : 'About Us'}</span>
-                          </button>
-
-                          <button 
-                            type="button"
-                            onClick={() => {
-                              setDesktopMenuOpen(false);
-                              scrollToSection('contact-section');
-                            }} 
-                            className="w-full text-left p-1.5 rounded-xl hover:bg-emerald-50 dark:hover:bg-[#0a2e20] transition-colors flex items-center gap-2 group cursor-pointer text-xs font-bold text-slate-800 dark:text-emerald-200"
-                          >
-                            <Mail className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                            <span>{isHindi ? 'संपर्क करें' : 'Contact Us'}</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                  </div>
-                </div>
-              )}
-            </div>
             
             {/* DESKTOP UNIFIED UTILITY CLUSTER: Inbox, Saved, Theme, Language */}
             <div className="hidden lg:flex items-center gap-0.5 p-1 rounded-full bg-white/70 dark:bg-[#072018]/80 border border-emerald-200/80 dark:border-emerald-800/80 shadow-xs">
@@ -778,19 +209,19 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               <span className="w-px h-3.5 bg-emerald-200/80 dark:bg-emerald-800/80 mx-0.5" />
 
-              {/* Light / Dark Mode Toggle with Spring Animation */}
+              {/* Light / Dark Mode Toggle */}
               <button
                 id="theme-toggle-btn"
                 type="button"
-                onClick={handleThemeToggle}
+                onClick={onToggleTheme}
                 className="p-1.5 xl:p-2 rounded-full hover:bg-emerald-100/70 dark:hover:bg-emerald-900/60 text-slate-700 dark:text-emerald-200 transition-colors cursor-pointer focus:outline-none"
                 title={isDark ? (isHindi ? "लाइट मोड" : "Switch to Light mode") : (isHindi ? "डार्क मोड" : "Switch to Dark mode")}
                 aria-label={isDark ? "Switch to Light mode" : "Switch to Dark mode"}
               >
                 {isDark ? (
-                  <Sun className={`w-4 h-4 text-amber-400 ${isThemeAnimating ? 'animate-theme-spin' : 'hover:rotate-45 transition-transform'}`} />
+                  <Sun className="w-4 h-4 text-amber-400 hover:rotate-45 transition-transform" />
                 ) : (
-                  <Moon className={`w-4 h-4 text-emerald-700 dark:text-emerald-300 ${isThemeAnimating ? 'animate-theme-spin' : 'hover:-rotate-12 transition-transform'}`} />
+                  <Moon className="w-4 h-4 text-emerald-700 hover:-rotate-12 transition-transform" />
                 )}
               </button>
 
@@ -939,20 +370,25 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
-            {/* Menu Button - ONLY visible on mobile and tablet (< 1024px)! HIDDEN on Laptop/Desktop for clean look */}
+            {/* Unified Menu Button across all screens */}
             <button
-              id="mobile-menu-btn"
+              id="main-nav-menu-btn"
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 rounded-full bg-emerald-50 dark:bg-[#0a271d] text-slate-800 dark:text-emerald-100 hover:bg-emerald-100 dark:hover:bg-[#0f3427] border border-emerald-300/80 dark:border-emerald-800 transition-all shadow-xs active:scale-95 cursor-pointer ml-auto"
+              className={`flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full border transition-all shadow-xs active:scale-95 cursor-pointer font-bold text-xs select-none ${
+                mobileMenuOpen
+                  ? 'bg-emerald-600 text-white border-emerald-500 shadow-emerald-700/20'
+                  : 'bg-emerald-50/90 dark:bg-[#0a271d] hover:bg-emerald-100 dark:hover:bg-[#0f3427] text-slate-800 dark:text-emerald-100 border-emerald-300/80 dark:border-emerald-800'
+              }`}
               aria-label="Toggle Navigation Menu"
-              title="Menu"
+              title={isHindi ? "मेनू" : "Menu"}
             >
               {mobileMenuOpen ? (
-                <X className="w-5 h-5 text-emerald-700 dark:text-emerald-400" />
+                <X className="w-4 h-4 text-current transition-transform duration-200" />
               ) : (
-                <Menu className="w-5 h-5 text-emerald-700 dark:text-emerald-400" />
+                <Menu className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
               )}
+              <span>{isHindi ? 'मेनू' : 'Menu'}</span>
             </button>
 
           </div>
@@ -961,7 +397,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
-        <div className="absolute right-3 sm:right-6 lg:right-8 top-full mt-2 w-[min(420px,calc(100vw-24px))] px-3.5 pt-3 pb-6 bg-white/98 dark:bg-[#071c14]/98 backdrop-blur-2xl border-b border-emerald-200 dark:border-emerald-950 shadow-2xl animate-in slide-in-from-top-2 duration-200 text-slate-800 dark:text-slate-100 max-h-[85vh] overflow-y-auto">
+        <div className="absolute right-3 sm:right-6 lg:right-8 top-full mt-2 w-[min(420px,calc(100vw-24px))] p-4 bg-white/98 dark:bg-[#071c14]/98 backdrop-blur-2xl rounded-3xl border border-emerald-200 dark:border-emerald-800 shadow-2xl animate-in slide-in-from-top-2 duration-200 text-slate-800 dark:text-slate-100 max-h-[85vh] overflow-y-auto">
           <div className="flex flex-col space-y-2.5">
             
             {/* Mobile User Profile or Login/Register Card */}
@@ -1216,14 +652,13 @@ export const Navbar: React.FC<NavbarProps> = ({
               type="button"
               onClick={() => {
                 setMobileMenuOpen(false);
-                if (onOpenEmiCalculator) onOpenEmiCalculator();
-                else scrollToSection('calculator-section');
+                try { window.open('?page=home-loan', '_blank'); } catch { if (onOpenEmiCalculator) onOpenEmiCalculator(); else scrollToSection('calculator-section'); }
               }}
               className="text-left py-2.5 px-3 bg-white dark:bg-[#0a271d] hover:bg-emerald-50 dark:hover:bg-[#0f3427] rounded-xl text-sm font-bold flex items-center justify-between text-slate-800 dark:text-emerald-100 border border-emerald-200/80 dark:border-emerald-800 cursor-pointer shadow-xs"
             >
               <span className="flex items-center gap-2">
                 <IndianRupee className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                <span>{isHindi ? 'गृह ऋण व ईएमआई' : 'Home Loan & EMI Calculator'}</span>
+                <span>{isHindi ? 'यूकेजी लोन कैलकुलेटर' : 'UKG Loan Calculator'}</span>
               </span>
               <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 rounded-md font-bold border border-emerald-200 dark:border-emerald-800">
                 SBI • HDFC
@@ -1259,17 +694,17 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
               <button
                 type="button"
-                onClick={handleThemeToggle}
+                onClick={onToggleTheme}
                 className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-800 text-xs font-bold text-emerald-900 dark:text-emerald-200 cursor-pointer hover:bg-emerald-200"
               >
                 {isDark ? (
                   <>
-                    <Sun className={`w-3.5 h-3.5 text-amber-400 ${isThemeAnimating ? 'animate-theme-spin' : ''}`} />
+                    <Sun className="w-3.5 h-3.5 text-amber-400" />
                     <span>{isHindi ? 'लाइट मोड' : 'Light Mode'}</span>
                   </>
                 ) : (
                   <>
-                    <Moon className={`w-3.5 h-3.5 text-emerald-700 dark:text-emerald-300 ${isThemeAnimating ? 'animate-theme-spin' : ''}`} />
+                    <Moon className="w-3.5 h-3.5 text-emerald-700" />
                     <span>{isHindi ? 'डार्क मोड' : 'Dark Mode'}</span>
                   </>
                 )}

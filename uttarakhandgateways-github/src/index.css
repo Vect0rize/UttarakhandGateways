@@ -12,7 +12,7 @@
     padding: 0;
     background-color: #f2f7f4;
     color: #162a21;
-    transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 
   html.dark, body.dark, html.dark body {
@@ -20,66 +20,6 @@
     color: #f1f8f5 !important;
     color-scheme: dark;
   }
-}
-
-/* Light / Dark Mode Smooth Global Transition */
-html.theme-transitioning,
-html.theme-transitioning *,
-html.theme-transitioning *::before,
-html.theme-transitioning *::after {
-  transition: background-color 0.45s cubic-bezier(0.4, 0, 0.2, 1),
-              border-color 0.45s cubic-bezier(0.4, 0, 0.2, 1),
-              color 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-              fill 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-              stroke 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-              box-shadow 0.45s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  transition-delay: 0s !important;
-}
-
-/* Browser View Transition for Dark/Light Mode Sweep */
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation-duration: 0.45s;
-  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Theme Toggle Button Spin Animation */
-@keyframes themeIconSpin {
-  0% {
-    transform: rotate(0deg) scale(0.65);
-    opacity: 0.2;
-  }
-  50% {
-    transform: rotate(180deg) scale(1.25);
-  }
-  100% {
-    transform: rotate(360deg) scale(1);
-    opacity: 1;
-  }
-}
-
-.animate-theme-spin {
-  animation: themeIconSpin 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-/* Infinite Marquee for Bank Logos & Rates */
-@keyframes marqueeScroll {
-  0% {
-    transform: translateX(0%);
-  }
-  100% {
-    transform: translateX(-50%);
-  }
-}
-
-.animate-bank-marquee {
-  display: flex;
-  width: max-content;
-  animation: marqueeScroll 28s linear infinite;
-}
-
-.animate-bank-marquee:hover {
-  animation-play-state: paused;
 }
 
 .font-serif-luxury {
@@ -246,5 +186,98 @@ html.theme-transitioning *::after {
 
 .animate-card-ripple {
   animation: cardRipple 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+
+
+/* Bank Marquee Animation for Bottom Banner */
+@keyframes bankMarquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-bank-marquee {
+  display: flex;
+  width: max-content;
+  animation: bankMarquee 26s linear infinite;
+  will-change: transform;
+}
+
+.animate-bank-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* Custom Premium Range Slider for Fintech Calculators */
+input[type=range].fintech-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 7px;
+  border-radius: 9999px;
+  outline: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+input[type=range].fintech-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 4px solid #d8232a;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.15s ease;
+}
+
+input[type=range].fintech-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 3px 10px rgba(216, 35, 42, 0.4);
+}
+
+input[type=range].fintech-slider::-webkit-slider-thumb:active {
+  transform: scale(1.22);
+  box-shadow: 0 0 0 6px rgba(216, 35, 42, 0.25);
+}
+
+input[type=range].fintech-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 4px solid #d8232a;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.15s ease;
+}
+
+.dark input[type=range].fintech-slider::-webkit-slider-thumb {
+  background: #ffffff;
+  border: 4px solid #10b981;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.dark input[type=range].fintech-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 3px 12px rgba(16, 185, 129, 0.55);
+}
+
+.dark input[type=range].fintech-slider::-webkit-slider-thumb:active {
+  transform: scale(1.22);
+  box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.3);
+}
+
+.dark input[type=range].fintech-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 4px solid #10b981;
 }
 
