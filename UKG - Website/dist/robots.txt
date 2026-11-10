@@ -1,0 +1,46 @@
+# Robots.txt for Uttarakhand Gateways (https://uttarakhandgateways.com)
+# Real Estate Marketplace for Uttarakhand, India
+
+User-agent: *
+Allow: /
+Allow: /buy
+Allow: /rent
+Allow: /home-loan
+Allow: /property/
+Allow: /about
+Allow: /contact
+Allow: /terms
+Allow: /privacy
+Allow: /dist/assets/
+Allow: /assets/
+Allow: /bank-logos/
+Allow: /icons/
+Allow: /logo.png
+Allow: /logo_transparent.png
+Allow: /favicon.ico
+Allow: /sitemap.xml
+
+# Disallow private user dashboards, authentication, sessions, and inquiries
+Disallow: /inbox
+Disallow: /dashboard
+Disallow: /lister-dashboard
+Disallow: /admin
+Disallow: /api/auth/
+Disallow: /api/sessions/
+Disallow: /api/inquiries/
+Disallow: /api/chat/
+Disallow: /api/admin/
+Disallow: /login
+Disallow: /register
+Disallow: /reset-password
+Disallow: /sell-gui
+Disallow: /rent-gui
+Disallow: /?page=inbox
+Disallow: /?page=dashboard
+Disallow: /?page=login
+Disallow: /?page=register
+Disallow: /?page=sell-gui
+Disallow: /?page=rent-gui
+
+# Sitemaps
+Sitemap: https://uttarakhandgateways.com/sitemap.xml
