@@ -1044,6 +1044,354 @@ var DatabaseService = class {
 };
 var db = new DatabaseService();
 
+// src/data/citySeoData.ts
+var CITY_MARKET_DATA = {
+  Dehradun: {
+    city: "Dehradun",
+    hindiName: "\u0926\u0947\u0939\u0930\u093E\u0926\u0942\u0928",
+    metaTitle: "Properties in Dehradun | Verified Flats, Plots & Villas for Sale & Rent",
+    metaDescription: "Explore verified properties in Dehradun directly with 0% brokerage. Discover residential plots, luxury flats, and hillside villas across Rajpur Road, Sahastradhara, and Mussoorie Bypass.",
+    h1: "Properties in Dehradun | 0% Brokerage Mountain Real Estate",
+    tagline: "Uttarakhand\u2019s vibrant capital nestled in the Doon Valley, offering premier education, healthcare, and urban connectivity.",
+    elevation: "640 m (2,100 ft)",
+    priceRange: "\u20B928 Lac - \u20B94.8 Cr",
+    landPriceRange: "\u20B930,000 - \u20B91,20,000 per Gaj",
+    avgFlatRate: "\u20B94,500 - \u20B99,500 per sq.ft",
+    popularLocalities: ["Rajpur Road", "Sahastradhara Road", "Mussoorie Bypass", "GMS Road", "Clement Town", "Chakrata Road", "Vasant Vihar"],
+    connectivityHighlights: ["Delhi-Dehradun Expressway (2.5 hr commute to Delhi)", "Jolly Grant Airport (DED) with daily direct metro flights", "Dehradun Railway Station linking Northern Railway networks"],
+    legalNotes: "Within Dehradun Municipal Corporation & MDDA limits, Indian citizens face no upper ceiling for purchasing apartments, residential houses, or converted freehold plots.",
+    description: "Dehradun is the premier real estate capital of Uttarakhand, offering a perfect blend of lush green Himalayan foothills, renowned residential boarding schools, hospitals, and rapid infrastructure expansion. Whether you are looking for a luxury flat on Rajpur Road, a scenic hillside villa on Mussoorie Bypass, or a residential plot on Sahastradhara Road, Uttarakhand Gateways connects you directly with verified owners with 0% brokerage.",
+    faqs: [
+      {
+        q: "Can non-residents of Uttarakhand buy property in Dehradun?",
+        a: "Yes. Within the Dehradun Municipal Corporation (Nagar Nigam) and Mussoorie Dehradun Development Authority (MDDA) approved areas, there is no restriction or ceiling on buying apartments, flats, or residential properties."
+      },
+      {
+        q: "What are the best localities to invest in Dehradun real estate?",
+        a: "Rajpur Road and Sahastradhara Road command highest demand for premium hillside apartments. GMS Road, Chakrata Road, and Shimla Bypass offer affordable residential plots and family homes."
+      },
+      {
+        q: "Does Uttarakhand Gateways charge any brokerage on Dehradun properties?",
+        a: "No. Uttarakhand Gateways operates on a strict 0% brokerage model. Buyers connect directly with verified property owners and builders without agent commissions."
+      }
+    ]
+  },
+  Rishikesh: {
+    city: "Rishikesh",
+    hindiName: "\u090B\u0937\u093F\u0915\u0947\u0936",
+    metaTitle: "Properties in Rishikesh | Ganga View Flats, Cottages & Plots for Sale",
+    metaDescription: "Find verified properties in Rishikesh with 0% brokerage. Ganga-view apartments, yoga retreat plots, and cottages across Tapovan, Dhalwala, and Shyampur.",
+    h1: "Properties in Rishikesh | Ganga Valley Living with 0% Brokerage",
+    tagline: "The World Capital of Yoga, offering spiritual tranquility along the holy Ganga River and scenic Shivalik mountain foothills.",
+    elevation: "372 m (1,220 ft)",
+    priceRange: "\u20B922 Lac - \u20B93.5 Cr",
+    landPriceRange: "\u20B925,000 - \u20B985,000 per Gaj",
+    avgFlatRate: "\u20B94,200 - \u20B98,500 per sq.ft",
+    popularLocalities: ["Tapovan", "Dhalwala", "Shyampur", "Gumaniwala", "Natraj Chowk", "Bairaj Road", "Muni Ki Reti"],
+    connectivityHighlights: ["Rishikesh-Karnaprayag Railway Mega-Project", "Jolly Grant Airport just 18 km away", "Direct 4-lane Highway to Haridwar & Dehradun"],
+    legalNotes: "Properties located in Rishikesh Municipal Corporation and approved urban layouts carry clear freehold titles. Commercial homestays and yoga retreats must conform to local tourism guidelines.",
+    description: "Rishikesh attracts real estate buyers from across India and worldwide seeking spiritual retreats, wellness centers, and serene retirement living on the banks of the sacred Ganga. Explore verified studios, 2BHK/3BHK Ganga-view flats in Tapovan, and residential plots in Shyampur with zero broker interference.",
+    faqs: [
+      {
+        q: "Is it profitable to buy an apartment in Rishikesh for rental income?",
+        a: "Yes. Rishikesh experiences high tourist and wellness retreat demand year-round. Studio and 1/2 BHK apartments in Tapovan and Dhalwala offer strong yields through verified long-term rentals and registered homestays."
+      },
+      {
+        q: "Are plots available in Rishikesh with clear Section 143 conversion?",
+        a: "Yes, all residential land parcels listed on Uttarakhand Gateways in Shyampur and Gumaniwala specify their Section 143 non-agricultural conversion and registry title status."
+      }
+    ]
+  },
+  Haridwar: {
+    city: "Haridwar",
+    hindiName: "\u0939\u0930\u093F\u0926\u094D\u0935\u093E\u0930",
+    metaTitle: "Properties in Haridwar | Affordable Residential Plots & Flats for Sale",
+    metaDescription: "Discover verified residential properties in Haridwar with 0% brokerage. Plots, gated township flats, and independent houses in Shivalik Nagar, SIDCUL, and Jwalapur.",
+    h1: "Properties in Haridwar | Peaceful Living & Thriving Investment",
+    tagline: "An ancient spiritual sanctuary on the banks of the Ganga and a rapidly growing industrial-residential corridor.",
+    elevation: "314 m (1,030 ft)",
+    priceRange: "\u20B918 Lac - \u20B92.2 Cr",
+    landPriceRange: "\u20B918,000 - \u20B960,000 per Gaj",
+    avgFlatRate: "\u20B93,200 - \u20B96,000 per sq.ft",
+    popularLocalities: ["Shivalik Nagar", "SIDCUL Integrated Township", "Jwalapur", "Kankhal", "Roorkee-Haridwar Highway", "Bahadrabad"],
+    connectivityHighlights: ["Direct National Highway 58 & 334 to Delhi NCR", "Haridwar Junction with express train connectivity nationwide", "Proximity to SIDCUL industrial belt"],
+    legalNotes: "Haridwar properties fall within Haridwar-Roorkee Development Authority (HRDA) jurisdiction. Freehold plots in approved townships ensure clean bank loan approvals.",
+    description: "Haridwar offers some of the most affordable and high-growth real estate opportunities in Uttarakhand. It combines spiritual heritage in Kankhal with modern residential townships near SIDCUL and Shivalik Nagar. Discover verified flats, plots, and duplexes directly from owners with 0% commission.",
+    faqs: [
+      {
+        q: "What is the average plot price in Haridwar?",
+        a: "Residential plots in gated developments near Shivalik Nagar and Bahadrabad range between \u20B918,000 to \u20B955,000 per Gaj depending on road width and HRDA approval status."
+      },
+      {
+        q: "Can retirees easily buy a flat in Haridwar?",
+        a: "Yes. Many retirees and spiritual seekers purchase ready-to-move flats in Kankhal and Jwalapur due to proximity to the ghats, ashrams, and reputable healthcare facilities."
+      }
+    ]
+  },
+  Nainital: {
+    city: "Nainital",
+    hindiName: "\u0928\u0948\u0928\u0940\u0924\u093E\u0932",
+    metaTitle: "Properties in Nainital | Lake View Cottages, Flats & Hill Villas",
+    metaDescription: "Browse verified hill properties in Nainital with 0% brokerage. Buy lake-view hillside cottages, wooden villas, and mountain apartments in Mallital, Tallital, and Bhimtal.",
+    h1: "Properties in Nainital | Lake City Hillside Living with 0% Brokerage",
+    tagline: "The iconic Lake District of Kumaon, surrounded by emerald hills, pleasant summers, and winter snowfalls.",
+    elevation: "2,084 m (6,837 ft)",
+    priceRange: "\u20B935 Lac - \u20B95.5 Cr",
+    landPriceRange: "\u20B940,000 - \u20B91,50,000 per Nali / Gaj",
+    avgFlatRate: "\u20B95,500 - \u20B912,000 per sq.ft",
+    popularLocalities: ["Mallital", "Tallital", "Ayarpatta", "Bhimtal Bypass", "Pangot Road", "Bhowali-Nainital Road"],
+    connectivityHighlights: ["Kathgodam Railway Station (34 km away with daily Shatabdi trains)", "Pantnagar Airport (70 km)", "Well-maintained all-weather highway to Delhi (6 hours)"],
+    legalNotes: "Within Nainital town boundaries, strict construction and environmental bylaws apply. Outskirts including Bhowali, Bhimtal, and Ramgarh allow outside buyers up to 250 sq.m rural land or freehold apartments.",
+    description: "Nainital is one of India\u2019s most prestigious hill station property markets. From heritage colonial cottages nestled among oak forests in Ayarpatta to modern lakeside apartments overlooking the valley in Bhimtal and Bhowali, Uttarakhand Gateways brings you direct owner deals without broker markups.",
+    faqs: [
+      {
+        q: "Can outsiders buy a cottage or land around Nainital?",
+        a: "Yes. In the outer belts of Nainital district (Bhimtal, Bhowali, Mukteshwar, Ramgarh), non-residents can buy up to 250 sq. meters (~1.25 Nali) of rural land per family, or freehold apartments without any size restrictions."
+      },
+      {
+        q: "How cold does Nainital get in winter?",
+        a: "Nainital experiences sub-zero temperatures and snowfalls between December and February, making it a winter wonderland and high-demand holiday rental hub."
+      }
+    ]
+  },
+  Mussoorie: {
+    city: "Mussoorie",
+    hindiName: "\u092E\u0938\u0942\u0930\u0940",
+    metaTitle: "Properties in Mussoorie | Luxury Hill Cottages & Villas for Sale",
+    metaDescription: "Explore verified luxury properties in Mussoorie with 0% brokerage. Discover heritage hill cottages, panoramic villas, and apartments along Mall Road, Barlowganj, and Hathipaon.",
+    h1: "Properties in Mussoorie | Queen of Hills Estates with 0% Brokerage",
+    tagline: "Perched on the Garhwal Himalayan ridge, overlooking the Doon Valley and snow-crested Himalayan ranges.",
+    elevation: "2,005 m (6,578 ft)",
+    priceRange: "\u20B945 Lac - \u20B97.5 Cr",
+    landPriceRange: "\u20B950,000 - \u20B91,80,000 per Gaj",
+    avgFlatRate: "\u20B96,500 - \u20B914,000 per sq.ft",
+    popularLocalities: ["Mall Road", "Library Chowk", "Barlowganj", "Landour", "Hathipaon", "Kempty Fall Road", "Dhanaulti Bypass"],
+    connectivityHighlights: ["Only 34 km from Dehradun city center (under 1 hr drive)", "New Ropeway and Tunnel project connecting Dehradun and Mussoorie", "Direct connectivity to Delhi via upcoming expressway"],
+    legalNotes: "Mussoorie properties come under MDDA regulations and eco-sensitive norms. Outside buyers can purchase approved apartments and designated residential units directly.",
+    description: "Known as the Queen of Hills, Mussoorie offers an extraordinary lifestyle with its misty ridges, colonial heritage, vibrant cafes, and unmatched vistas of the Great Himalayas. Discover private mountain estates, holiday cottages, and boutique homestay listings directly on Uttarakhand Gateways with zero brokerage fees.",
+    faqs: [
+      {
+        q: "What makes Mussoorie a prime luxury real estate destination?",
+        a: "Proximity to Dehradun, high weekend tourism demand from Delhi NCR, cool temperate summers, and breathtaking valley views make Mussoorie one of the most resilient luxury real estate markets in North India."
+      },
+      {
+        q: "What is the land purchase policy in Mussoorie for outsiders?",
+        a: "Approved flats and developed apartments inside municipal town limits can be purchased by any Indian citizen. Rural land beyond municipal limits is subject to the standard 250 sq.m ceiling."
+      }
+    ]
+  },
+  Haldwani: {
+    city: "Haldwani",
+    hindiName: "\u0939\u0932\u094D\u0926\u094D\u0935\u093E\u0928\u0940",
+    metaTitle: "Properties in Haldwani | Commercial & Residential Plots for Sale",
+    metaDescription: "Find verified properties in Haldwani with 0% brokerage. Residential plots, builder floors, and houses in Kaladhungi Road, Kusumkhera, and Kathgodam.",
+    h1: "Properties in Haldwani | The Economic Gateway to Kumaon",
+    tagline: "The vibrant commercial, commercial-transit, and educational capital of Kumaon in the Shivalik foothills.",
+    elevation: "424 m (1,391 ft)",
+    priceRange: "\u20B920 Lac - \u20B92.8 Cr",
+    landPriceRange: "\u20B922,000 - \u20B975,000 per Gaj",
+    avgFlatRate: "\u20B93,500 - \u20B97,000 per sq.ft",
+    popularLocalities: ["Kaladhungi Road", "Kusumkhera", "Kathgodam", "Rampur Road", "Nawabi Road", "Bareilly Road"],
+    connectivityHighlights: ["Kathgodam Railway Station with Shatabdi & Ranikhet Express", "Gateway junction to Nainital, Almora, Ranikhet & Jim Corbett", "Pantnagar Airport only 26 km away"],
+    legalNotes: "Haldwani properties fall under District Development Authority regulations with clear freehold registry and municipal conversion records.",
+    description: "Haldwani is the commercial powerhouse of the Kumaon region. Located at the foothills of Nainital, it offers all metropolitan facilities, top medical colleges, shopping centers, and seamless railway and road transit to Delhi and Lucknow. Explore genuine residential plots, builder floors, and commercial shops directly from owners on Uttarakhand Gateways.",
+    faqs: [
+      {
+        q: "Why is Haldwani considered a top property investment in Uttarakhand?",
+        a: "Because of its strategic transit location as the primary entry point to all Kumaon hill stations, rapid urbanization, expanding commercial centers, and stable property appreciation."
+      },
+      {
+        q: "Are plots in Haldwani approved for immediate house construction?",
+        a: "Yes, listings in developed colonies like Kusumkhera and Kaladhungi Road feature wide roads, electricity, municipal water connections, and immediate registry."
+      }
+    ]
+  }
+};
+
+// src/data/guidesData.ts
+var REAL_ESTATE_GUIDES = [
+  {
+    slug: "buying-property-in-uttarakhand",
+    titleEn: "Step-by-Step Guide to Buying Property in Uttarakhand (2026)",
+    titleHi: "\u0909\u0924\u094D\u0924\u0930\u093E\u0916\u0902\u0921 \u092E\u0947\u0902 \u092A\u094D\u0930\u0949\u092A\u0930\u094D\u091F\u0940 \u0916\u0930\u0940\u0926\u0928\u0947 \u0915\u0940 \u0938\u0902\u092A\u0942\u0930\u094D\u0923 \u092A\u094D\u0930\u0915\u094D\u0930\u093F\u092F\u093E (2026 \u0917\u093E\u0907\u0921)",
+    metaTitle: "Guide to Buying Property in Uttarakhand | Step-by-Step Legal Process (2026)",
+    metaDescription: "Complete legal checklist for buying property in Uttarakhand. Learn how to verify land title, Khatauni, Section 143 conversion, stamp duty, and registry with 0% brokerage.",
+    readTime: "6 min read",
+    category: "Legal & Registry",
+    summaryEn: "Everything you need to know before purchasing residential plots, apartments, or mountain cottages in Uttarakhand, including document verification and registry.",
+    summaryHi: "\u0909\u0924\u094D\u0924\u0930\u093E\u0916\u0902\u0921 \u092E\u0947\u0902 \u092A\u094D\u0932\u0949\u091F, \u092B\u094D\u0932\u0948\u091F \u092F\u093E \u0915\u0949\u091F\u0947\u091C \u0916\u0930\u0940\u0926\u0928\u0947 \u0938\u0947 \u092A\u0939\u0932\u0947 \u0915\u093E\u0928\u0942\u0928\u0940 \u091C\u093E\u0902\u091A, \u0916\u0924\u094C\u0928\u0940, \u0927\u093E\u0930\u093E 143 \u0930\u0942\u092A\u093E\u0902\u0924\u0930\u0923 \u0914\u0930 \u0930\u091C\u093F\u0938\u094D\u091F\u094D\u0930\u0940 \u0938\u0947 \u0938\u0902\u092C\u0902\u0927\u093F\u0924 \u0938\u092D\u0940 \u092E\u0939\u0924\u094D\u0935\u092A\u0942\u0930\u094D\u0923 \u091C\u093E\u0928\u0915\u093E\u0930\u0940\u0964",
+    sections: [
+      {
+        headingEn: "1. Verifying Revenue Records: Khatauni & Khasra",
+        headingHi: "1. \u0930\u093E\u091C\u0938\u094D\u0935 \u0930\u093F\u0915\u0949\u0930\u094D\u0921 \u0915\u0940 \u091C\u093E\u0902\u091A: \u0916\u0924\u094C\u0928\u0940 \u0914\u0930 \u0916\u0938\u0930\u093E",
+        contentEn: "Before token payments, always inspect the official Khatauni (record of rights) on Uttarakhand\u2019s revenue portal (Devbhoomi). Verify that the seller\u2019s name is clearly listed as the sole or co-sharer owner and ensure there are no government encumbrances, hypothecations, or ongoing court disputes.",
+        contentHi: "\u092C\u092F\u093E\u0928\u093E \u0926\u0947\u0928\u0947 \u0938\u0947 \u092A\u0939\u0932\u0947 \u0909\u0924\u094D\u0924\u0930\u093E\u0916\u0902\u0921 \u0915\u0947 \u092D\u0942\u0932\u0947\u0916 \u092A\u094B\u0930\u094D\u091F\u0932 (\u0926\u0947\u0935\u092D\u0942\u092E\u093F) \u092A\u0930 \u0916\u0924\u094C\u0928\u0940 \u0915\u0940 \u091C\u093E\u0902\u091A \u0915\u0930\u0947\u0902\u0964 \u0938\u0941\u0928\u093F\u0936\u094D\u091A\u093F\u0924 \u0915\u0930\u0947\u0902 \u0915\u093F \u0935\u093F\u0915\u094D\u0930\u0947\u0924\u093E \u0915\u093E \u0928\u093E\u092E \u0916\u093E\u0924\u0947\u0926\u093E\u0930 \u0915\u0947 \u0930\u0942\u092A \u092E\u0947\u0902 \u0926\u0930\u094D\u091C \u0939\u0948 \u0914\u0930 \u092D\u0942\u092E\u093F \u092A\u0930 \u0915\u094B\u0908 \u092C\u0948\u0902\u0915 \u092C\u0902\u0927\u0915 \u092F\u093E \u0905\u0926\u093E\u0932\u0924\u0940 \u0935\u093F\u0935\u093E\u0926 \u0928\u0939\u0940\u0902 \u0939\u0948\u0964"
+      },
+      {
+        headingEn: "2. Section 143 (Section 80) Non-Agricultural Clearance",
+        headingHi: "2. \u0927\u093E\u0930\u093E 143 (\u0927\u093E\u0930\u093E 80) \u0917\u0948\u0930-\u0915\u0943\u0937\u093F \u0930\u0942\u092A\u093E\u0902\u0924\u0930\u0923",
+        contentEn: "If buying a residential plot or independent house on agricultural land, ensure the SDM has issued a 143 Order. This officially declares the land as Abadi (residential), enabling clear registry, home construction permission, and easy bank loan sanction.",
+        contentHi: "\u092F\u0926\u093F \u0906\u092A \u0906\u0935\u093E\u0938\u0940\u092F \u092A\u094D\u0932\u0949\u091F \u0916\u0930\u0940\u0926 \u0930\u0939\u0947 \u0939\u0948\u0902 \u0924\u094B \u0938\u0941\u0928\u093F\u0936\u094D\u091A\u093F\u0924 \u0915\u0930\u0947\u0902 \u0915\u093F \u090F\u0938\u0921\u0940\u090F\u092E \u0926\u094D\u0935\u093E\u0930\u093E \u0927\u093E\u0930\u093E 143 \u0915\u093E \u0906\u0926\u0947\u0936 \u092A\u093E\u0930\u093F\u0924 \u0939\u094B \u091A\u0941\u0915\u093E \u0939\u0948\u0964 \u0907\u0938\u0938\u0947 \u092D\u0942\u092E\u093F \u0906\u092C\u093E\u0926\u0940 \u0918\u094B\u0937\u093F\u0924 \u0939\u094B \u091C\u093E\u0924\u0940 \u0939\u0948 \u0914\u0930 \u092C\u0948\u0902\u0915\u094B\u0902 \u0938\u0947 \u0924\u0941\u0930\u0902\u0924 \u0932\u094B\u0928 \u092E\u093F\u0932\u0924\u093E \u0939\u0948\u0964"
+      },
+      {
+        headingEn: "3. Encumbrance Certificate & Search Report",
+        headingHi: "3. \u092D\u093E\u0930\u092E\u0941\u0915\u094D\u0924 \u092A\u094D\u0930\u092E\u093E\u0923 \u092A\u0924\u094D\u0930 (Encumbrance Certificate)",
+        contentEn: "Obtain an Encumbrance Certificate (EC) for the past 12 to 30 years from the local Sub-Registrar office to guarantee that the property is completely debt-free and has not been sold or mortgaged multiple times.",
+        contentHi: "\u0938\u0902\u092C\u0902\u0927\u093F\u0924 \u0909\u092A-\u0928\u093F\u092C\u0902\u0927\u0915 \u0915\u093E\u0930\u094D\u092F\u093E\u0932\u092F \u0938\u0947 \u092A\u093F\u091B\u0932\u0947 12 \u0938\u0947 30 \u0935\u0930\u094D\u0937\u094B\u0902 \u0915\u093E \u092D\u093E\u0930\u092E\u0941\u0915\u094D\u0924 \u092A\u094D\u0930\u092E\u093E\u0923 \u092A\u0924\u094D\u0930 (EC) \u092A\u094D\u0930\u093E\u092A\u094D\u0924 \u0915\u0930\u0947\u0902 \u0924\u093E\u0915\u093F \u092F\u0939 \u0938\u0941\u0928\u093F\u0936\u094D\u091A\u093F\u0924 \u0939\u094B \u0938\u0915\u0947 \u0915\u093F \u0938\u0902\u092A\u0924\u094D\u0924\u093F \u092A\u0942\u0930\u0940 \u0924\u0930\u0939 \u0938\u0947 \u0926\u0947\u0928\u0926\u093E\u0930\u093F\u092F\u094B\u0902 \u0938\u0947 \u092E\u0941\u0915\u094D\u0924 \u0939\u0948\u0964"
+      },
+      {
+        headingEn: "4. Stamp Duty & Registry in Uttarakhand",
+        headingHi: "4. \u0938\u094D\u091F\u093E\u092E\u094D\u092A \u0936\u0941\u0932\u094D\u0915 \u0914\u0930 \u0930\u091C\u093F\u0938\u094D\u091F\u094D\u0930\u0940 \u0936\u0941\u0932\u094D\u0915",
+        contentEn: "In Uttarakhand, stamp duty is generally 5% for male buyers and 3.75% for female buyers (providing a generous concession to encourage female property ownership). The registration fee is standardly 2% of the circle rate or sale deed value.",
+        contentHi: "\u0909\u0924\u094D\u0924\u0930\u093E\u0916\u0902\u0921 \u092E\u0947\u0902 \u0938\u094D\u091F\u093E\u092E\u094D\u092A \u0936\u0941\u0932\u094D\u0915 \u0938\u093E\u092E\u093E\u0928\u094D\u092F\u0924\u0903 \u092A\u0941\u0930\u0941\u0937\u094B\u0902 \u0915\u0947 \u0932\u093F\u090F 5% \u0914\u0930 \u092E\u0939\u093F\u0932\u093E \u0916\u0930\u0940\u0926\u093E\u0930\u094B\u0902 \u0915\u0947 \u0932\u093F\u090F 3.75% (\u0930\u093F\u092F\u093E\u092F\u0924\u0940 \u0926\u0930) \u0939\u0948\u0964 \u092A\u0902\u091C\u0940\u0915\u0930\u0923 \u0936\u0941\u0932\u094D\u0915 \u0938\u0930\u094D\u0915\u093F\u0932 \u0930\u0947\u091F \u092F\u093E \u0935\u093F\u0915\u094D\u0930\u092F \u092E\u0942\u0932\u094D\u092F \u0915\u093E 2% \u0939\u094B\u0924\u093E \u0939\u0948\u0964"
+      }
+    ]
+  },
+  {
+    slug: "uttarakhand-land-laws-section-154",
+    titleEn: "Uttarakhand Land Ceiling Laws: Can Outside Buyers Purchase Land?",
+    titleHi: "\u0909\u0924\u094D\u0924\u0930\u093E\u0916\u0902\u0921 \u092D\u0942\u092E\u093F \u0938\u0940\u0932\u093F\u0902\u0917 \u0915\u093E\u0928\u0942\u0928: \u0915\u094D\u092F\u093E \u0930\u093E\u091C\u094D\u092F \u0938\u0947 \u092C\u093E\u0939\u0930 \u0915\u0947 \u0928\u093E\u0917\u0930\u093F\u0915 \u091C\u092E\u0940\u0928 \u0916\u0930\u0940\u0926 \u0938\u0915\u0924\u0947 \u0939\u0948\u0902?",
+    metaTitle: "Uttarakhand Land Ceiling Rules | Section 154 UPZA & LR Act Explained",
+    metaDescription: "Detailed explanation of Uttarakhand land laws for non-residents. Learn about the 250 sq.m (1.25 Nali) rural ceiling and municipal limits exemption under UPZA & LR Act.",
+    readTime: "5 min read",
+    category: "State Land Laws",
+    summaryEn: "Clear explanation of UPZA & LR Act Section 154: Who can buy, how much land you can purchase, and where no ceilings apply.",
+    summaryHi: "\u092F\u0942\u092A\u0940\u091C\u0947\u0921\u090F \u090F\u0935\u0902 \u090F\u0932\u0906\u0930 \u0905\u0927\u093F\u0928\u093F\u092F\u092E \u0915\u0940 \u0927\u093E\u0930\u093E 154 \u0915\u093E \u0938\u094D\u092A\u0937\u094D\u091F \u0935\u093F\u0936\u094D\u0932\u0947\u0937\u0923: \u0915\u094C\u0928 \u0916\u0930\u0940\u0926 \u0938\u0915\u0924\u093E \u0939\u0948, \u0915\u093F\u0924\u0928\u0940 \u091C\u092E\u0940\u0928 \u0916\u0930\u0940\u0926\u0940 \u091C\u093E \u0938\u0915\u0924\u0940 \u0939\u0948, \u0914\u0930 \u0915\u093F\u0928 \u0915\u094D\u0937\u0947\u0924\u094D\u0930\u094B\u0902 \u092E\u0947\u0902 \u0915\u094B\u0908 \u0938\u0940\u092E\u093E \u0928\u0939\u0940\u0902 \u0939\u0948\u0964",
+    sections: [
+      {
+        headingEn: "1. The 250 Square Meter (1.25 Nali) Rural Land Ceiling",
+        headingHi: "1. 250 \u0935\u0930\u094D\u0917 \u092E\u0940\u091F\u0930 (1.25 \u0928\u093E\u0932\u0940) \u0917\u094D\u0930\u093E\u092E\u0940\u0923 \u092D\u0942\u092E\u093F \u0938\u0940\u092E\u093E",
+        contentEn: "Under Section 154 of the Uttar Pradesh Zamindari Abolition and Land Reforms Act (as adapted by Uttarakhand), any Indian citizen from any state can legally purchase up to 250 square meters (approx 2,700 sq.ft or ~1.25 Nali) of rural/agricultural land per family without requiring special state government permission.",
+        contentHi: "\u0909\u0924\u094D\u0924\u0930\u093E\u0916\u0902\u0921 \u091C\u092E\u0940\u0902\u0926\u093E\u0930\u0940 \u0935\u093F\u0928\u093E\u0936 \u090F\u0935\u0902 \u092D\u0942\u092E\u093F \u0935\u094D\u092F\u0935\u0938\u094D\u0925\u093E \u0905\u0927\u093F\u0928\u093F\u092F\u092E \u0915\u0940 \u0927\u093E\u0930\u093E 154 \u0915\u0947 \u0924\u0939\u0924, \u092D\u093E\u0930\u0924 \u0915\u093E \u0915\u094B\u0908 \u092D\u0940 \u0928\u093E\u0917\u0930\u093F\u0915 \u092C\u093F\u0928\u093E \u0915\u093F\u0938\u0940 \u0938\u0930\u0915\u093E\u0930\u0940 \u0905\u0928\u0941\u092E\u0924\u093F \u0915\u0947 \u092A\u094D\u0930\u0924\u093F \u092A\u0930\u093F\u0935\u093E\u0930 250 \u0935\u0930\u094D\u0917 \u092E\u0940\u091F\u0930 (\u0932\u0917\u092D\u0917 2,700 \u0935\u0930\u094D\u0917 \u092B\u0941\u091F \u092F\u093E 1.25 \u0928\u093E\u0932\u0940) \u0917\u094D\u0930\u093E\u092E\u0940\u0923 \u092D\u0942\u092E\u093F \u0916\u0930\u0940\u0926 \u0938\u0915\u0924\u093E \u0939\u0948\u0964"
+      },
+      {
+        headingEn: "2. No Ceiling Inside Municipal Corporation & MDDA Limits",
+        headingHi: "2. \u0928\u0917\u0930 \u0928\u093F\u0917\u092E \u0935 \u090F\u092E\u0921\u0940\u0921\u0940\u090F \u0915\u094D\u0937\u0947\u0924\u094D\u0930\u094B\u0902 \u092E\u0947\u0902 \u0915\u094B\u0908 \u0938\u0940\u0932\u093F\u0902\u0917 \u0928\u0939\u0940\u0902",
+        contentEn: "In designated urban areas\u2014including Dehradun Nagar Nigam, Haridwar Municipal Corporation, Rishikesh, Haldwani, and development authorities (MDDA, HRDA)\u2014there is NO land size restriction for buying apartments, residential flats, builder floors, or commercial properties.",
+        contentHi: "\u0928\u0917\u0930 \u0928\u093F\u0917\u092E \u0915\u094D\u0937\u0947\u0924\u094D\u0930\u094B\u0902 \u0914\u0930 \u0935\u093F\u0915\u093E\u0938 \u092A\u094D\u0930\u093E\u0927\u093F\u0915\u0930\u0923\u094B\u0902 (\u091C\u0948\u0938\u0947 \u0926\u0947\u0939\u0930\u093E\u0926\u0942\u0928, \u0939\u0930\u093F\u0926\u094D\u0935\u093E\u0930, \u090B\u0937\u093F\u0915\u0947\u0936, \u0939\u0932\u094D\u0926\u094D\u0935\u093E\u0928\u0940) \u0915\u0947 \u0905\u0902\u0924\u0930\u094D\u0917\u0924 \u0906\u0928\u0947 \u0935\u093E\u0932\u0947 \u092B\u094D\u0932\u0948\u091F\u094D\u0938, \u0935\u093F\u0932\u093E \u0914\u0930 \u0906\u0935\u093E\u0938\u0940\u092F \u092A\u094D\u0932\u0949\u091F\u094D\u0938 \u092A\u0930 \u0915\u094B\u0908 250 \u0935\u0930\u094D\u0917 \u092E\u0940\u091F\u0930 \u0915\u0940 \u0938\u0940\u092E\u093E \u0932\u093E\u0917\u0942 \u0928\u0939\u0940\u0902 \u0939\u094B\u0924\u0940\u0964"
+      },
+      {
+        headingEn: "3. Purchasing Land for Tourism, Agriculture & Industry",
+        headingHi: "3. \u092A\u0930\u094D\u092F\u091F\u0928, \u0909\u0926\u094D\u092F\u094B\u0917 \u0935 \u092C\u0921\u093C\u0947 \u092A\u094D\u0930\u094B\u091C\u0947\u0915\u094D\u091F\u094D\u0938 \u0915\u0947 \u0932\u093F\u090F \u0905\u0928\u0941\u092E\u0924\u093F",
+        contentEn: "For projects exceeding 250 sq. meters (such as eco-resorts, organic farming, hotels, or educational institutions), outside investors can apply for Section 154(2) permission from the District Magistrate / State Government.",
+        contentHi: "\u092F\u0926\u093F \u0906\u092A 250 \u0935\u0930\u094D\u0917 \u092E\u0940\u091F\u0930 \u0938\u0947 \u0905\u0927\u093F\u0915 \u092D\u0942\u092E\u093F (\u091C\u0948\u0938\u0947 \u0939\u094B\u091F\u0932, \u0930\u093F\u0938\u0949\u0930\u094D\u091F, \u0911\u0930\u094D\u0917\u0947\u0928\u093F\u0915 \u092B\u093E\u0930\u094D\u092E\u093F\u0902\u0917) \u0915\u0947 \u0932\u093F\u090F \u0916\u0930\u0940\u0926\u0928\u093E \u091A\u093E\u0939\u0924\u0947 \u0939\u0948\u0902, \u0924\u094B \u0927\u093E\u0930\u093E 154(2) \u0915\u0947 \u0924\u0939\u0924 \u091C\u093F\u0932\u093E\u0927\u093F\u0915\u093E\u0930\u0940 \u092F\u093E \u0930\u093E\u091C\u094D\u092F \u0938\u0930\u0915\u093E\u0930 \u0938\u0947 \u0905\u0928\u0941\u092E\u0924\u093F \u0932\u0940 \u091C\u093E \u0938\u0915\u0924\u0940 \u0939\u0948\u0964"
+      }
+    ]
+  },
+  {
+    slug: "traditional-land-units-nali-mutthi-bigha",
+    titleEn: "Uttarakhand Land Measurement Units: Nali, Mutthi, Bigha to Sq.Ft",
+    titleHi: "\u0909\u0924\u094D\u0924\u0930\u093E\u0916\u0902\u0921 \u092D\u0942\u092E\u093F \u092E\u093E\u092A \u0907\u0915\u093E\u0907\u092F\u093E\u0902: \u0928\u093E\u0932\u0940, \u092E\u0941\u091F\u094D\u0920\u0940, \u092C\u0940\u0918\u093E \u0914\u0930 \u0935\u0930\u094D\u0917 \u092B\u0941\u091F \u0915\u093E \u0917\u0923\u093F\u0924",
+    metaTitle: "Uttarakhand Land Units Explained | 1 Nali in Sq.Ft, Mutthi, Bigha, Gaj",
+    metaDescription: "Learn how Uttarakhand mountain land is measured. Complete conversion table for 1 Nali in square feet (2,160 sq.ft), Mutthi, Bigha, and Square Yards (Gaj).",
+    readTime: "4 min read",
+    category: "Land Measurements",
+    summaryEn: "Complete guide and formula table to convert traditional Himalayan land units (Nali, Mutthi, Bigha) into square feet and Gaj.",
+    summaryHi: "\u092A\u0939\u093E\u0921\u093C\u0940 \u092D\u0942\u092E\u093F \u092E\u093E\u092A\u094B\u0902 (\u0928\u093E\u0932\u0940, \u092E\u0941\u091F\u094D\u0920\u0940, \u092C\u0940\u0918\u093E) \u0915\u094B \u0935\u0930\u094D\u0917 \u092B\u0941\u091F, \u0917\u091C \u0914\u0930 \u0935\u0930\u094D\u0917 \u092E\u0940\u091F\u0930 \u092E\u0947\u0902 \u092C\u0926\u0932\u0928\u0947 \u0915\u0940 \u0938\u091F\u0940\u0915 \u0924\u093E\u0932\u093F\u0915\u093E \u0914\u0930 \u0938\u0942\u0924\u094D\u0930\u0964",
+    sections: [
+      {
+        headingEn: "1. What is 1 Nali in Square Feet?",
+        headingHi: "1. 1 \u0928\u093E\u0932\u0940 \u092E\u0947\u0902 \u0915\u093F\u0924\u0928\u0947 \u0935\u0930\u094D\u0917 \u092B\u0941\u091F \u0939\u094B\u0924\u0947 \u0939\u0948\u0902?",
+        contentEn: "1 Nali in Uttarakhand equals exactly 2,160 square feet (approx 200.67 square meters or 240 square yards / Gaj). It is the universal land unit used across Garhwal and Kumaon hill districts.",
+        contentHi: "\u0909\u0924\u094D\u0924\u0930\u093E\u0916\u0902\u0921 \u092E\u0947\u0902 1 \u0928\u093E\u0932\u0940 \u092C\u0930\u093E\u092C\u0930 2,160 \u0935\u0930\u094D\u0917 \u092B\u0941\u091F (\u0932\u0917\u092D\u0917 200.67 \u0935\u0930\u094D\u0917 \u092E\u0940\u091F\u0930 \u092F\u093E 240 \u0935\u0930\u094D\u0917 \u0917\u091C) \u0939\u094B\u0924\u0940 \u0939\u0948\u0964 \u0917\u0922\u093C\u0935\u093E\u0932 \u0914\u0930 \u0915\u0941\u092E\u093E\u090A\u0902 \u0915\u0947 \u092A\u0939\u093E\u0921\u093C\u0940 \u091C\u093F\u0932\u094B\u0902 \u092E\u0947\u0902 \u091C\u092E\u0940\u0928 \u0915\u0940 \u0916\u0930\u0940\u0926-\u092B\u0930\u094B\u0916\u094D\u0924 \u0907\u0938\u0940 \u0907\u0915\u093E\u0908 \u092E\u0947\u0902 \u0939\u094B\u0924\u0940 \u0939\u0948\u0964"
+      },
+      {
+        headingEn: "2. What is 1 Mutthi in Square Feet?",
+        headingHi: "2. 1 \u092E\u0941\u091F\u094D\u0920\u0940 \u092E\u0947\u0902 \u0915\u093F\u0924\u0928\u0947 \u0935\u0930\u094D\u0917 \u092B\u0941\u091F \u0939\u094B\u0924\u0947 \u0939\u0948\u0902?",
+        contentEn: "1 Nali consists of 16 Mutthi. Therefore, 1 Mutthi equals 135 square feet (approx 12.54 sq. meters or 15 square yards / Gaj).",
+        contentHi: "1 \u0928\u093E\u0932\u0940 \u092E\u0947\u0902 16 \u092E\u0941\u091F\u094D\u0920\u0940 \u0939\u094B\u0924\u0940 \u0939\u0948\u0902\u0964 \u0907\u0938 \u092A\u094D\u0930\u0915\u093E\u0930 1 \u092E\u0941\u091F\u094D\u0920\u0940 \u092C\u0930\u093E\u092C\u0930 135 \u0935\u0930\u094D\u0917 \u092B\u0941\u091F (\u0932\u0917\u092D\u0917 12.54 \u0935\u0930\u094D\u0917 \u092E\u0940\u091F\u0930 \u092F\u093E 15 \u0935\u0930\u094D\u0917 \u0917\u091C) \u0939\u094B\u0924\u0940 \u0939\u0948\u0964"
+      },
+      {
+        headingEn: "3. What is 1 Uttarakhand Bigha in Square Feet?",
+        headingHi: "3. 1 \u0909\u0924\u094D\u0924\u0930\u093E\u0916\u0902\u0921 \u092C\u0940\u0918\u093E \u092E\u0947\u0902 \u0915\u093F\u0924\u0928\u0947 \u0935\u0930\u094D\u0917 \u092B\u0941\u091F \u0939\u094B\u0924\u0947 \u0939\u0948\u0902?",
+        contentEn: "In Uttarakhand hills, 1 Bigha typically equals 3.15 Nalis, which translates to approximately 6,804 square feet (approx 632.1 sq.m or 756 Gaj). In plain districts like Haridwar, Pucca Bigha equals 27,225 sq.ft.",
+        contentHi: "\u092A\u0939\u093E\u0921\u093C\u0940 \u0915\u094D\u0937\u0947\u0924\u094D\u0930\u094B\u0902 \u092E\u0947\u0902 1 \u092C\u0940\u0918\u093E \u0932\u0917\u092D\u0917 3.15 \u0928\u093E\u0932\u0940 \u092F\u093E 6,804 \u0935\u0930\u094D\u0917 \u092B\u0941\u091F \u0915\u0947 \u092C\u0930\u093E\u092C\u0930 \u0939\u094B\u0924\u093E \u0939\u0948\u0964 \u092E\u0948\u0926\u093E\u0928\u0940 \u0915\u094D\u0937\u0947\u0924\u094D\u0930\u094B\u0902 (\u091C\u0948\u0938\u0947 \u0939\u0930\u093F\u0926\u094D\u0935\u093E\u0930) \u092E\u0947\u0902 \u092A\u0915\u094D\u0915\u093E \u092C\u0940\u0918\u093E 27,225 \u0935\u0930\u094D\u0917 \u092B\u0941\u091F \u0915\u093E \u0939\u094B\u0924\u093E \u0939\u0948\u0964"
+      }
+    ]
+  },
+  {
+    slug: "section-143-land-conversion",
+    titleEn: "What is Section 143 (Section 80) Land Conversion in Uttarakhand?",
+    titleHi: "\u0909\u0924\u094D\u0924\u0930\u093E\u0916\u0902\u0921 \u092E\u0947\u0902 \u0927\u093E\u0930\u093E 143 (\u0927\u093E\u0930\u093E 80) \u0917\u0948\u0930-\u0915\u0943\u0937\u093F \u0930\u0942\u092A\u093E\u0902\u0924\u0930\u0923 \u0915\u093E \u0915\u094D\u092F\u093E \u092E\u0939\u0924\u094D\u0935 \u0939\u0948?",
+    metaTitle: "Section 143 Land Conversion in Uttarakhand | Legal Process & Benefits",
+    metaDescription: "Why is Section 143 clearance essential before buying land in Uttarakhand? Learn how agricultural land is converted to residential Abadi and how to verify it.",
+    readTime: "5 min read",
+    category: "Legal & Registry",
+    summaryEn: "Understand why Section 143 approval is the single most important factor for securing a clear freehold title and bank loan approval in Uttarakhand.",
+    summaryHi: "\u091C\u093E\u0928\u093F\u090F \u0915\u094D\u092F\u094B\u0902 \u0927\u093E\u0930\u093E 143 \u0915\u0940 \u092E\u0902\u091C\u0942\u0930\u0940 \u0909\u0924\u094D\u0924\u0930\u093E\u0916\u0902\u0921 \u092E\u0947\u0902 \u092B\u094D\u0930\u0940\u0939\u094B\u0932\u094D\u0921 \u092E\u093E\u0932\u093F\u0915\u093E\u0928\u093E \u0939\u0915 \u0914\u0930 \u092C\u0948\u0902\u0915 \u0932\u094B\u0928 \u0915\u0947 \u0932\u093F\u090F \u0938\u092C\u0938\u0947 \u091C\u0930\u0942\u0930\u0940 \u0926\u0938\u094D\u0924\u093E\u0935\u0947\u091C \u0939\u0948\u0964",
+    sections: [
+      {
+        headingEn: "1. Why Section 143 Conversion Matters",
+        headingHi: "1. \u0927\u093E\u0930\u093E 143 \u0930\u0942\u092A\u093E\u0902\u0924\u0930\u0923 \u0915\u094D\u092F\u094B\u0902 \u091C\u0930\u0942\u0930\u0940 \u0939\u0948",
+        contentEn: "By default, land in rural Uttarakhand is classified as agricultural (Krishi Bhumi). Building a house on unconverted land can lead to zoning violations. Section 143 orders legally declare the parcel for non-agricultural (residential or commercial) use.",
+        contentHi: "\u0909\u0924\u094D\u0924\u0930\u093E\u0916\u0902\u0921 \u092E\u0947\u0902 \u0917\u094D\u0930\u093E\u092E\u0940\u0923 \u092D\u0942\u092E\u093F \u092E\u0942\u0932\u0924\u0903 \u0915\u0943\u0937\u093F \u0936\u094D\u0930\u0947\u0923\u0940 \u092E\u0947\u0902 \u0939\u094B\u0924\u0940 \u0939\u0948\u0964 \u0927\u093E\u0930\u093E 143 \u0915\u093E \u0906\u0926\u0947\u0936 \u092E\u093F\u0932\u0928\u0947 \u0915\u0947 \u092C\u093E\u0926 \u0939\u0940 \u092D\u0942\u092E\u093F \u0915\u093E\u0928\u0942\u0928\u0940 \u0930\u0942\u092A \u0938\u0947 \u0906\u0935\u093E\u0938\u0940\u092F (\u0905\u0915\u0943\u0937\u093F\u0915) \u0918\u094B\u0937\u093F\u0924 \u0939\u094B\u0924\u0940 \u0939\u0948\u0964"
+      },
+      {
+        headingEn: "2. How to Verify 143 Orders in Revenue Records",
+        headingHi: "2. \u0930\u093E\u091C\u0938\u094D\u0935 \u0905\u092D\u093F\u0932\u0947\u0916\u094B\u0902 \u092E\u0947\u0902 \u0927\u093E\u0930\u093E 143 \u0915\u093E \u0906\u0926\u0947\u0936 \u0915\u0948\u0938\u0947 \u0926\u0947\u0916\u0947\u0902",
+        contentEn: "Inspect the Khatauni entry under Column 1-Kha or Remark Column (Shamilat / Aadesh). The SDM order number and date of conversion will be documented directly in the record.",
+        contentHi: "\u0916\u0924\u094C\u0928\u0940 \u0915\u0947 \u0906\u0926\u0947\u0936 \u0915\u0949\u0932\u092E \u092E\u0947\u0902 \u090F\u0938\u0921\u0940\u090F\u092E \u0915\u094B\u0930\u094D\u091F \u0915\u0947 \u0906\u0926\u0947\u0936 \u0938\u0902\u0916\u094D\u092F\u093E \u0914\u0930 \u0926\u093F\u0928\u093E\u0902\u0915 \u0915\u0940 \u092A\u094D\u0930\u0935\u093F\u0937\u094D\u091F\u093F \u0926\u0930\u094D\u091C \u0939\u094B\u0924\u0940 \u0939\u0948, \u091C\u093F\u0938\u0947 \u0926\u0947\u0935\u092D\u0942\u092E\u093F \u092A\u094B\u0930\u094D\u091F\u0932 \u092A\u0930 \u0911\u0928\u0932\u093E\u0907\u0928 \u0926\u0947\u0916\u093E \u091C\u093E \u0938\u0915\u0924\u093E \u0939\u0948\u0964"
+      }
+    ]
+  },
+  {
+    slug: "plots-vs-flats-vs-cottages",
+    titleEn: "Plots vs Flats vs Mountain Cottages in Uttarakhand: Investment Comparison",
+    titleHi: "\u0909\u0924\u094D\u0924\u0930\u093E\u0916\u0902\u0921 \u092E\u0947\u0902 \u092A\u094D\u0932\u0949\u091F, \u092B\u094D\u0932\u0948\u091F \u092F\u093E \u0939\u093F\u0932 \u0915\u0949\u091F\u0947\u091C: \u0928\u093F\u0935\u0947\u0936 \u0915\u0947 \u0932\u093F\u090F \u0915\u094C\u0928 \u0938\u093E \u0935\u093F\u0915\u0932\u094D\u092A \u0938\u0930\u094D\u0935\u094B\u0924\u094D\u0924\u092E \u0939\u0948?",
+    metaTitle: "Plots vs Flats vs Cottages in Uttarakhand | Investment ROI & Price Comparison",
+    metaDescription: "Comparing residential plots, luxury flats, and Himalayan cottages in Uttarakhand. Discover capital appreciation, rental yield, and maintenance insights.",
+    readTime: "6 min read",
+    category: "Investment Strategy",
+    summaryEn: "Comprehensive investment analysis comparing residential plots in Dehradun, flats in Rishikesh, and cottages in Mussoorie/Nainital.",
+    summaryHi: "\u0926\u0947\u0939\u0930\u093E\u0926\u0942\u0928 \u092E\u0947\u0902 \u092A\u094D\u0932\u0949\u091F, \u090B\u0937\u093F\u0915\u0947\u0936 \u092E\u0947\u0902 \u092B\u094D\u0932\u0948\u091F \u0914\u0930 \u092E\u0938\u0942\u0930\u0940-\u0928\u0948\u0928\u0940\u0924\u093E\u0932 \u092E\u0947\u0902 \u0915\u0949\u091F\u0947\u091C \u0915\u0947 \u0928\u093F\u0935\u0947\u0936 \u092E\u0942\u0932\u094D\u092F, \u0930\u093F\u091F\u0930\u094D\u0928 \u0914\u0930 \u0930\u0916-\u0930\u0916\u093E\u0935 \u0915\u093E \u0935\u093F\u0938\u094D\u0924\u0943\u0924 \u0924\u0941\u0932\u0928\u093E\u0924\u094D\u092E\u0915 \u0935\u093F\u0936\u094D\u0932\u0947\u0937\u0923\u0964",
+    sections: [
+      {
+        headingEn: "1. Residential Plots: Highest Capital Appreciation",
+        headingHi: "1. \u0906\u0935\u093E\u0938\u0940\u092F \u092A\u094D\u0932\u0949\u091F: \u0938\u092C\u0938\u0947 \u0924\u0947\u091C \u092A\u0942\u0902\u091C\u0940\u0917\u0924 \u092E\u0942\u0932\u094D\u092F\u0935\u0943\u0926\u094D\u0927\u093F",
+        contentEn: "Plots in expanding corridors (Delhi-Dehradun Expressway, Sahastradhara, Haridwar bypass) offer the highest land value appreciation. Land is finite in the hills, making clear-title freehold plots a coveted long-term asset.",
+        contentHi: "\u090F\u0915\u094D\u0938\u092A\u094D\u0930\u0947\u0938\u0935\u0947 \u0914\u0930 \u0928\u090F \u0939\u093E\u0908\u0935\u0947 \u0915\u0947 \u0906\u0938\u092A\u093E\u0938 \u0915\u0947 \u092A\u094D\u0932\u0949\u091F\u094D\u0938 \u092E\u0947\u0902 \u0938\u092C\u0938\u0947 \u0924\u0947\u091C \u092E\u0942\u0932\u094D\u092F\u0935\u0943\u0926\u094D\u0927\u093F \u0939\u094B\u0924\u0940 \u0939\u0948\u0964 \u092A\u0939\u093E\u0921\u093C\u094B\u0902 \u092E\u0947\u0902 \u0938\u0940\u092E\u093F\u0924 \u092D\u0942\u092E\u093F \u0939\u094B\u0928\u0947 \u0915\u0947 \u0915\u093E\u0930\u0923 \u0938\u094D\u092A\u0937\u094D\u091F \u091F\u093E\u0907\u091F\u0932 \u0935\u093E\u0932\u0947 \u092A\u094D\u0932\u0949\u091F\u094D\u0938 \u0915\u0940 \u092E\u093E\u0902\u0917 \u0938\u0926\u0948\u0935 \u092C\u0928\u0940 \u0930\u0939\u0924\u0940 \u0939\u0948\u0964"
+      },
+      {
+        headingEn: "2. Flats & Apartments: Easy Maintenance & Ready Move-in",
+        headingHi: "2. \u092B\u094D\u0932\u0948\u091F\u094D\u0938 \u0935 \u0905\u092A\u093E\u0930\u094D\u091F\u092E\u0947\u0902\u091F\u094D\u0938: \u0915\u092E \u0926\u0947\u0916-\u0930\u0947\u0916 \u0935 \u0924\u0941\u0930\u0902\u0924 \u0930\u0939\u0928\u0947 \u092F\u094B\u0917\u094D\u092F",
+        contentEn: "For retirees and second-home owners who cannot visit the property year-round, gated apartments with 24/7 security, power backup, and lifts in Dehradun and Rishikesh offer hassle-free ownership.",
+        contentHi: "\u0935\u0930\u093F\u0937\u094D\u0920 \u0928\u093E\u0917\u0930\u093F\u0915\u094B\u0902 \u0914\u0930 \u0926\u0942\u0930 \u0930\u0939\u0928\u0947 \u0935\u093E\u0932\u0947 \u0916\u0930\u0940\u0926\u093E\u0930\u094B\u0902 \u0915\u0947 \u0932\u093F\u090F 24 \u0918\u0902\u091F\u0947 \u0938\u0941\u0930\u0915\u094D\u0937\u093E, \u092A\u093E\u0935\u0930 \u092C\u0948\u0915\u0905\u092A \u0914\u0930 \u0932\u093F\u092B\u094D\u091F \u0915\u0940 \u0938\u0941\u0935\u093F\u0927\u093E \u0935\u093E\u0932\u0947 \u0917\u0947\u091F\u0947\u0921 \u092B\u094D\u0932\u0948\u091F\u094D\u0938 \u0938\u092C\u0938\u0947 \u0938\u0941\u0935\u093F\u0927\u093E\u091C\u0928\u0915 \u0939\u094B\u0924\u0947 \u0939\u0948\u0902\u0964"
+      },
+      {
+        headingEn: "3. Hillside Cottages & Homestays: High Rental Yields",
+        headingHi: "3. \u0939\u093F\u0932 \u0915\u0949\u091F\u0947\u091C \u0935 \u0939\u094B\u092E\u0938\u094D\u091F\u0947: \u092C\u0947\u0939\u0924\u0930\u0940\u0928 \u0915\u093F\u0930\u093E\u092F\u0947 \u0915\u0940 \u0906\u092F",
+        contentEn: "Independent wooden and stone cottages in Mukteshwar, Bhimtal, and Mussoorie generate attractive passive income when listed as verified mountain retreats and homestays for travelers.",
+        contentHi: "\u092E\u0941\u0915\u094D\u0924\u0947\u0936\u094D\u0935\u0930, \u092D\u0940\u092E\u0924\u093E\u0932 \u0914\u0930 \u092E\u0938\u0942\u0930\u0940 \u092E\u0947\u0902 \u092C\u0928\u0947 \u0916\u0942\u092C\u0938\u0942\u0930\u0924 \u0915\u0949\u091F\u0947\u091C \u092A\u0930\u094D\u092F\u091F\u0915\u094B\u0902 \u0915\u0947 \u092C\u0940\u091A \u0915\u093E\u092B\u0940 \u0932\u094B\u0915\u092A\u094D\u0930\u093F\u092F \u0939\u0948\u0902 \u0914\u0930 \u092A\u0902\u091C\u0940\u0915\u0943\u0924 \u0939\u094B\u092E\u0938\u094D\u091F\u0947 \u0915\u0947 \u0930\u0942\u092A \u092E\u0947\u0902 \u092C\u0947\u0939\u0924\u0930\u0940\u0928 \u092E\u093E\u0938\u093F\u0915 \u0906\u092F \u092A\u094D\u0930\u0926\u093E\u0928 \u0915\u0930\u0924\u0947 \u0939\u0948\u0902\u0964"
+      }
+    ]
+  },
+  {
+    slug: "renting-property-in-uttarakhand",
+    titleEn: "Tenant & Owner Guide to Renting Property in Uttarakhand (0% Brokerage)",
+    titleHi: "\u0909\u0924\u094D\u0924\u0930\u093E\u0916\u0902\u0921 \u092E\u0947\u0902 \u092E\u0915\u093E\u0928 \u0915\u093F\u0930\u093E\u092F\u0947 \u092A\u0930 \u0932\u0947\u0928\u0947 \u0935 \u0926\u0947\u0928\u0947 \u0915\u0940 \u0938\u0902\u092A\u0942\u0930\u094D\u0923 \u0917\u093E\u0907\u0921 (0% \u092C\u094D\u0930\u094B\u0915\u0930\u0947\u091C)",
+    metaTitle: "Renting Property in Uttarakhand Guide | Tenant Rights & Lease Agreement",
+    metaDescription: "Essential guide for renting houses, furnished cottages, and flats in Uttarakhand. Learn about rental agreements, police verification, and 0% brokerage renting.",
+    readTime: "5 min read",
+    category: "Rental Living",
+    summaryEn: "Everything tenants and landlords need to know about standard lease agreements, security deposits, and peaceful mountain rental living.",
+    summaryHi: "\u0915\u093F\u0930\u093E\u092F\u0947\u0926\u093E\u0930\u094B\u0902 \u0914\u0930 \u092E\u0915\u093E\u0928 \u092E\u093E\u0932\u093F\u0915\u094B\u0902 \u0915\u0947 \u0932\u093F\u090F 11 \u092E\u0939\u0940\u0928\u0947 \u0915\u0947 \u0930\u0947\u0902\u091F \u090F\u0917\u094D\u0930\u0940\u092E\u0947\u0902\u091F, \u092A\u0941\u0932\u093F\u0938 \u0935\u0947\u0930\u093F\u092B\u093F\u0915\u0947\u0936\u0928 \u0914\u0930 \u0936\u0942\u0928\u094D\u092F-\u0915\u092E\u0940\u0936\u0928 \u0930\u0947\u0902\u091F\u0932 \u0915\u0940 \u0909\u092A\u092F\u094B\u0917\u0940 \u0917\u093E\u0907\u0921\u0964",
+    sections: [
+      {
+        headingEn: "1. The Standard 11-Month Rental Agreement",
+        headingHi: "1. 11 \u092E\u0939\u0940\u0928\u0947 \u0915\u093E \u092E\u093E\u0928\u0915 \u0915\u093F\u0930\u093E\u092F\u093E \u0905\u0928\u0941\u092C\u0902\u0927 (Rent Agreement)",
+        contentEn: "Most residential leases in Uttarakhand are executed for 11 months on \u20B9100 or \u20B9500 non-judicial stamp paper, specifying monthly rent, maintenance charges, and a 1 to 2-month security deposit.",
+        contentHi: "\u0909\u0924\u094D\u0924\u0930\u093E\u0916\u0902\u0921 \u092E\u0947\u0902 \u0905\u0927\u093F\u0915\u093E\u0902\u0936 \u0930\u0947\u0902\u091F\u0932 \u0938\u092E\u091D\u094C\u0924\u0947 11 \u092E\u0939\u0940\u0928\u0947 \u0915\u0940 \u0905\u0935\u0927\u093F \u0915\u0947 \u0932\u093F\u090F \u20B9100 \u092F\u093E \u20B9500 \u0915\u0947 \u0938\u094D\u091F\u093E\u092E\u094D\u092A \u092A\u0947\u092A\u0930 \u092A\u0930 \u092C\u0928\u0924\u0947 \u0939\u0948\u0902, \u091C\u093F\u0938\u092E\u0947\u0902 \u092E\u093E\u0938\u093F\u0915 \u0915\u093F\u0930\u093E\u092F\u093E \u0914\u0930 \u0938\u093F\u0915\u094D\u092F\u094B\u0930\u093F\u091F\u0940 \u0921\u093F\u092A\u0949\u091C\u093F\u091F \u0938\u094D\u092A\u0937\u094D\u091F \u0932\u093F\u0916\u093E \u0939\u094B\u0924\u093E \u0939\u0948\u0964"
+      },
+      {
+        headingEn: "2. Mandatory Tenant Police Verification",
+        headingHi: "2. \u0905\u0928\u093F\u0935\u093E\u0930\u094D\u092F \u0915\u093F\u0930\u093E\u092F\u0947\u0926\u093E\u0930 \u092A\u0941\u0932\u093F\u0938 \u0938\u0924\u094D\u092F\u093E\u092A\u0928",
+        contentEn: "Under Uttarakhand Police guidelines, landlords must submit tenant verification forms at the local police station or via the Uttarakhand Police Citizen Portal (Gaura Shakti / e-Verification).",
+        contentHi: "\u0909\u0924\u094D\u0924\u0930\u093E\u0916\u0902\u0921 \u092A\u0941\u0932\u093F\u0938 \u0915\u0947 \u0928\u093F\u092F\u092E\u094B\u0902 \u0915\u0947 \u0905\u0928\u0941\u0938\u093E\u0930 \u0938\u092D\u0940 \u092E\u0915\u093E\u0928 \u092E\u093E\u0932\u093F\u0915\u094B\u0902 \u0915\u094B \u0905\u092A\u0928\u0947 \u0915\u093F\u0930\u093E\u092F\u0947\u0926\u093E\u0930 \u0915\u093E \u092A\u0941\u0932\u093F\u0938 \u0938\u0924\u094D\u092F\u093E\u092A\u0928 \u0938\u0902\u092C\u0902\u0927\u093F\u0924 \u0925\u093E\u0928\u0947 \u092F\u093E \u0911\u0928\u0932\u093E\u0907\u0928 \u0928\u093E\u0917\u0930\u093F\u0915 \u092A\u094B\u0930\u094D\u091F\u0932 \u0915\u0947 \u092E\u093E\u0927\u094D\u092F\u092E \u0938\u0947 \u0915\u0930\u093E\u0928\u093E \u0905\u0928\u093F\u0935\u093E\u0930\u094D\u092F \u0939\u0948\u0964"
+      }
+    ]
+  }
+];
+
 // server.ts
 import_dotenv2.default.config();
 var app = (0, import_express.default)();
@@ -1087,6 +1435,13 @@ var ALLOWED_ORIGINS = [
   "http://127.0.0.1:5173"
 ];
 app.disable("x-powered-by");
+app.use((req, res, next) => {
+  const host = (req.headers.host || "").toLowerCase();
+  if (host.startsWith("www.uttarakhandgateways.com")) {
+    return res.redirect(301, `https://uttarakhandgateways.com${req.originalUrl}`);
+  }
+  next();
+});
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   if (origin && (ALLOWED_ORIGINS.includes(origin) || origin.endsWith(".uttarakhandgateways.com"))) {
@@ -2679,6 +3034,406 @@ ${trimmed}
     });
   }
 });
+function escapeHtml(str) {
+  if (!str) return "";
+  return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+async function generateDynamicSitemapXml() {
+  const DOMAIN = "https://uttarakhandgateways.com";
+  const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+  const staticPages = [
+    { loc: `${DOMAIN}/`, changefreq: "daily", priority: "1.0" },
+    { loc: `${DOMAIN}/buy`, changefreq: "daily", priority: "0.9" },
+    { loc: `${DOMAIN}/rent`, changefreq: "daily", priority: "0.9" },
+    { loc: `${DOMAIN}/guides`, changefreq: "weekly", priority: "0.8" },
+    { loc: `${DOMAIN}/home-loan`, changefreq: "monthly", priority: "0.8" }
+  ];
+  const cityHubKeys = ["dehradun", "rishikesh", "haridwar", "nainital", "mussoorie", "haldwani"];
+  const cityPages = cityHubKeys.map((k) => ({
+    loc: `${DOMAIN}/properties-in-${k}`,
+    changefreq: "weekly",
+    priority: "0.9"
+  }));
+  const guidePages = REAL_ESTATE_GUIDES.map((g) => ({
+    loc: `${DOMAIN}/guides/${g.slug}`,
+    changefreq: "monthly",
+    priority: "0.8"
+  }));
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+`;
+  for (const p of [...staticPages, ...cityPages, ...guidePages]) {
+    xml += `  <url>
+    <loc>${p.loc}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>${p.changefreq}</changefreq>
+    <priority>${p.priority}</priority>
+  </url>
+`;
+  }
+  try {
+    const allProps = await db.getAllProperties();
+    for (const prop of allProps) {
+      if (!prop || !prop.id || prop.isDeleted || prop.status === "deleted") continue;
+      const propUrl = `${DOMAIN}/property/${encodeURIComponent(prop.id)}`;
+      const dateStr = prop.updatedAt || prop.createdAt || today;
+      const modDate = dateStr && dateStr.includes("T") ? dateStr.split("T")[0] : today;
+      xml += `  <url>
+    <loc>${propUrl}</loc>
+    <lastmod>${modDate}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+`;
+    }
+  } catch (err) {
+    console.error("[UKG Sitemap] Error generating dynamic sitemap from database:", err);
+  }
+  xml += `</urlset>`;
+  return xml;
+}
+async function handleSeoPageRender(req, res, distPath) {
+  const urlPath = (req.path || "").toLowerCase();
+  const DOMAIN = "https://uttarakhandgateways.com";
+  if (urlPath === "/robots.txt") {
+    const candidates = [
+      import_path2.default.join(distPath, "robots.txt"),
+      import_path2.default.join(process.cwd(), "public", "robots.txt"),
+      import_path2.default.join(__dirname, "public", "robots.txt")
+    ];
+    for (const f of candidates) {
+      if (import_fs2.default.existsSync(f)) {
+        res.setHeader("Content-Type", "text/plain; charset=utf-8");
+        return res.sendFile(f);
+      }
+    }
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    return res.send(`User-agent: *
+Allow: /
+Disallow: /inbox
+Disallow: /dashboard
+Disallow: /admin
+Sitemap: ${DOMAIN}/sitemap.xml
+`);
+  }
+  if (urlPath === "/sitemap.xml") {
+    try {
+      const xml = await generateDynamicSitemapXml();
+      res.setHeader("Content-Type", "application/xml; charset=utf-8");
+      return res.send(xml);
+    } catch (err) {
+      const sitemapFile = import_path2.default.join(distPath, "sitemap.xml");
+      if (import_fs2.default.existsSync(sitemapFile)) {
+        res.setHeader("Content-Type", "application/xml; charset=utf-8");
+        return res.sendFile(sitemapFile);
+      }
+    }
+  }
+  const indexPath = import_path2.default.join(distPath, "index.html");
+  if (!import_fs2.default.existsSync(indexPath)) {
+    return res.status(404).send("Not Found");
+  }
+  let html = import_fs2.default.readFileSync(indexPath, "utf8");
+  let propertyId = null;
+  if (urlPath.startsWith("/property/")) {
+    propertyId = decodeURIComponent(req.path.slice("/property/".length).trim());
+  } else if (req.query.property && typeof req.query.property === "string") {
+    propertyId = req.query.property.trim();
+  }
+  if (propertyId) {
+    try {
+      const prop = await db.getPropertyById(propertyId);
+      if (!prop || prop.isDeleted || prop.status === "deleted") {
+        res.status(404);
+        html = html.replace(/<title>.*?<\/title>/i, `<title>Property Not Found (404) | Uttarakhand Gateways</title>`);
+        html = html.replace(/<meta name="description".*?>/i, `<meta name="description" content="This property listing is no longer available on Uttarakhand Gateways." />`);
+        html = html.replace(/<link rel="canonical".*?>/i, `<link rel="canonical" href="${DOMAIN}/" />`);
+        html = html.replace(/<meta name="robots".*?>/i, `<meta name="robots" content="noindex, nofollow" />`);
+        html = html.replace(/<div id="root"><\/div>/i, `<div id="root"><main style="font-family:sans-serif;max-width:600px;margin:80px auto;text-align:center;padding:24px;"><h1>Property Listing Not Found (404)</h1><p>The requested Uttarakhand property listing is no longer active or has been removed.</p><p><a href="/" style="display:inline-block;padding:10px 20px;background:#059669;color:#fff;border-radius:24px;text-decoration:none;font-weight:bold;">Explore 1,000+ Verified Properties</a></p></main></div>`);
+        return res.send(html);
+      }
+      const cleanTitle = escapeHtml(prop.title || "Verified Mountain Property");
+      const city = escapeHtml(prop.city || "Uttarakhand");
+      const location = escapeHtml(prop.location || prop.city || "Uttarakhand");
+      const category = escapeHtml(prop.category || "Real Estate");
+      const isRent = prop.purpose === "rent" || prop.type === "Rent/Lease" || prop.isAvailableForRent;
+      const priceText = prop.priceDisplay || (prop.price ? `\u20B9${Number(prop.price).toLocaleString("en-IN")}` : "Price on Request");
+      const cleanDesc = escapeHtml((prop.description || "").replace(/\s+/g, " ").slice(0, 160).trim());
+      const metaDescription = `${cleanTitle} - ${category} for ${isRent ? "rent" : "sale"} in ${location}, Uttarakhand. Price: ${priceText}. ${cleanDesc || "Direct deal with 0% brokerage."}`;
+      const canonicalUrl = `${DOMAIN}/property/${encodeURIComponent(prop.id)}`;
+      const firstImage = Array.isArray(prop.images) && prop.images[0] ? prop.images[0] : `${DOMAIN}/logo.png`;
+      html = html.replace(/<title>.*?<\/title>/i, `<title>${cleanTitle} | ${city} Real Estate | Uttarakhand Gateways</title>`);
+      html = html.replace(/<meta name="description".*?>/i, `<meta name="description" content="${metaDescription}" />`);
+      html = html.replace(/<link rel="canonical".*?>/i, `<link rel="canonical" href="${canonicalUrl}" />`);
+      html = html.replace(/<meta property="og:title".*?>/i, `<meta property="og:title" content="${cleanTitle} | Uttarakhand Gateways" />`);
+      html = html.replace(/<meta property="og:description".*?>/i, `<meta property="og:description" content="${metaDescription}" />`);
+      html = html.replace(/<meta property="og:url".*?>/i, `<meta property="og:url" content="${canonicalUrl}" />`);
+      html = html.replace(/<meta property="og:image".*?>/i, `<meta property="og:image" content="${firstImage}" />`);
+      html = html.replace(/<meta name="twitter:title".*?>/i, `<meta name="twitter:title" content="${cleanTitle}" />`);
+      html = html.replace(/<meta name="twitter:description".*?>/i, `<meta name="twitter:description" content="${metaDescription}" />`);
+      html = html.replace(/<meta name="twitter:image".*?>/i, `<meta name="twitter:image" content="${firstImage}" />`);
+      const propertyLdJson = {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Home", "item": `${DOMAIN}/` },
+              { "@type": "ListItem", "position": 2, "name": `${city} Properties`, "item": `${DOMAIN}/buy?city=${encodeURIComponent(prop.city || "")}` },
+              { "@type": "ListItem", "position": 3, "name": prop.title, "item": canonicalUrl }
+            ]
+          },
+          {
+            "@type": ["RealEstateListing", "SingleFamilyResidence"],
+            "@id": `${canonicalUrl}#listing`,
+            "name": prop.title,
+            "description": metaDescription,
+            "url": canonicalUrl,
+            "image": Array.isArray(prop.images) ? prop.images : [firstImage],
+            "offers": {
+              "@type": "Offer",
+              "price": prop.price || 0,
+              "priceCurrency": "INR",
+              "availability": "https://schema.org/InStock",
+              "seller": {
+                "@type": "Person",
+                "name": prop.sellerType === "Owner" ? "Direct Verified Owner" : "Verified Builder"
+              }
+            },
+            "address": {
+              "@type": "PostalAddress",
+              "addressLocality": prop.city || "Uttarakhand",
+              "addressRegion": "Uttarakhand",
+              "addressCountry": "IN"
+            }
+          }
+        ]
+      };
+      const schemaTag = `<script type="application/ld+json" id="ssr-property-schema">${JSON.stringify(propertyLdJson)}</script>`;
+      html = html.replace("</head>", `${schemaTag}
+</head>`);
+      const preRendered = `
+<div id="root">
+  <article style="max-width:1100px;margin:40px auto;padding:20px;font-family:sans-serif;color:#1e293b;">
+    <nav style="font-size:12px;margin-bottom:16px;"><a href="/">Home</a> &gt; <a href="/buy?city=${encodeURIComponent(prop.city || "")}">${city} Real Estate</a> &gt; <span>${cleanTitle}</span></nav>
+    <h1 style="font-size:28px;font-weight:800;color:#064e3b;margin-bottom:8px;">${cleanTitle}</h1>
+    <p style="font-size:16px;color:#047857;font-weight:700;">Location: ${location}, Uttarakhand | Price: ${priceText} | Category: ${category} (0% Brokerage)</p>
+    <div style="margin:20px 0;"><img src="${firstImage}" alt="${cleanTitle} in ${location}" style="max-width:100%;height:auto;border-radius:16px;max-height:480px;object-fit:cover;" /></div>
+    <div style="font-size:15px;line-height:1.7;color:#334155;">${cleanDesc}</div>
+  </article>
+</div>`;
+      html = html.replace(/<div id="root"><\/div>/i, preRendered);
+      return res.send(html);
+    } catch (err) {
+      console.error("[UKG Server] Error rendering property detail with SEO:", err);
+    }
+  }
+  if (urlPath.startsWith("/properties-in-")) {
+    const rawCity = urlPath.replace("/properties-in-", "").trim().toLowerCase();
+    const cityKey = Object.keys(CITY_MARKET_DATA).find((k) => k.toLowerCase() === rawCity);
+    if (cityKey) {
+      const cityData = CITY_MARKET_DATA[cityKey];
+      const canonicalUrl = `${DOMAIN}/properties-in-${rawCity}`;
+      const title = `${cityData.metaTitle} | Uttarakhand Gateways`;
+      const description = cityData.metaDescription;
+      html = html.replace(/<title>.*?<\/title>/i, `<title>${escapeHtml(title)}</title>`);
+      html = html.replace(/<meta name="description".*?>/i, `<meta name="description" content="${escapeHtml(description)}" />`);
+      html = html.replace(/<link rel="canonical".*?>/i, `<link rel="canonical" href="${canonicalUrl}" />`);
+      html = html.replace(/<meta property="og:title".*?>/i, `<meta property="og:title" content="${escapeHtml(title)}" />`);
+      html = html.replace(/<meta property="og:description".*?>/i, `<meta property="og:description" content="${escapeHtml(description)}" />`);
+      html = html.replace(/<meta property="og:url".*?>/i, `<meta property="og:url" content="${canonicalUrl}" />`);
+      html = html.replace(/<meta name="twitter:title".*?>/i, `<meta name="twitter:title" content="${escapeHtml(title)}" />`);
+      html = html.replace(/<meta name="twitter:description".*?>/i, `<meta name="twitter:description" content="${escapeHtml(description)}" />`);
+      const schemaObj = {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Home", "item": `${DOMAIN}/` },
+              { "@type": "ListItem", "position": 2, "name": "Uttarakhand Properties", "item": `${DOMAIN}/buy` },
+              { "@type": "ListItem", "position": 3, "name": `Properties in ${cityData.city}`, "item": canonicalUrl }
+            ]
+          },
+          {
+            "@type": "FAQPage",
+            "mainEntity": (cityData.faqs || []).map((f) => ({
+              "@type": "Question",
+              "name": f.q,
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": f.a
+              }
+            }))
+          }
+        ]
+      };
+      html = html.replace("</head>", `<script type="application/ld+json" id="ssr-city-schema">${JSON.stringify(schemaObj)}</script>
+</head>`);
+      const preRendered = `
+<div id="root">
+  <main style="max-width:1100px;margin:40px auto;padding:20px;font-family:sans-serif;color:#1e293b;">
+    <nav style="font-size:12px;margin-bottom:16px;"><a href="/">Home</a> &gt; <a href="/buy">Uttarakhand Properties</a> &gt; <span>${cityData.city}</span></nav>
+    <h1 style="font-size:30px;font-weight:800;color:#064e3b;margin-bottom:10px;">${escapeHtml(cityData.h1)}</h1>
+    <p style="font-size:16px;color:#047857;margin-bottom:20px;">${escapeHtml(cityData.tagline)}</p>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px;margin-bottom:24px;">
+      <h2 style="font-size:18px;color:#166534;margin-top:0;">${cityData.city} Real Estate Snapshot</h2>
+      <p><strong>Price Range:</strong> ${cityData.priceRange} | <strong>Land Rates:</strong> ${cityData.landPriceRange} | <strong>Average Flat Rate:</strong> ${cityData.avgFlatRate}</p>
+      <p><strong>Top Localities:</strong> ${cityData.popularLocalities.join(", ")}</p>
+      <p><strong>Legal Framework:</strong> ${escapeHtml(cityData.legalNotes)}</p>
+    </div>
+    <div style="font-size:15px;line-height:1.7;margin-bottom:30px;">
+      <p>${escapeHtml(cityData.description)}</p>
+    </div>
+    <section style="margin-top:30px;">
+      <h2 style="font-size:22px;color:#064e3b;">Frequently Asked Questions about ${cityData.city} Property</h2>
+      ${(cityData.faqs || []).map((f) => `<div style="margin-bottom:16px;"><h3 style="font-size:16px;color:#166534;margin-bottom:4px;">${escapeHtml(f.q)}</h3><p style="font-size:14px;color:#475569;">${escapeHtml(f.a)}</p></div>`).join("")}
+    </section>
+  </main>
+</div>`;
+      html = html.replace(/<div id="root"><\/div>/i, preRendered);
+      return res.send(html);
+    }
+  }
+  if (urlPath === "/guides") {
+    const canonicalUrl = `${DOMAIN}/guides`;
+    const title = "Uttarakhand Real Estate Guides, Land Laws & Buying Rules | Uttarakhand Gateways";
+    const description = "Comprehensive legal guides for buying, renting, and investing in Uttarakhand real estate. Understand Section 154 land ceiling, Section 143 conversion, Nali to sq.ft, and RERA verification.";
+    html = html.replace(/<title>.*?<\/title>/i, `<title>${title}</title>`);
+    html = html.replace(/<meta name="description".*?>/i, `<meta name="description" content="${description}" />`);
+    html = html.replace(/<link rel="canonical".*?>/i, `<link rel="canonical" href="${canonicalUrl}" />`);
+    html = html.replace(/<meta property="og:title".*?>/i, `<meta property="og:title" content="${title}" />`);
+    html = html.replace(/<meta property="og:description".*?>/i, `<meta property="og:description" content="${description}" />`);
+    html = html.replace(/<meta property="og:url".*?>/i, `<meta property="og:url" content="${canonicalUrl}" />`);
+    const schemaObj = {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": `${DOMAIN}/` },
+        { "@type": "ListItem", "position": 2, "name": "Uttarakhand Real Estate Guides", "item": canonicalUrl }
+      ]
+    };
+    html = html.replace("</head>", `<script type="application/ld+json" id="ssr-guides-schema">${JSON.stringify(schemaObj)}</script>
+</head>`);
+    const preRendered = `
+<div id="root">
+  <main style="max-width:1000px;margin:40px auto;padding:20px;font-family:sans-serif;color:#1e293b;">
+    <h1 style="font-size:32px;font-weight:800;color:#064e3b;margin-bottom:12px;">Uttarakhand Real Estate Knowledge & Legal Hub</h1>
+    <p style="font-size:16px;color:#475569;margin-bottom:30px;">Essential legal rules, land law explanations, and verification checklists for property buyers, sellers, and investors in Uttarakhand.</p>
+    <div style="display:grid;gap:20px;">
+      ${REAL_ESTATE_GUIDES.map((g) => `
+        <div style="border:1px solid #e2e8f0;border-radius:12px;padding:20px;background:#f8fafc;">
+          <h2 style="font-size:20px;margin:0 0 8px 0;"><a href="/guides/${g.slug}" style="color:#047857;text-decoration:none;">${escapeHtml(g.titleEn)}</a></h2>
+          <p style="font-size:14px;color:#64748b;margin:0 0 10px 0;">${g.readTime} \u2022 ${g.category}</p>
+          <p style="font-size:15px;color:#334155;margin:0 0 12px 0;">${escapeHtml(g.summaryEn)}</p>
+          <a href="/guides/${g.slug}" style="color:#059669;font-weight:bold;text-decoration:none;">Read Complete Guide &rarr;</a>
+        </div>
+      `).join("")}
+    </div>
+  </main>
+</div>`;
+    html = html.replace(/<div id="root"><\/div>/i, preRendered);
+    return res.send(html);
+  }
+  if (urlPath.startsWith("/guides/")) {
+    const slug = urlPath.replace("/guides/", "").trim();
+    const guide = REAL_ESTATE_GUIDES.find((g) => g.slug === slug);
+    if (guide) {
+      const canonicalUrl = `${DOMAIN}/guides/${guide.slug}`;
+      const title = `${guide.metaTitle} | Uttarakhand Gateways`;
+      const description = guide.metaDescription;
+      html = html.replace(/<title>.*?<\/title>/i, `<title>${escapeHtml(title)}</title>`);
+      html = html.replace(/<meta name="description".*?>/i, `<meta name="description" content="${escapeHtml(description)}" />`);
+      html = html.replace(/<link rel="canonical".*?>/i, `<link rel="canonical" href="${canonicalUrl}" />`);
+      html = html.replace(/<meta property="og:title".*?>/i, `<meta property="og:title" content="${escapeHtml(title)}" />`);
+      html = html.replace(/<meta property="og:description".*?>/i, `<meta property="og:description" content="${escapeHtml(description)}" />`);
+      html = html.replace(/<meta property="og:url".*?>/i, `<meta property="og:url" content="${canonicalUrl}" />`);
+      const schemaObj = {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Home", "item": `${DOMAIN}/` },
+              { "@type": "ListItem", "position": 2, "name": "Guides & Laws", "item": `${DOMAIN}/guides` },
+              { "@type": "ListItem", "position": 3, "name": guide.titleEn, "item": canonicalUrl }
+            ]
+          },
+          {
+            "@type": "Article",
+            "@id": `${canonicalUrl}#article`,
+            "headline": guide.titleEn,
+            "description": guide.summaryEn,
+            "url": canonicalUrl,
+            "inLanguage": "en-IN",
+            "author": {
+              "@type": "Organization",
+              "name": "Uttarakhand Gateways Legal Desk",
+              "url": DOMAIN
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Uttarakhand Gateways",
+              "logo": {
+                "@type": "ImageObject",
+                "url": `${DOMAIN}/logo.png`
+              }
+            },
+            "datePublished": "2026-01-15T08:00:00+05:30",
+            "dateModified": "2026-03-01T10:00:00+05:30"
+          }
+        ]
+      };
+      html = html.replace("</head>", `<script type="application/ld+json" id="ssr-article-schema">${JSON.stringify(schemaObj)}</script>
+</head>`);
+      const preRendered = `
+<div id="root">
+  <article style="max-width:900px;margin:40px auto;padding:24px;font-family:sans-serif;color:#1e293b;line-height:1.7;">
+    <nav style="font-size:12px;margin-bottom:16px;"><a href="/">Home</a> &gt; <a href="/guides">Real Estate Guides</a> &gt; <span>${escapeHtml(guide.titleEn)}</span></nav>
+    <h1 style="font-size:32px;font-weight:800;color:#064e3b;margin-bottom:10px;">${escapeHtml(guide.titleEn)}</h1>
+    <div style="font-size:14px;color:#64748b;margin-bottom:24px;">${guide.category} \u2022 ${guide.readTime} \u2022 Verified by UKG Legal Desk</div>
+    <p style="font-size:17px;font-weight:600;color:#047857;margin-bottom:28px;">${escapeHtml(guide.summaryEn)}</p>
+    ${guide.sections.map((s) => `
+      <section style="margin-bottom:28px;">
+        <h2 style="font-size:22px;color:#064e3b;margin-bottom:8px;">${escapeHtml(s.headingEn)}</h2>
+        <p style="font-size:15px;color:#334155;">${escapeHtml(s.contentEn)}</p>
+      </section>
+    `).join("")}
+    <div style="margin-top:40px;padding:20px;background:#f0fdf4;border-radius:12px;border:1px solid #bbf7d0;">
+      <h3 style="margin-top:0;color:#166534;">Looking to buy property in Uttarakhand?</h3>
+      <p style="margin-bottom:12px;">Discover 1,000+ verified residential plots, apartments, and cottages with 0% brokerage.</p>
+      <a href="/buy" style="display:inline-block;padding:10px 20px;background:#059669;color:#fff;border-radius:24px;text-decoration:none;font-weight:bold;">Explore Verified Listings</a>
+    </div>
+  </article>
+</div>`;
+      html = html.replace(/<div id="root"><\/div>/i, preRendered);
+      return res.send(html);
+    }
+  }
+  if (urlPath === "/buy" || req.query.page === "buy") {
+    html = html.replace(/<title>.*?<\/title>/i, `<title>Buy Property in Uttarakhand | Verified Plots, Villas & Flats for Sale | Uttarakhand Gateways</title>`);
+    html = html.replace(/<meta name="description".*?>/i, `<meta name="description" content="Explore verified residential plots, luxury mountain villas, cottages, and flats for outright purchase across Uttarakhand with 0% brokerage. Direct deals with owners." />`);
+    html = html.replace(/<link rel="canonical".*?>/i, `<link rel="canonical" href="${DOMAIN}/buy" />`);
+    return res.send(html);
+  }
+  if (urlPath === "/rent" || req.query.page === "rent") {
+    html = html.replace(/<title>.*?<\/title>/i, `<title>Houses & Flats for Rent in Uttarakhand | 0% Brokerage | Uttarakhand Gateways</title>`);
+    html = html.replace(/<meta name="description".*?>/i, `<meta name="description" content="Find verified long-term rentals, mountain cottages, furnished apartments, and villas across Dehradun, Rishikesh, Mussoorie, Nainital with 0% brokerage." />`);
+    html = html.replace(/<link rel="canonical".*?>/i, `<link rel="canonical" href="${DOMAIN}/rent" />`);
+    return res.send(html);
+  }
+  if (urlPath === "/home-loan" || req.query.page === "home-loan") {
+    html = html.replace(/<title>.*?<\/title>/i, `<title>Uttarakhand Home Loan EMI Calculator & Bank Offers | Uttarakhand Gateways</title>`);
+    html = html.replace(/<meta name="description".*?>/i, `<meta name="description" content="Calculate home loan EMI and eligibility for Uttarakhand mountain properties. Compare lowest interest rate offers from SBI, HDFC, ICICI, and PNB." />`);
+    html = html.replace(/<link rel="canonical".*?>/i, `<link rel="canonical" href="${DOMAIN}/home-loan" />`);
+    return res.send(html);
+  }
+  if (urlPath === "/inbox" || urlPath === "/dashboard" || urlPath === "/login" || urlPath === "/register" || urlPath === "/sell-gui" || urlPath === "/rent-gui" || ["inbox", "dashboard", "login", "register", "sell-gui", "rent-gui"].includes(String(req.query.page || ""))) {
+    html = html.replace(/<meta name="robots".*?>/i, `<meta name="robots" content="noindex, nofollow" />`);
+    return res.send(html);
+  }
+  return res.send(html);
+}
 async function startServer() {
   await db.initialize();
   const candidateDistDirs = [
@@ -2690,9 +3445,12 @@ async function startServer() {
   const distPath = candidateDistDirs.find((p) => import_fs2.default.existsSync(import_path2.default.join(p, "index.html")));
   if (distPath && process.env.NODE_ENV !== "development") {
     console.log("[UKG Server] Serving static production files from:", distPath);
+    app.get(["/sitemap.xml", "/robots.txt"], async (req, res) => {
+      await handleSeoPageRender(req, res, distPath);
+    });
     app.use(import_express.default.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(import_path2.default.join(distPath, "index.html"));
+    app.get("*", async (req, res) => {
+      await handleSeoPageRender(req, res, distPath);
     });
   } else {
     try {
@@ -2708,8 +3466,8 @@ async function startServer() {
       if (distPath) {
         console.log("[UKG Server] Vite dev not available, serving dist:", distPath);
         app.use(import_express.default.static(distPath));
-        app.get("*", (req, res) => {
-          res.sendFile(import_path2.default.join(distPath, "index.html"));
+        app.get("*", async (req, res) => {
+          await handleSeoPageRender(req, res, distPath);
         });
       } else {
         throw e;
