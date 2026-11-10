@@ -1,0 +1,6 @@
+{
+  "name": "Uttarakhand Gateways",
+  "description": "Explore verified flats, residential plots, cottages, and villas across Uttarakhand. Buy, sell, or rent directly with 0% brokerage and legal compliance.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
