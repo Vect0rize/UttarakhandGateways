@@ -97,7 +97,7 @@ export const ApkDownloadModal: React.FC = () => {
 
     // Trigger direct native APK download
     const link = document.createElement('a');
-    link.href = '/UKG - App.apk';
+    link.href = '/UKG - App.apk?v=5';
     link.download = 'UKG - App.apk';
     document.body.appendChild(link);
     link.click();
@@ -121,7 +121,7 @@ export const ApkDownloadModal: React.FC = () => {
       }}
     >
       <div 
-        className={`relative w-full max-w-sm sm:max-w-md bg-white dark:bg-[#071c14] text-slate-900 dark:text-white rounded-3xl p-5 sm:p-7 border border-emerald-300/90 dark:border-emerald-700/80 shadow-2xl shadow-emerald-950/30 dark:shadow-black/80 text-center modal-animate-pop overflow-hidden transition-all duration-300 ${
+        className={`relative w-full max-w-sm sm:max-w-md bg-[#FAF9F6] dark:bg-[#032D1F] text-[#0E3A2B] dark:text-[#F4F3EF] rounded-3xl p-5 sm:p-7 border border-emerald-300/90 dark:border-[#32463D] shadow-2xl shadow-[#032D1F]/30 dark:shadow-black/80 text-center modal-animate-pop overflow-hidden transition-all duration-300 ${
           isClosing ? 'scale-95 opacity-0' : 'scale-100 opacity-100'
         }`}
         onClick={(e) => e.stopPropagation()}
@@ -138,11 +138,11 @@ export const ApkDownloadModal: React.FC = () => {
         </button>
 
         {/* Ambient Top Glow */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-28 bg-emerald-500/20 dark:bg-emerald-400/25 blur-3xl pointer-events-none" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-28 bg-[#AA8F7C]/15 dark:bg-[#C2A691]/15 blur-3xl pointer-events-none" />
 
         {/* Official UKG Mountain Emblem & Android Badge */}
         <div className="flex flex-col items-center justify-center mb-3 relative">
-          <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-tr from-emerald-600 via-teal-600 to-green-500 p-1 flex items-center justify-center shadow-lg shadow-emerald-600/30 ring-4 ring-emerald-100 dark:ring-emerald-950">
+          <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-tr from-[#0E3A2B] via-[#32463D] to-[#0C3628] p-1 flex items-center justify-center shadow-lg shadow-[#032D1F]/35 ring-2 ring-[#AA8F7C]/50">
             <img 
               src="/logo_transparent.png" 
               alt="Uttarakhand Gateways" 
@@ -152,41 +152,41 @@ export const ApkDownloadModal: React.FC = () => {
               }}
             />
           </div>
-          <span className="mt-2 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider shadow-xs">
+          <span className="mt-2 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#C2A691] text-[#032D1F] text-[10px] font-black uppercase tracking-wider shadow-xs">
             <Smartphone className="w-3 h-3" />
-            <span>Official Android APK • 13 MB</span>
+            <span>Official Android APK • 13.7 MB</span>
           </span>
         </div>
 
         {/* Headlines */}
-        <h3 className="font-serif-luxury text-xl sm:text-2xl font-black text-slate-900 dark:text-white mb-1">
+        <h3 className="font-serif-luxury text-xl sm:text-2xl font-black text-[#0E3A2B] dark:text-[#F4F3EF] mb-1">
           {isHindi ? 'उत्तराखंड गेटवेज ऐप इंस्टॉल करें' : 'Get The Uttarakhand Gateways App'}
         </h3>
-        <p className="text-xs sm:text-sm text-emerald-700 dark:text-emerald-400 font-bold mb-4">
+        <p className="text-xs sm:text-sm text-[#32463D] dark:text-[#C2A691] font-bold mb-4">
           {isHindi 
             ? 'पहाड़ों में 0% ब्रोकरेज प्रॉपर्टी, सीधे आपके फोन पर' 
             : '0% Brokerage Mountain Real Estate Directly in Your Hands'}
         </p>
 
         {/* Feature Highlights Grid */}
-        <div className="space-y-2 mb-5 text-left bg-emerald-50/70 dark:bg-[#0b281d] p-3 sm:p-3.5 rounded-2xl border border-emerald-200/80 dark:border-emerald-800/80">
-          <div className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 dark:text-emerald-100">
-            <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0">
+        <div className="space-y-2 mb-5 text-left bg-[#f1f2ef] dark:bg-[#0C3628] p-3 sm:p-3.5 rounded-2xl border border-emerald-200/80 dark:border-[#32463D]">
+          <div className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 dark:text-[#E5D4C8]">
+            <span className="w-5 h-5 rounded-full bg-[#0E3A2B] text-[#C2A691] flex items-center justify-center shrink-0">
               <Check className="w-3 h-3 stroke-[3]" />
             </span>
             <span>{isHindi ? 'सीधे मालिक से फोन कॉल व इंस्टेंट चैट' : 'Direct owner calls & instant WhatsApp chat'}</span>
           </div>
-          <div className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 dark:text-emerald-100">
-            <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0">
+          <div className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 dark:text-[#E5D4C8]">
+            <span className="w-5 h-5 rounded-full bg-[#0E3A2B] text-[#C2A691] flex items-center justify-center shrink-0">
               <Check className="w-3 h-3 stroke-[3]" />
             </span>
             <span>{isHindi ? '100% सत्यापित आवासीय प्लॉट, फ्लैट्स व विला' : '100% verified mountain plots, flats & villas'}</span>
           </div>
-          <div className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 dark:text-emerald-100">
-            <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0">
+          <div className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 dark:text-[#E5D4C8]">
+            <span className="w-5 h-5 rounded-full bg-[#0E3A2B] text-[#C2A691] flex items-center justify-center shrink-0">
               <Check className="w-3 h-3 stroke-[3]" />
             </span>
-            <span>{isHindi ? 'सुपरफास्ट लोडिंग • मात्र 13 MB का हल्का ऐप' : 'Lightweight native performance (Only 13 MB)'}</span>
+            <span>{isHindi ? 'सुपरफास्ट लोडिंग • मात्र 13.7 MB का हल्का ऐप' : 'Lightweight native performance (Only 13.7 MB)'}</span>
           </div>
         </div>
 
@@ -196,13 +196,13 @@ export const ApkDownloadModal: React.FC = () => {
             type="button"
             onClick={handleDownload}
             disabled={downloading}
-            className="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-green-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-sm shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98] ring-2 ring-emerald-300/40"
+            className="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-[#0E3A2B] via-[#32463D] to-[#0C3628] hover:from-[#164A37] hover:to-[#0E3A2B] text-[#F4F3EF] font-extrabold text-sm shadow-lg shadow-[#032D1F]/35 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98] ring-1 ring-[#AA8F7C]/50"
           >
             <Download className={`w-4 h-4 ${downloading ? 'animate-spin' : 'animate-bounce'}`} />
             <span>
               {downloading 
                 ? (isHindi ? 'डाउनलोड शुरू हो रहा है...' : 'Starting Download...') 
-                : (isHindi ? 'डाउनलोड APK (मुफ़्त • 13 MB)' : 'Download APK (Free • 13 MB)')}
+                : (isHindi ? 'डाउनलोड APK (मुफ़्त • 13.7 MB)' : 'Download APK (Free • 13.7 MB)')}
             </span>
           </button>
 

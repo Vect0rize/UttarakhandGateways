@@ -117,6 +117,29 @@ const possiblePublicPaths = [
   path.resolve(__dirname, 'public'),
 ];
 const publicPath = possiblePublicPaths.find(p => fs.existsSync(p)) || possiblePublicPaths[0];
+// Dedicated Android APK direct download route (registered before static middleware so MIME, filename, and no-cache headers always apply; includes %20 encoded path)
+app.get(['/UKG - App.apk', '/UKG%20-%20App.apk', '/UKG-App.apk', '/download-app', '/download-apk'], (req, res) => {
+  const possiblePaths = [
+    path.resolve(process.cwd(), 'public', 'UKG - App.apk'),
+    path.resolve(__dirname, 'public', 'UKG - App.apk'),
+    path.resolve(process.cwd(), 'dist', 'UKG - App.apk'),
+    path.resolve(process.cwd(), 'UKG - App.apk'),
+    path.resolve(__dirname, 'UKG - App.apk'),
+    'D:\\Downloads\\UKG - App.apk'
+  ];
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+      res.setHeader('Content-Disposition', 'attachment; filename="UKG - App.apk"');
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      return res.sendFile(p, { cacheControl: false });
+    }
+  }
+  res.status(404).send('APK file not found on server.');
+});
+
 app.use(express.static(publicPath, { index: false }));
 
 // Safe user serializer
@@ -245,26 +268,6 @@ app.get('/api/health', async (req, res) => {
       time: new Date().toISOString()
     });
   }
-});
-
-// DEDICATED ANDROID APK DIRECT DOWNLOAD ROUTE
-app.get(['/UKG - App.apk', '/UKG-App.apk', '/download-app', '/download-apk'], (req, res) => {
-  const possiblePaths = [
-    path.resolve(process.cwd(), 'public', 'UKG - App.apk'),
-    path.resolve(__dirname, 'public', 'UKG - App.apk'),
-    path.resolve(process.cwd(), 'dist', 'UKG - App.apk'),
-    path.resolve(process.cwd(), 'UKG - App.apk'),
-    path.resolve(__dirname, 'UKG - App.apk'),
-    'D:\\Downloads\\UKG - App.apk'
-  ];
-  for (const p of possiblePaths) {
-    if (fs.existsSync(p)) {
-      res.setHeader('Content-Type', 'application/vnd.android.package-archive');
-      res.setHeader('Content-Disposition', 'attachment; filename="UKG - App.apk"');
-      return res.sendFile(p);
-    }
-  }
-  res.status(404).send('APK file not found on server.');
 });
 
 // SHARED PROPERTIES CRUD APIS (Open to all visitors, logged in or logged out)
