@@ -99,7 +99,7 @@ export const Footer: React.FC<FooterProps> = ({
 
             <div className="pt-1">
               <a
-                href="/UKG - App.apk?v=6"
+                href="/UKG - App.apk?v=7"
                 download="UKG - App.apk"
                 className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#0E3A2B] to-[#32463D] hover:from-[#164A37] hover:to-[#3c5348] text-[#F4F3EF] border border-[#AA8F7C]/40 font-bold text-xs shadow-xs transition-all cursor-pointer"
               >
