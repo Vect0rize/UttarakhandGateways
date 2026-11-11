@@ -8,7 +8,7 @@ import type { AppPageRouteKey } from '../data/seoMetadata';
 interface ListPageProps {
   onBackToMain: () => void;
   onSelectSaleRole: (role: 'Owner' | 'Broker') => void;
-  onSelectRent: () => void;
+  onSelectRent: (role?: 'Owner' | 'Broker') => void;
   onNavigatePage?: (page: AppPageRouteKey, slug?: string) => void;
   onNavigateCity?: (city: string) => void;
 }
@@ -121,18 +121,33 @@ export const ListPage: React.FC<ListPageProps> = ({
               </h2>
             </div>
 
-            <div>
+            <div className="space-y-2">
               <a
                 href="/list/rent"
                 onClick={(e) => {
                   e.preventDefault();
-                  onSelectRent();
+                  onSelectRent('Owner');
                 }}
                 className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#32463D] to-[#0E3A2B] hover:from-[#3d544a] hover:to-[#164A37] text-white font-extrabold text-xs sm:text-sm shadow-sm flex items-center justify-between cursor-pointer active:scale-[0.99] transition-all"
               >
                 <span className="flex items-center gap-2">
                   <Key className="w-4 h-4" />
-                  <span>{isHindi ? 'रेंटल प्रॉपर्टी / PG लिस्ट करें' : 'Continue to Rental Listing'}</span>
+                  <span>{isHindi ? 'सीधे मालिक के रूप में किराये पर दें' : 'Rent as Direct Owner'}</span>
+                </span>
+                <ArrowRight className="w-4 h-4" />
+              </a>
+
+              <a
+                href="/list/rent"
+                onClick={(e) => {
+                  e.preventDefault();
+                  onSelectRent('Broker');
+                }}
+                className="w-full py-2.5 px-4 rounded-xl bg-emerald-50 dark:bg-[#072B1F] hover:bg-emerald-100 dark:hover:bg-[#0E3A2B] text-[#0E3A2B] dark:text-[#E5D4C8] border border-emerald-200 dark:border-[#32463D] font-bold text-xs sm:text-sm flex items-center justify-between cursor-pointer active:scale-[0.99] transition-all"
+              >
+                <span className="flex items-center gap-2">
+                  <Building2 className="w-4 h-4" />
+                  <span>{isHindi ? 'बिल्डर / प्रॉपर्टी डीलर के रूप में लिस्ट करें' : 'List as Verified Builder / Broker'}</span>
                 </span>
                 <ArrowRight className="w-4 h-4" />
               </a>

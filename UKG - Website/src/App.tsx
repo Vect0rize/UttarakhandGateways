@@ -153,8 +153,9 @@ export default function App() {
 
   const [activePage, setActivePage] = useState<ActivePageView>(getInitialActivePage);
   const [showListChooser, setShowListChooser] = useState(false);
-  const [listChooserStep, setListChooserStep] = useState<'type' | 'sale-role'>('type');
+  const [listChooserStep, setListChooserStep] = useState<'type' | 'sale-role' | 'rent-role'>('type');
   const [sellListingRole, setSellListingRole] = useState<'Owner' | 'Broker'>('Owner');
+  const [rentListingRole, setRentListingRole] = useState<'Owner' | 'Broker'>('Owner');
 
   // Support history navigation between marketplace, buy page, rent page, sell gui, rent gui, login, register, and inbox
   useEffect(() => {
@@ -1466,6 +1467,7 @@ export default function App() {
             handlePropertyUploaded(p);
             navigateToPage('rent');
           }}
+          initialRole={rentListingRole}
           onOpenLegalPolicy={handleOpenLegalPolicy}
           onNavigatePage={(page) => navigateToPage(page as ActivePageView)}
           onNavigateCity={navigateToCity}
@@ -1507,7 +1509,10 @@ export default function App() {
             setSellListingRole(role);
             navigateToPage('sell-gui');
           }}
-          onSelectRent={() => navigateToPage('rent-gui')}
+          onSelectRent={(role) => {
+            setRentListingRole(role || 'Owner');
+            navigateToPage('rent-gui');
+          }}
           onNavigatePage={(page, slug) => {
             if (page === 'guides') navigateToGuides(slug);
             else navigateToPage(page);
@@ -2227,6 +2232,7 @@ export default function App() {
         isOpen={isRentalModalOpen}
         onClose={() => setIsRentalModalOpen(false)}
         mode="create-rent"
+        initialRole={rentListingRole || 'Owner'}
         onPropertySaved={(rentalProp) => {
           setIsRentalModalOpen(false);
           handlePropertyUploaded(rentalProp);
@@ -2341,7 +2347,8 @@ export default function App() {
             navigateToPage('sell-gui');
           }, isHindi ? 'प्रॉपर्टी लिस्ट करने हेतु कृपया ईमेल (OTP) से लॉगिन करें।' : 'Please sign in with your email via OTP to list a property.');
         }}
-        onSelectRent={() => {
+        onSelectRent={(role) => {
+          setRentListingRole(role || 'Owner');
           setShowListChooser(false);
           requireAuth(() => {
             navigateToPage('rent-gui');

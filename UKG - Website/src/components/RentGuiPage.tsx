@@ -12,6 +12,7 @@ interface RentGuiPageProps {
   onBackToMain: () => void;
   onRentalUploaded: (property: Property) => void;
   onOpenLegalPolicy?: (policyId: LegalPolicyId) => void;
+  initialRole?: 'Owner' | 'Broker';
   onNavigatePage?: (page: AppPageRouteKey) => void;
   onNavigateCity?: (city: string) => void;
 }
@@ -20,6 +21,7 @@ export const RentGuiPage: React.FC<RentGuiPageProps> = ({
   onBackToMain,
   onRentalUploaded,
   onOpenLegalPolicy,
+  initialRole = 'Owner',
   onNavigatePage,
   onNavigateCity,
 }) => {
@@ -60,6 +62,7 @@ export const RentGuiPage: React.FC<RentGuiPageProps> = ({
           isOpen={true}
           isPageMode={true}
           mode="create-rent"
+          initialRole={initialRole}
           onClose={onBackToMain}
           onPropertySaved={(p) => {
             onRentalUploaded(p);

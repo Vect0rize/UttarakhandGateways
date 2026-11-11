@@ -6,8 +6,8 @@ interface ListChooserModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectSale: (role: 'Owner' | 'Broker') => void;
-  onSelectRent: () => void;
-  initialStep?: 'type' | 'sale-role';
+  onSelectRent: (role?: 'Owner' | 'Broker') => void;
+  initialStep?: 'type' | 'sale-role' | 'rent-role';
 }
 
 export const ListChooserModal: React.FC<ListChooserModalProps> = ({
@@ -18,7 +18,7 @@ export const ListChooserModal: React.FC<ListChooserModalProps> = ({
   initialStep = 'type',
 }) => {
   const { isHindi } = useLanguage();
-  const [step, setStep] = useState<'type' | 'sale-role'>(initialStep);
+  const [step, setStep] = useState<'type' | 'sale-role' | 'rent-role'>(initialStep);
 
   useEffect(() => {
     if (isOpen) {
@@ -42,11 +42,11 @@ export const ListChooserModal: React.FC<ListChooserModalProps> = ({
         {/* Header */}
         <div className="relative px-6 py-5 bg-gradient-to-r from-emerald-900 via-teal-900 to-[#06241a] text-white flex items-center justify-between border-b border-emerald-700/50">
           <div className="flex items-center gap-3">
-            {step === 'sale-role' && (
+            {(step === 'sale-role' || step === 'rent-role') && (
               <button
                 type="button"
                 onClick={() => {
-                  if (initialStep === 'sale-role') {
+                  if (initialStep !== 'type') {
                     onClose();
                   } else {
                     setStep('type');
@@ -63,8 +63,8 @@ export const ListChooserModal: React.FC<ListChooserModalProps> = ({
             </div>
             <div>
               <h3 className="text-lg font-black tracking-tight leading-tight">
-                {step === 'sale-role' 
-                  ? (isHindi ? 'अपनी भूमिका चुनें: मालिक या ब्रोकर' : 'Choose Role: Owner or Broker')
+                {step === 'sale-role' || step === 'rent-role'
+                  ? (isHindi ? 'अपनी भूमिका चुनें: मालिक या ब्रोकर' : 'Choose Role: Owner or Verified Broker')
                   : (isHindi ? 'प्रॉपर्टी लिस्टिंग प्रकार चुनें' : 'Choose Listing Type')}
               </h3>
               <p className="text-xs text-emerald-200/80">
@@ -121,10 +121,7 @@ export const ListChooserModal: React.FC<ListChooserModalProps> = ({
 
             {/* Option 2: For Rent */}
             <div
-              onClick={() => {
-                onClose();
-                onSelectRent();
-              }}
+              onClick={() => setStep('rent-role')}
               className="group p-5 rounded-2xl border-2 border-teal-200 dark:border-teal-800/70 hover:border-teal-500 dark:hover:border-teal-400 bg-teal-50/40 dark:bg-[#07241b]/40 hover:bg-teal-50 dark:hover:bg-[#092b21] transition-all cursor-pointer shadow-xs hover:shadow-md flex items-center gap-4 active:scale-[0.99]"
             >
               <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#32463D] to-[#0E3A2B] text-white flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
@@ -168,7 +165,8 @@ export const ListChooserModal: React.FC<ListChooserModalProps> = ({
             <div
               onClick={() => {
                 onClose();
-                onSelectSale('Owner');
+                if (step === 'rent-role') onSelectRent('Owner');
+                else onSelectSale('Owner');
               }}
               className="group p-5 rounded-2xl border-2 border-emerald-300 dark:border-emerald-700 hover:border-emerald-500 bg-emerald-50/60 dark:bg-[#092b1e]/60 hover:bg-emerald-100/70 dark:hover:bg-[#0c3525] transition-all cursor-pointer shadow-xs hover:shadow-md flex items-center gap-4 active:scale-[0.99]"
             >
@@ -185,9 +183,13 @@ export const ListChooserModal: React.FC<ListChooserModalProps> = ({
                   </span>
                 </div>
                 <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
-                  {isHindi 
-                    ? 'मैं संपत्ति का वास्तविक मालिक हूँ। 0% ब्रोकरेज सीधे खरीदार के साथ।' 
-                    : 'I am the property owner selling directly with zero brokerage.'}
+                  {step === 'rent-role'
+                    ? (isHindi
+                        ? 'मैं संपत्ति का वास्तविक मालिक हूँ। 0% ब्रोकरेज सीधे किरायेदार के साथ।'
+                        : 'I am the property owner renting directly with zero brokerage.')
+                    : (isHindi
+                        ? 'मैं संपत्ति का वास्तविक मालिक हूँ। 0% ब्रोकरेज सीधे खरीदार के साथ।'
+                        : 'I am the property owner selling directly with zero brokerage.')}
                 </p>
               </div>
               <div className="w-9 h-9 rounded-full bg-white dark:bg-slate-800 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-200 dark:border-slate-700 group-hover:translate-x-1 transition-transform">
@@ -195,11 +197,12 @@ export const ListChooserModal: React.FC<ListChooserModalProps> = ({
               </div>
             </div>
 
-            {/* Role 2: Agent / Broker */}
+            {/* Role 2: Agent / Verified Builder / Broker */}
             <div
               onClick={() => {
                 onClose();
-                onSelectSale('Broker');
+                if (step === 'rent-role') onSelectRent('Broker');
+                else onSelectSale('Broker');
               }}
               className="group p-5 rounded-2xl border-2 border-teal-300 dark:border-teal-700 hover:border-teal-500 bg-teal-50/60 dark:bg-[#07281f]/60 hover:bg-teal-100/70 dark:hover:bg-[#0a3328] transition-all cursor-pointer shadow-xs hover:shadow-md flex items-center gap-4 active:scale-[0.99]"
             >
@@ -209,16 +212,16 @@ export const ListChooserModal: React.FC<ListChooserModalProps> = ({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-base font-black text-slate-900 dark:text-white group-hover:text-teal-700 dark:group-hover:text-teal-300 transition-colors">
-                    {isHindi ? 'एजेंट / ब्रोकर (Agent / Broker)' : 'Real Estate Agent / Broker'}
+                    {isHindi ? 'सत्यापित बिल्डर / ब्रोकर' : 'Verified Builder / Broker'}
                   </span>
                   <span className="px-2 py-0.5 rounded-full bg-teal-600 text-white font-black text-[10px] uppercase">
                     Broker
                   </span>
                 </div>
                 <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
-                  {isHindi 
-                    ? 'मैं एक पेशेवर प्रॉपर्टी सलाहकार, डीलर या अधिकृत ब्रोकर हूँ।' 
-                    : 'I am a property dealer, consultant, or authorized real estate agent.'}
+                  {isHindi
+                    ? 'मैं एक पेशेवर बिल्डर, प्रॉपर्टी सलाहकार, डीलर या अधिकृत ब्रोकर हूँ।'
+                    : 'I am a verified builder, property dealer, or authorized real estate broker.'}
                 </p>
               </div>
               <div className="w-9 h-9 rounded-full bg-white dark:bg-slate-800 text-teal-600 flex items-center justify-center shrink-0 border border-teal-200 dark:border-slate-700 group-hover:translate-x-1 transition-transform">
