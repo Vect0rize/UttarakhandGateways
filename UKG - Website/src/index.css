@@ -2,6 +2,57 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+@theme {
+  /* Palette from OAKEN image: Deep Forest Green (#0E3A2B / #032D1F), Matte Woodland Pine (#2A382B / #32463D), Warm Chalk Ivory (#F4F4F1 / #E9E9E9), Rose-Copper Bronze (#AA8F7C / #C2A691) */
+  --color-emerald-50: #f4f5f3;
+  --color-emerald-100: #e7eae7;
+  --color-emerald-200: #d0d7d2;
+  --color-emerald-300: #b0bdb5;
+  --color-emerald-400: #a6bfb0;
+  --color-emerald-500: #295743;
+  --color-emerald-600: #0E3A2B;
+  --color-emerald-700: #0C3628;
+  --color-emerald-800: #092c20;
+  --color-emerald-900: #062117;
+  --color-emerald-950: #032D1F;
+
+  --color-teal-50: #f3f4f2;
+  --color-teal-100: #e5e8e5;
+  --color-teal-200: #ccd2cd;
+  --color-teal-300: #a7b1aa;
+  --color-teal-400: #9bb0a5;
+  --color-teal-500: #3c5348;
+  --color-teal-600: #32463D;
+  --color-teal-700: #2A382B;
+  --color-teal-800: #202d22;
+  --color-teal-900: #142119;
+  --color-teal-950: #081811;
+
+  --color-green-50: #f4f5f3;
+  --color-green-100: #e7eae7;
+  --color-green-200: #cfd6d1;
+  --color-green-300: #a8b7ae;
+  --color-green-400: #a2baac;
+  --color-green-500: #2d5945;
+  --color-green-600: #174433;
+  --color-green-700: #0E3A2B;
+  --color-green-800: #0A3022;
+  --color-green-900: #062419;
+  --color-green-950: #032D1F;
+
+  --color-amber-50: #faf7f5;
+  --color-amber-100: #f3ebe5;
+  --color-amber-200: #e5d4c8;
+  --color-amber-300: #d4b9a6;
+  --color-amber-400: #C2A691;
+  --color-amber-500: #AA8F7C;
+  --color-amber-600: #8E725E;
+  --color-amber-700: #725948;
+  --color-amber-800: #594437;
+  --color-amber-900: #403026;
+  --color-amber-950: #281D16;
+}
+
 @layer base {
   html, body {
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
@@ -10,14 +61,14 @@
     width: 100%;
     margin: 0;
     padding: 0;
-    background-color: #f2f7f4;
-    color: #162a21;
+    background-color: #f1f2ef;
+    color: #12231a;
     transition: background-color 0.3s ease, color 0.3s ease;
   }
 
   html.dark, body.dark, html.dark body {
-    background-color: #071a14 !important;
-    color: #f1f8f5 !important;
+    background-color: #032D1F !important;
+    color: #f4f3ef !important;
     color-scheme: dark;
   }
 }
@@ -34,41 +85,41 @@
   font-family: 'Cinzel', serif;
 }
 
-/* Glassmorphism helpers for Light Greenish Mountain Pine & Dark Himalayan Night */
+/* Glassmorphism helpers for Oaken Chalk Ivory & Deep Forest Pine */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(248, 248, 245, 0.94);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(167, 243, 208, 0.7);
+  border: 1px solid rgba(208, 215, 210, 0.85);
 }
 
 .dark .glass-panel {
-  background: rgba(8, 28, 22, 0.9);
-  border-color: rgba(52, 211, 153, 0.2);
+  background: rgba(12, 54, 40, 0.92);
+  border-color: rgba(170, 143, 124, 0.25);
 }
 
 .glass-panel-light {
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(244, 244, 241, 0.88);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(167, 243, 208, 0.5);
+  border: 1px solid rgba(208, 215, 210, 0.7);
 }
 
 .dark .glass-panel-light {
-  background: rgba(11, 34, 27, 0.8);
-  border-color: rgba(52, 211, 153, 0.15);
+  background: rgba(14, 58, 43, 0.84);
+  border-color: rgba(170, 143, 124, 0.2);
 }
 
 .glass-dropdown {
-  background: rgba(255, 255, 255, 0.98);
+  background: rgba(249, 249, 247, 0.98);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(167, 243, 208, 0.8);
+  border: 1px solid rgba(208, 215, 210, 0.9);
 }
 
 .dark .glass-dropdown {
-  background: rgba(8, 26, 20, 0.98);
-  border-color: rgba(30, 70, 55, 0.8);
+  background: rgba(12, 54, 40, 0.98);
+  border-color: rgba(50, 70, 61, 0.9);
 }
 
 .glass-card-hover {
@@ -78,14 +129,14 @@
 .glass-card-hover:hover {
   transform: translateY(-4px);
   background: rgba(255, 255, 255, 1);
-  border-color: rgba(5, 150, 105, 0.5);
-  box-shadow: 0 20px 40px -15px rgba(6, 78, 59, 0.12), 0 0 20px rgba(52, 211, 153, 0.15);
+  border-color: rgba(170, 143, 124, 0.65);
+  box-shadow: 0 20px 40px -15px rgba(3, 45, 31, 0.14), 0 0 20px rgba(170, 143, 124, 0.14);
 }
 
 .dark .glass-card-hover:hover {
-  background: rgba(10, 36, 28, 1);
-  border-color: rgba(52, 211, 153, 0.4);
-  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), 0 0 20px rgba(52, 211, 153, 0.1);
+  background: rgba(14, 58, 43, 1);
+  border-color: rgba(170, 143, 124, 0.5);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.55), 0 0 20px rgba(170, 143, 124, 0.12);
 }
 
 /* REMOVE ALL HORIZONTAL SCROLLBARS */
@@ -95,7 +146,7 @@
   width: 0px !important;
 }
 
-/* Subtle vertical scrollbar in soft green */
+/* Subtle vertical scrollbar in Oaken forest / bronze */
 ::-webkit-scrollbar {
   width: 6px;
   height: 0px;
@@ -106,20 +157,20 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(5, 150, 105, 0.25);
+  background: rgba(14, 58, 43, 0.28);
   border-radius: 9999px;
 }
 
 .dark ::-webkit-scrollbar-thumb {
-  background: rgba(52, 211, 153, 0.3);
+  background: rgba(170, 143, 124, 0.35);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(5, 150, 105, 0.45);
+  background: rgba(14, 58, 43, 0.5);
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: rgba(52, 211, 153, 0.5);
+  background: rgba(194, 166, 145, 0.6);
 }
 
 .no-scrollbar::-webkit-scrollbar {
@@ -230,7 +281,7 @@ input[type=range].fintech-slider::-webkit-slider-thumb {
   height: 22px;
   border-radius: 50%;
   background: #ffffff;
-  border: 4px solid #d8232a;
+  border: 4px solid #0E3A2B;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
   cursor: pointer;
   transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.15s ease;
@@ -238,12 +289,12 @@ input[type=range].fintech-slider::-webkit-slider-thumb {
 
 input[type=range].fintech-slider::-webkit-slider-thumb:hover {
   transform: scale(1.15);
-  box-shadow: 0 3px 10px rgba(216, 35, 42, 0.4);
+  box-shadow: 0 3px 10px rgba(14, 58, 43, 0.4);
 }
 
 input[type=range].fintech-slider::-webkit-slider-thumb:active {
   transform: scale(1.22);
-  box-shadow: 0 0 0 6px rgba(216, 35, 42, 0.25);
+  box-shadow: 0 0 0 6px rgba(170, 143, 124, 0.28);
 }
 
 input[type=range].fintech-slider::-moz-range-thumb {
@@ -251,7 +302,7 @@ input[type=range].fintech-slider::-moz-range-thumb {
   height: 22px;
   border-radius: 50%;
   background: #ffffff;
-  border: 4px solid #d8232a;
+  border: 4px solid #0E3A2B;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
   cursor: pointer;
   transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.15s ease;
@@ -259,18 +310,18 @@ input[type=range].fintech-slider::-moz-range-thumb {
 
 .dark input[type=range].fintech-slider::-webkit-slider-thumb {
   background: #ffffff;
-  border: 4px solid #10b981;
+  border: 4px solid #AA8F7C;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
 .dark input[type=range].fintech-slider::-webkit-slider-thumb:hover {
   transform: scale(1.15);
-  box-shadow: 0 3px 12px rgba(16, 185, 129, 0.55);
+  box-shadow: 0 3px 12px rgba(170, 143, 124, 0.55);
 }
 
 .dark input[type=range].fintech-slider::-webkit-slider-thumb:active {
   transform: scale(1.22);
-  box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 0 0 6px rgba(170, 143, 124, 0.32);
 }
 
 .dark input[type=range].fintech-slider::-moz-range-thumb {
@@ -278,6 +329,6 @@ input[type=range].fintech-slider::-moz-range-thumb {
   height: 22px;
   border-radius: 50%;
   background: #ffffff;
-  border: 4px solid #10b981;
+  border: 4px solid #AA8F7C;
 }
 

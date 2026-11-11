@@ -244,8 +244,11 @@ export const CityPropertyLandingPage: React.FC<CityPropertyLandingPageProps> = (
       <section className="max-w-7xl mx-auto w-full px-4 sm:px-6 pt-8 pb-4">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-200 dark:border-emerald-800 pb-4">
           <div className="flex items-center gap-2">
-            <h2 className="text-xl sm:text-2xl font-black text-[#0a271c] dark:text-white font-serif-luxury">
-              Available Properties in {marketData.city} ({filteredListings.length})
+            <h2 className="text-xl sm:text-2xl font-black text-[#0E3A2B] dark:text-[#F4F3EF] font-serif-luxury flex items-center flex-wrap gap-2">
+              <span>Available Properties in {marketData.city}</span>
+              <span className="font-sans tabular-nums text-xs sm:text-sm font-extrabold px-2.5 py-0.5 rounded-full bg-[#0E3A2B] text-[#F4F3EF] dark:bg-[#C2A691] dark:text-[#032D1F]">
+                {filteredListings.length.toLocaleString('en-IN')}
+              </span>
             </h2>
           </div>
 

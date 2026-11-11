@@ -45,13 +45,13 @@ export const HomeLoanBanner: React.FC<HomeLoanBannerProps> = ({
   return (
     <div className={`w-full my-12 rounded-3xl border shadow-xl overflow-hidden relative transition-colors duration-300 ${
       isDark 
-        ? 'border-emerald-800/80 bg-gradient-to-r from-[#061e16] via-[#092b20] to-[#04160f] text-white shadow-emerald-950/60' 
-        : 'border-[#f3deab] bg-gradient-to-r from-white via-[#fffefb] to-[#fefbf4] text-slate-900 shadow-amber-900/5'
+        ? 'border-[#32463D] bg-gradient-to-r from-[#0E3A2B] via-[#0C3628] to-[#032D1F] text-[#F4F3EF] shadow-[#032D1F]/60' 
+        : 'border-[#D0D7D2] bg-gradient-to-r from-[#F7F7F4] via-[#F2F2EE] to-[#ECEAE5] text-[#0E3A2B] shadow-[#032D1F]/5'
     }`}>
       
       {/* Background glow */}
       <div className={`absolute top-0 right-1/3 w-80 h-40 rounded-full blur-3xl pointer-events-none ${
-        isDark ? 'bg-emerald-500/15' : 'bg-amber-200/20'
+        isDark ? 'bg-[#AA8F7C]/15' : 'bg-[#AA8F7C]/20'
       }`} />
 
       <div className="p-6 sm:p-8 lg:p-10 relative z-10">

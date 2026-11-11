@@ -35,7 +35,7 @@ export const AboutAndContact: React.FC<AboutAndContactProps> = () => {
             {/* Story Content */}
             <div className="lg:col-span-7 space-y-4">
               
-              <h2 className="text-2xl sm:text-4xl font-bold text-[#0a271c] dark:text-white leading-tight font-serif-luxury">
+              <h2 className="text-2xl sm:text-4xl font-bold text-[#0E3A2B] dark:text-[#F4F3EF] leading-tight font-serif-luxury">
                 {isHindi 
                   ? 'उत्तराखंड में सीधा रियल एस्टेट और प्रॉपर्टी मार्केटप्लेस' 
                   : 'Direct Property Marketplace Across Uttarakhand'}
@@ -104,7 +104,7 @@ export const AboutAndContact: React.FC<AboutAndContactProps> = () => {
 
       {/* 2. PLATFORM GUIDELINES & SUPPORT */}
       <section id="contact-section" className="relative">
-        <div className="bg-white dark:bg-[#092218] rounded-3xl p-6 sm:p-10 border border-emerald-200/80 dark:border-emerald-900/60 shadow-lg shadow-emerald-950/5 transition-colors">
+        <div className="bg-[#FAF9F6] dark:bg-[#0C3628] rounded-3xl p-6 sm:p-10 border border-emerald-200/80 dark:border-[#32463D]/70 shadow-lg shadow-[#032D1F]/5 transition-colors">
           
           <div className="max-w-4xl mx-auto">
             
@@ -113,7 +113,7 @@ export const AboutAndContact: React.FC<AboutAndContactProps> = () => {
                 <Sparkles className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                 <span>{isHindi ? 'मंच के स्तंभ और सहायता' : 'Platform Pillars & Support'}</span>
               </div>
-              <h3 className="font-serif-luxury text-2xl sm:text-4xl font-bold text-[#0a271c] dark:text-white mb-2">
+              <h3 className="font-serif-luxury text-2xl sm:text-4xl font-bold text-[#0E3A2B] dark:text-[#F4F3EF] mb-2">
                 {isHindi ? 'कानूनी नियम और खरीदार सहायता' : 'Legal Standards & Buyer Assistance'}
               </h3>
               <p className="text-sm text-slate-600 dark:text-slate-300">

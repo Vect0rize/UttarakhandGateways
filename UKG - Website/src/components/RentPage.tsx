@@ -182,10 +182,10 @@ export const RentPage: React.FC<RentPageProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-[#f2f7f4] dark:bg-[#061811] text-slate-800 dark:text-slate-100 flex flex-col transition-colors">
+    <div className="min-h-screen bg-[#f1f2ef] dark:bg-[#032D1F] text-[#0E3A2B] dark:text-[#F4F3EF] flex flex-col transition-colors">
       
       {/* Top Header */}
-      <header className="sticky top-0 z-40 bg-white/95 dark:bg-[#071f16]/95 backdrop-blur-xl border-b border-emerald-200/80 dark:border-emerald-900/60 py-3.5 px-4 sm:px-8 shadow-xs">
+      <header className="sticky top-0 z-40 bg-[#FAF9F6]/95 dark:bg-[#0E3A2B]/95 backdrop-blur-xl border-b border-emerald-200/80 dark:border-[#32463D]/70 py-3.5 px-4 sm:px-8 shadow-xs">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div onClick={onBackToMain} className="cursor-pointer">
             <Logo size="md" darkText={true} />
@@ -211,7 +211,7 @@ export const RentPage: React.FC<RentPageProps> = ({
       </header>
 
       {/* Hero Banner for Rent Page */}
-      <div className="relative py-10 sm:py-14 bg-gradient-to-b from-teal-100/70 via-teal-50/50 to-transparent dark:from-[#06281e] dark:via-[#072018] dark:to-transparent border-b border-teal-200/60 dark:border-teal-950 px-4 text-center">
+      <div className="relative py-10 sm:py-14 bg-gradient-to-b from-[#e4e8e3]/75 via-[#eef1ec]/55 to-transparent dark:from-[#0E3A2B] dark:via-[#082B1E] dark:to-transparent border-b border-teal-200/60 dark:border-[#32463D]/70 px-4 text-center">
         <div className="max-w-4xl mx-auto space-y-3">
           {/* Breadcrumb Navigation */}
           <div className="flex items-center justify-center gap-2 text-xs text-slate-500 dark:text-slate-400">
@@ -311,8 +311,22 @@ export const RentPage: React.FC<RentPageProps> = ({
         {/* Results count header */}
         <div className="flex items-center justify-between gap-4 mb-6 pb-3 border-b border-teal-200/80 dark:border-teal-950">
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold font-serif-luxury text-slate-900 dark:text-white">
-              {isHindi ? `किराये हेतु कुल ${rentProperties.length} परिणाम उपलब्ध` : `${rentProperties.length} Rental Properties Available`}
+            <h2 className="text-xl sm:text-2xl font-bold font-serif-luxury text-[#0E3A2B] dark:text-[#F4F3EF] flex items-center flex-wrap gap-2">
+              {isHindi ? (
+                <>
+                  <span>किराये हेतु कुल परिणाम उपलब्ध</span>
+                  <span className="font-sans tabular-nums text-xs sm:text-sm font-extrabold px-2.5 py-0.5 rounded-full bg-[#32463D] text-[#F4F3EF] dark:bg-[#C2A691] dark:text-[#032D1F]">
+                    {rentProperties.length.toLocaleString('en-IN')}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span>Showing all rental properties</span>
+                  <span className="font-sans tabular-nums text-xs sm:text-sm font-extrabold px-2.5 py-0.5 rounded-full bg-[#32463D] text-[#F4F3EF] dark:bg-[#C2A691] dark:text-[#032D1F]">
+                    {rentProperties.length.toLocaleString('en-IN')}
+                  </span>
+                </>
+              )}
             </h2>
           </div>
           <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">

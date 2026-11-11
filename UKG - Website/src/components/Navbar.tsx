@@ -136,8 +136,8 @@ export const Navbar: React.FC<NavbarProps> = ({
       id="main-navbar"
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         scrolled 
-          ? 'bg-white/95 dark:bg-[#061811]/95 backdrop-blur-xl border-b border-emerald-200/80 dark:border-emerald-950/80 shadow-md shadow-emerald-950/5 dark:shadow-black/20' 
-          : 'bg-white/95 dark:bg-[#061811]/95 sm:bg-gradient-to-b sm:from-white/95 sm:via-white/80 sm:to-transparent sm:dark:from-[#061811]/95 sm:dark:via-[#061811]/80 border-b border-emerald-100/70 sm:border-transparent dark:border-emerald-950/60 shadow-xs sm:shadow-none'
+          ? 'bg-[#FAF9F6]/95 dark:bg-[#032D1F]/95 backdrop-blur-xl border-b border-emerald-200/80 dark:border-[#32463D]/80 shadow-md shadow-emerald-950/5 dark:shadow-black/25' 
+          : 'bg-[#FAF9F6]/95 dark:bg-[#032D1F]/95 sm:bg-gradient-to-b sm:from-[#FAF9F6]/95 sm:via-[#FAF9F6]/80 sm:to-transparent sm:dark:from-[#032D1F]/95 sm:dark:via-[#032D1F]/80 border-b border-emerald-100/70 sm:border-transparent dark:border-[#32463D]/60 shadow-xs sm:shadow-none'
       }`}
     >
       {/* 2. Main Navigation Bar Content */}
@@ -180,7 +180,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
             
             {/* DESKTOP UNIFIED UTILITY CLUSTER: Inbox, Saved, Theme, Language */}
-            <div className="hidden lg:flex items-center gap-0.5 p-1 rounded-full bg-white/70 dark:bg-[#072018]/80 border border-emerald-200/80 dark:border-emerald-800/80 shadow-xs">
+            <div className="hidden lg:flex items-center gap-0.5 p-1 rounded-full bg-[#FAF9F6]/80 dark:bg-[#0C3628]/85 border border-emerald-200/80 dark:border-[#32463D]/80 shadow-xs">
               
               {/* Inbox Icon */}
               <button

@@ -117,7 +117,7 @@ const possiblePublicPaths = [
   path.resolve(__dirname, 'public'),
 ];
 const publicPath = possiblePublicPaths.find(p => fs.existsSync(p)) || possiblePublicPaths[0];
-app.use(express.static(publicPath));
+app.use(express.static(publicPath, { index: false }));
 
 // Safe user serializer
 function formatSafeUser(u: any) {
@@ -2111,6 +2111,21 @@ async function handleSeoPageRender(req: express.Request, res: express.Response, 
   }
   let html = fs.readFileSync(indexPath, 'utf8');
 
+  // Strip unused verification placeholders & dynamically inject configured GA4 / Search Console tags
+  html = html.replace(/<meta\s+name="google-site-verification"\s+content="GSC_VERIFICATION_TOKEN_PLACEHOLDER"\s*\/?>\s*/gi, '');
+  const gscToken = (process.env.GOOGLE_SITE_VERIFICATION || process.env.GSC_VERIFICATION_TOKEN || '').trim();
+  if (gscToken && !gscToken.includes('PLACEHOLDER')) {
+    html = html.replace('</head>', `  <meta name="google-site-verification" content="${escapeHtml(gscToken)}" />\n</head>`);
+  }
+  const gaMeasurementId = (process.env.GA_MEASUREMENT_ID || process.env.VITE_GA_MEASUREMENT_ID || '').trim();
+  if (/^G-[A-Z0-9]+$/i.test(gaMeasurementId)) {
+    const safeGaId = escapeHtml(gaMeasurementId);
+    html = html.replace(
+      '</head>',
+      `  <script async src="https://www.googletagmanager.com/gtag/js?id=${safeGaId}"></script>\n  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config', '${safeGaId}');</script>\n</head>`
+    );
+  }
+
   // 3. Property Detail Dynamic SSR Meta Injection (/property/:id or ?property=:id)
   let propertyId: string | null = null;
   if (urlPath.startsWith('/property/')) {
@@ -2505,7 +2520,7 @@ async function startServer() {
     app.get(['/sitemap.xml', '/robots.txt'], async (req, res) => {
       await handleSeoPageRender(req, res, distPath);
     });
-    app.use(express.static(distPath));
+    app.use(express.static(distPath, { index: false }));
     app.get('*', async (req, res) => {
       await handleSeoPageRender(req, res, distPath);
     });
@@ -2523,7 +2538,7 @@ async function startServer() {
     } catch (e) {
       if (distPath) {
         console.log('[UKG Server] Vite dev not available, serving dist:', distPath);
-        app.use(express.static(distPath));
+        app.use(express.static(distPath, { index: false }));
         app.get('*', async (req, res) => {
           await handleSeoPageRender(req, res, distPath);
         });

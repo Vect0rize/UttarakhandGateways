@@ -203,10 +203,10 @@ export const BuyPage: React.FC<BuyPageProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-[#f2f7f4] dark:bg-[#061811] text-slate-800 dark:text-slate-100 flex flex-col transition-colors">
+    <div className="min-h-screen bg-[#f1f2ef] dark:bg-[#032D1F] text-[#0E3A2B] dark:text-[#F4F3EF] flex flex-col transition-colors">
       
       {/* Top Header */}
-      <header className="sticky top-0 z-40 bg-white/95 dark:bg-[#071f16]/95 backdrop-blur-xl border-b border-emerald-200/80 dark:border-emerald-900/60 py-3.5 px-4 sm:px-8 shadow-xs">
+      <header className="sticky top-0 z-40 bg-[#FAF9F6]/95 dark:bg-[#0E3A2B]/95 backdrop-blur-xl border-b border-emerald-200/80 dark:border-[#32463D]/70 py-3.5 px-4 sm:px-8 shadow-xs">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div onClick={onBackToMain} className="cursor-pointer">
             <Logo size="md" darkText={true} />
@@ -320,8 +320,22 @@ export const BuyPage: React.FC<BuyPageProps> = ({
         {/* Results count header */}
         <div className="flex items-center justify-between gap-4 mb-6 pb-3 border-b border-emerald-200/80 dark:border-emerald-950">
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold font-serif-luxury text-slate-900 dark:text-white">
-              {isHindi ? `बिक्री हेतु कुल ${forSaleProperties.length} परिणाम उपलब्ध` : `${forSaleProperties.length} Properties Available For Sale`}
+            <h2 className="text-xl sm:text-2xl font-bold font-serif-luxury text-[#0E3A2B] dark:text-[#F4F3EF] flex items-center flex-wrap gap-2">
+              {isHindi ? (
+                <>
+                  <span>बिक्री हेतु कुल परिणाम उपलब्ध</span>
+                  <span className="font-sans tabular-nums text-xs sm:text-sm font-extrabold px-2.5 py-0.5 rounded-full bg-[#0E3A2B] text-[#F4F3EF] dark:bg-[#C2A691] dark:text-[#032D1F]">
+                    {forSaleProperties.length.toLocaleString('en-IN')}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span>Showing all properties for sale</span>
+                  <span className="font-sans tabular-nums text-xs sm:text-sm font-extrabold px-2.5 py-0.5 rounded-full bg-[#0E3A2B] text-[#F4F3EF] dark:bg-[#C2A691] dark:text-[#032D1F]">
+                    {forSaleProperties.length.toLocaleString('en-IN')}
+                  </span>
+                </>
+              )}
             </h2>
           </div>
           <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">

@@ -132,7 +132,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
         }
         onSelect(property);
       }}
-      className="bg-white dark:bg-[#0c2e22] rounded-3xl overflow-hidden border border-emerald-200/90 dark:border-emerald-600/50 hover:border-emerald-500 dark:hover:border-emerald-400 hover:shadow-2xl hover:shadow-emerald-950/20 dark:hover:shadow-black/70 shadow-sm flex flex-col justify-between cursor-pointer group relative transition-all duration-300 ease-out hover:-translate-y-1.5 select-none"
+      className="bg-[#FAF9F6] dark:bg-[#0C3628] rounded-3xl overflow-hidden border border-[#D0D7D2] dark:border-[#32463D] hover:border-[#0E3A2B] dark:hover:border-[#AA8F7C] hover:shadow-2xl hover:shadow-[#032D1F]/20 dark:hover:shadow-black/70 shadow-sm flex flex-col justify-between cursor-pointer group relative transition-all duration-300 ease-out hover:-translate-y-1.5 select-none"
     >
       {/* Interactive Click Ripple Overlay */}
       <div className="absolute inset-0 overflow-hidden rounded-3xl pointer-events-none z-30">

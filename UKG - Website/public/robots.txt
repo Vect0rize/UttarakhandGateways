@@ -4,8 +4,12 @@
 User-agent: *
 Allow: /
 Allow: /buy
+Allow: /lbuy
 Allow: /rent
+Allow: /list
 Allow: /home-loan
+Allow: /guides
+Allow: /properties-in-
 Allow: /property/
 Allow: /about
 Allow: /contact

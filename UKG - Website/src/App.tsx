@@ -406,6 +406,12 @@ export default function App() {
     if (canonicalLink) {
       canonicalLink.setAttribute('href', `https://uttarakhandgateways.com${seo.canonicalPath}`);
     }
+    if (typeof window !== 'undefined' && typeof (window as any).gtag === 'function') {
+      (window as any).gtag('event', 'page_view', {
+        page_path: window.location.pathname,
+        page_title: seo.title,
+      });
+    }
   }, [activePage, activeCityHub, activeGuideSlug, selectedProperty]);
 
   useEffect(() => {
@@ -1606,37 +1612,37 @@ export default function App() {
   }
 
   return (
-    <div className={`min-h-screen ${isDark ? 'dark bg-[#071a14] text-slate-100' : 'bg-[#f2f7f4] text-slate-800'} flex flex-col selection:bg-emerald-600 selection:text-white relative overflow-x-hidden w-full transition-colors duration-300`}>
+    <div className={`min-h-screen ${isDark ? 'dark bg-[#032D1F] text-[#F4F3EF]' : 'bg-[#f1f2ef] text-[#12231a]'} flex flex-col selection:bg-[#0E3A2B] selection:text-[#F4F3EF] relative overflow-x-hidden w-full transition-colors duration-300`}>
       
-      {/* BACKGROUND CANVAS: Light Greenish Mountain Mist & Dark Himalayan Night */}
+      {/* BACKGROUND CANVAS: Oaken Warm Chalk Ivory & Deep Evergreen Pine */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        {/* Soft Greenish Gradient Wash / Dark Pine Wash */}
+        {/* Soft Ivory Wash / Deep Forest Pine Wash */}
         <div className={`absolute inset-0 transition-colors duration-500 ${
           isDark 
-            ? 'bg-gradient-to-b from-[#071a14] via-[#0b241c] to-[#071a14]' 
-            : 'bg-gradient-to-b from-[#eef6f0] via-[#f5fbf7] to-[#eaf4ed]'
+            ? 'bg-gradient-to-b from-[#0E3A2B] via-[#082F21] to-[#032D1F]' 
+            : 'bg-gradient-to-b from-[#eceee9] via-[#f4f5f2] to-[#e9ebe7]'
         }`} />
         
-        {/* Ambient Radial Sage & Emerald Glow Points */}
+        {/* Ambient Radial Forest & Rose-Bronze Glow Points */}
         <div className={`absolute -top-40 left-1/4 w-[700px] h-[700px] rounded-full blur-[140px] transition-colors duration-500 ${
-          isDark ? 'bg-emerald-500/10' : 'bg-emerald-300/15'
+          isDark ? 'bg-[#32463D]/25' : 'bg-[#0E3A2B]/8'
         }`} />
         <div className={`absolute top-1/3 -right-40 w-[600px] h-[600px] rounded-full blur-[150px] transition-colors duration-500 ${
-          isDark ? 'bg-teal-600/10' : 'bg-teal-300/15'
+          isDark ? 'bg-[#AA8F7C]/12' : 'bg-[#AA8F7C]/12'
         }`} />
         <div className={`absolute bottom-10 left-10 w-[500px] h-[500px] rounded-full blur-[160px] transition-colors duration-500 ${
-          isDark ? 'bg-green-600/10' : 'bg-green-300/15'
+          isDark ? 'bg-[#2A382B]/25' : 'bg-[#32463D]/10'
         }`} />
 
         {/* Topographic Contour Map Pattern */}
         <svg className={`absolute inset-0 w-full h-full transition-opacity duration-300 ${isDark ? 'opacity-[0.05]' : 'opacity-[0.035]'}`} xmlns="http://www.w3.org/2000/svg">
           <defs>
             <pattern id="topo-contours" width="200" height="200" patternUnits="userSpaceOnUse">
-              <path d="M 0 50 Q 50 20 100 50 T 200 50" fill="none" stroke="#059669" strokeWidth="1" />
-              <path d="M 0 100 Q 60 70 120 100 T 200 100" fill="none" stroke="#047857" strokeWidth="0.8" />
-              <path d="M 0 150 Q 40 180 100 150 T 200 150" fill="none" stroke="#059669" strokeWidth="0.8" />
-              <circle cx="100" cy="100" r="35" fill="none" stroke="#059669" strokeWidth="0.6" strokeDasharray="3 3" />
-              <circle cx="100" cy="100" r="70" fill="none" stroke="#047857" strokeWidth="0.5" />
+              <path d="M 0 50 Q 50 20 100 50 T 200 50" fill="none" stroke="#AA8F7C" strokeWidth="1" />
+              <path d="M 0 100 Q 60 70 120 100 T 200 100" fill="none" stroke="#32463D" strokeWidth="0.8" />
+              <path d="M 0 150 Q 40 180 100 150 T 200 150" fill="none" stroke="#AA8F7C" strokeWidth="0.8" />
+              <circle cx="100" cy="100" r="35" fill="none" stroke="#AA8F7C" strokeWidth="0.6" strokeDasharray="3 3" />
+              <circle cx="100" cy="100" r="70" fill="none" stroke="#32463D" strokeWidth="0.5" />
             </pattern>
           </defs>
           <rect width="100%" height="100%" fill="url(#topo-contours)" />
@@ -1862,7 +1868,7 @@ export default function App() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Feature 1 */}
-              <div className="p-4 rounded-2xl bg-white dark:bg-[#071f17] border border-emerald-200/80 dark:border-emerald-900/60 shadow-xs flex items-start gap-3.5">
+              <div className="p-4 rounded-2xl bg-[#FAF9F6] dark:bg-[#0C3628] border border-emerald-200/80 dark:border-[#32463D]/70 shadow-xs flex items-start gap-3.5">
                 <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
                   <ShieldCheck className="w-5 h-5 stroke-[2.2]" />
                 </div>
@@ -1877,7 +1883,7 @@ export default function App() {
               </div>
 
               {/* Feature 2 */}
-              <div className="p-4 rounded-2xl bg-white dark:bg-[#071f17] border border-emerald-200/80 dark:border-emerald-900/60 shadow-xs flex items-start gap-3.5">
+              <div className="p-4 rounded-2xl bg-[#FAF9F6] dark:bg-[#0C3628] border border-emerald-200/80 dark:border-[#32463D]/70 shadow-xs flex items-start gap-3.5">
                 <div className="w-10 h-10 rounded-xl bg-teal-100 dark:bg-teal-950/80 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
                   <Building2 className="w-5 h-5 stroke-[2.2]" />
                 </div>
@@ -1892,7 +1898,7 @@ export default function App() {
               </div>
 
               {/* Feature 3 */}
-              <div className="p-4 rounded-2xl bg-white dark:bg-[#071f17] border border-emerald-200/80 dark:border-emerald-900/60 shadow-xs flex items-start gap-3.5">
+              <div className="p-4 rounded-2xl bg-[#FAF9F6] dark:bg-[#0C3628] border border-emerald-200/80 dark:border-[#32463D]/70 shadow-xs flex items-start gap-3.5">
                 <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
                   <MessageCircle className="w-5 h-5 stroke-[2.2]" />
                 </div>
@@ -1907,7 +1913,7 @@ export default function App() {
               </div>
 
               {/* Feature 4 */}
-              <div className="p-4 rounded-2xl bg-white dark:bg-[#071f17] border border-emerald-200/80 dark:border-emerald-900/60 shadow-xs flex items-start gap-3.5">
+              <div className="p-4 rounded-2xl bg-[#FAF9F6] dark:bg-[#0C3628] border border-emerald-200/80 dark:border-[#32463D]/70 shadow-xs flex items-start gap-3.5">
                 <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
                   <Compass className="w-5 h-5 stroke-[2.2]" />
                 </div>
@@ -1927,12 +1933,20 @@ export default function App() {
         {/* Properties Grid Header */}
         <div id="all-properties-heading" className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-emerald-200/80 dark:border-emerald-950/80">
           <div>
-            <h3 className="text-xl sm:text-2xl font-bold text-[#0a271c] dark:text-white font-serif-luxury">
-              {showingFavoritesOnly 
-                ? (isHindi ? 'सहेजी गई संपत्तियां' : 'Saved for Later') 
-                : (isHindi 
-                    ? `सभी संपत्तियां (${filteredProperties.length})` 
-                    : `Show all properties (${filteredProperties.length})`)}
+            <h3 className="text-xl sm:text-2xl font-bold text-[#0E3A2B] dark:text-[#F4F3EF] font-serif-luxury flex items-center flex-wrap gap-2.5">
+              {showingFavoritesOnly ? (
+                <span>{isHindi ? 'सहेजी गई संपत्तियां' : 'Saved for Later'}</span>
+              ) : (
+                <>
+                  <span>{isHindi ? 'सभी संपत्तियां दिखाई जा रही हैं' : 'Showing all properties'}</span>
+                  <span
+                    id="showing-properties-count"
+                    className="inline-flex items-center justify-center font-sans tabular-nums text-xs sm:text-sm font-extrabold px-3 py-1 rounded-full bg-[#0E3A2B] text-[#F4F3EF] dark:bg-[#C2A691] dark:text-[#032D1F] border border-[#AA8F7C]/50 tracking-normal shadow-xs leading-none"
+                  >
+                    {filteredProperties.length.toLocaleString('en-IN')}
+                  </span>
+                </>
+              )}
             </h3>
           </div>
 
@@ -2070,7 +2084,7 @@ export default function App() {
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-xs font-bold border border-emerald-200 dark:border-emerald-800">
                 <span>{isHindi ? '100% प्रामाणिक प्रत्यक्ष मंच' : '100% Authentic Direct Marketplace'}</span>
               </div>
-              <h3 className="text-2xl sm:text-3xl font-bold text-[#0a271c] dark:text-white font-serif-luxury">
+              <h3 className="text-2xl sm:text-3xl font-bold text-[#0E3A2B] dark:text-[#F4F3EF] font-serif-luxury">
                 {isHindi ? 'अभी कोई लिस्टेड प्रॉपर्टी नहीं है' : 'No Listed Properties Yet'}
               </h3>
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 max-w-md mx-auto leading-relaxed">
@@ -2134,7 +2148,7 @@ export default function App() {
               <Calculator className="w-3.5 h-3.5" />
               <span>{isHindi ? 'भूमि मापन रूपांतरण' : 'Land Measurement Converter'}</span>
             </div>
-            <h3 className="text-2xl sm:text-3xl font-bold text-[#0a271c] dark:text-white font-serif-luxury">
+            <h3 className="text-2xl sm:text-3xl font-bold text-[#0E3A2B] dark:text-[#F4F3EF] font-serif-luxury">
               {isHindi ? 'यूकेजी भूमि कैलकुलेटर' : 'UKG Land Calculator'}
             </h3>
             <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1">

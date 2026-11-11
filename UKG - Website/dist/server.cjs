@@ -1613,7 +1613,7 @@ var possiblePublicPaths = [
   import_path2.default.resolve(__dirname, "public")
 ];
 var publicPath = possiblePublicPaths.find((p) => import_fs2.default.existsSync(p)) || possiblePublicPaths[0];
-app.use(import_express.default.static(publicPath));
+app.use(import_express.default.static(publicPath, { index: false }));
 function formatSafeUser(u) {
   if (!u) return null;
   const contact = (u.contact || u.email || "").trim().toLowerCase();
@@ -3324,6 +3324,22 @@ Sitemap: ${DOMAIN}/sitemap.xml
     return res.status(404).send("Not Found");
   }
   let html = import_fs2.default.readFileSync(indexPath, "utf8");
+  html = html.replace(/<meta\s+name="google-site-verification"\s+content="GSC_VERIFICATION_TOKEN_PLACEHOLDER"\s*\/?>\s*/gi, "");
+  const gscToken = (process.env.GOOGLE_SITE_VERIFICATION || process.env.GSC_VERIFICATION_TOKEN || "").trim();
+  if (gscToken && !gscToken.includes("PLACEHOLDER")) {
+    html = html.replace("</head>", `  <meta name="google-site-verification" content="${escapeHtml(gscToken)}" />
+</head>`);
+  }
+  const gaMeasurementId = (process.env.GA_MEASUREMENT_ID || process.env.VITE_GA_MEASUREMENT_ID || "").trim();
+  if (/^G-[A-Z0-9]+$/i.test(gaMeasurementId)) {
+    const safeGaId = escapeHtml(gaMeasurementId);
+    html = html.replace(
+      "</head>",
+      `  <script async src="https://www.googletagmanager.com/gtag/js?id=${safeGaId}"></script>
+  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config', '${safeGaId}');</script>
+</head>`
+    );
+  }
   let propertyId = null;
   if (urlPath.startsWith("/property/")) {
     propertyId = decodeURIComponent(req.path.slice("/property/".length).trim());
@@ -3683,7 +3699,7 @@ async function startServer() {
     app.get(["/sitemap.xml", "/robots.txt"], async (req, res) => {
       await handleSeoPageRender(req, res, distPath);
     });
-    app.use(import_express.default.static(distPath));
+    app.use(import_express.default.static(distPath, { index: false }));
     app.get("*", async (req, res) => {
       await handleSeoPageRender(req, res, distPath);
     });
@@ -3700,7 +3716,7 @@ async function startServer() {
     } catch (e) {
       if (distPath) {
         console.log("[UKG Server] Vite dev not available, serving dist:", distPath);
-        app.use(import_express.default.static(distPath));
+        app.use(import_express.default.static(distPath, { index: false }));
         app.get("*", async (req, res) => {
           await handleSeoPageRender(req, res, distPath);
         });

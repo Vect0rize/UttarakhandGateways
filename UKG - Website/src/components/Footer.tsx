@@ -60,10 +60,10 @@ export const Footer: React.FC<FooterProps> = ({
   };
 
   return (
-    <footer className="relative bg-emerald-100/50 dark:bg-[#071c14] border-t border-emerald-300 dark:border-emerald-800/80 text-slate-800 dark:text-emerald-100 transition-colors">
+    <footer className="relative bg-[#e8eae6] dark:bg-[#07261A] border-t border-[#d0d7d2] dark:border-[#32463D] text-[#12231a] dark:text-[#e6ebe7] transition-colors">
       
-      {/* Decorative mountain landscape silhouette */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-600 via-teal-500 to-green-600 pointer-events-none" />
+      {/* Decorative top trim in Oaken Forest -> Rose-Bronze -> Slate Pine */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0E3A2B] via-[#AA8F7C] to-[#32463D] pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-10">
         
