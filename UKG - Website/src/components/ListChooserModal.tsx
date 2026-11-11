@@ -127,7 +127,7 @@ export const ListChooserModal: React.FC<ListChooserModalProps> = ({
               }}
               className="group p-5 rounded-2xl border-2 border-teal-200 dark:border-teal-800/70 hover:border-teal-500 dark:hover:border-teal-400 bg-teal-50/40 dark:bg-[#07241b]/40 hover:bg-teal-50 dark:hover:bg-[#092b21] transition-all cursor-pointer shadow-xs hover:shadow-md flex items-center gap-4 active:scale-[0.99]"
             >
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-teal-600 to-cyan-600 text-white flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#32463D] to-[#0E3A2B] text-white flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
                 <Key className="w-7 h-7" />
               </div>
               <div className="flex-1 min-w-0">
@@ -203,7 +203,7 @@ export const ListChooserModal: React.FC<ListChooserModalProps> = ({
               }}
               className="group p-5 rounded-2xl border-2 border-teal-300 dark:border-teal-700 hover:border-teal-500 bg-teal-50/60 dark:bg-[#07281f]/60 hover:bg-teal-100/70 dark:hover:bg-[#0a3328] transition-all cursor-pointer shadow-xs hover:shadow-md flex items-center gap-4 active:scale-[0.99]"
             >
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-teal-600 to-cyan-600 text-white flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#32463D] to-[#0E3A2B] text-white flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
                 <Building2 className="w-7 h-7" />
               </div>
               <div className="flex-1 min-w-0">

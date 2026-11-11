@@ -358,10 +358,10 @@ export const Logo: React.FC<LogoProps> = ({
       >
         {withCircle ? (
           <div 
-            className="rounded-full bg-[#000a02] ring-1 ring-amber-400/50 shadow-md flex items-center justify-center overflow-hidden select-none outline-none"
+            className="rounded-full bg-[#032D1F]/90 ring-1 ring-[#AA8F7C]/60 shadow-md flex items-center justify-center overflow-hidden select-none outline-none"
             style={{ width, height }}
           >
-            <UKGLogoEmblem className="w-full h-full object-cover scale-[1.05] pointer-events-none select-none" />
+            <UKGLogoEmblem className="w-full h-full object-cover scale-[1.03] pointer-events-none select-none" />
           </div>
         ) : (
           <div style={{ width, height }} className="select-none outline-none">
@@ -372,10 +372,10 @@ export const Logo: React.FC<LogoProps> = ({
 
       {/* Brand Typography */}
       <div className="flex flex-col justify-center leading-tight select-none outline-none">
-        <span className={`font-semibold tracking-tight ${titleSizes[size]} font-sans ${darkText ? 'text-slate-900 dark:text-emerald-100' : 'text-white'}`}>
+        <span className={`font-semibold tracking-tight ${titleSizes[size]} font-sans ${darkText ? 'text-[#0E3A2B] dark:text-[#F4F3EF]' : 'text-[#F4F3EF]'}`}>
           Uttarakhand
         </span>
-        <span className={`font-bold font-sans uppercase ${gatewaySizes[size]} ${darkText ? 'text-emerald-700 dark:text-emerald-400' : 'text-emerald-400'}`}>
+        <span className={`font-bold font-sans uppercase ${gatewaySizes[size]} ${darkText ? 'text-[#32463D] dark:text-[#C2A691]' : 'text-[#C2A691]'}`}>
           GATEWAYS
         </span>
         {showTagline && (
