@@ -21,19 +21,25 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { Logo } from './Logo';
 import { GoogleSignInButton } from './GoogleSignInButton';
+import { SeoKeywordsSection } from './SeoKeywordsSection';
+import type { AppPageRouteKey } from '../data/seoMetadata';
 
 interface LoginPageProps {
   initialMode?: 'login' | 'register' | 'forgot-password' | 'reset-password';
   onBackToMarketplace?: () => void;
   onBackToMain?: () => void;
   onLoginSuccess?: () => void;
+  onNavigatePage?: (page: AppPageRouteKey) => void;
+  onNavigateCity?: (city: string) => void;
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ 
   initialMode,
   onBackToMarketplace, 
   onBackToMain,
-  onLoginSuccess 
+  onLoginSuccess,
+  onNavigatePage,
+  onNavigateCity,
 }) => {
   const handleBack = onBackToMain || onBackToMarketplace || (() => window.history.back());
   const { 
@@ -1026,10 +1032,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         </div>
       </main>
 
-      {/* Footer Note */}
-      <footer className="relative z-10 py-4 text-center text-xs text-slate-400 dark:text-slate-600">
-        © {new Date().getFullYear()} Uttarakhand Gateways. 0% Brokerage Direct Real Estate.
-      </footer>
+      {/* SEO Keywords & Footer Note */}
+      <div className="relative z-10 w-full mt-auto">
+        <SeoKeywordsSection
+          onNavigatePage={onNavigatePage}
+          onNavigateCity={onNavigateCity}
+          compact={true}
+        />
+        <footer className="py-4 text-center text-xs text-slate-500 dark:text-slate-400 bg-white/80 dark:bg-[#05150f]/80">
+          © {new Date().getFullYear()} Uttarakhand Gateways. 0% Brokerage Direct Real Estate.
+        </footer>
+      </div>
     </div>
   );
 };

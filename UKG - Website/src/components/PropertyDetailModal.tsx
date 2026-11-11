@@ -24,8 +24,10 @@ import {
   Unlock,
   User,
   Trash2,
-  Layers
+  Layers,
+  Video
 } from 'lucide-react';
+import { resolveApiUrl } from '../config/apiConfig';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { isPropertyOwner, canManageProperty, getPropertyOwnerDisplayName } from '../utils/propertyOwnership';
@@ -262,6 +264,39 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                 ))}
               </div>
             )}
+
+            {/* Property Walkthrough Videos */}
+            {(() => {
+              const propVideos = Array.from(
+                new Set(
+                  [...(Array.isArray(property.videos) ? property.videos : []), ...(property.videoUrl ? [property.videoUrl] : [])].filter(
+                    (v): v is string => Boolean(v && typeof v === 'string')
+                  )
+                )
+              );
+              if (propVideos.length === 0) return null;
+              return (
+                <div className="pt-2 space-y-2.5">
+                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                    <Video className="w-4 h-4" />
+                    <span>{isHindi ? 'प्रॉपर्टी वीडियो टूर' : 'Property Video Tour'}</span>
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {propVideos.map((vid, vIdx) => (
+                      <div key={vIdx} className="rounded-2xl overflow-hidden bg-black border border-emerald-200 dark:border-emerald-800 aspect-video shadow-md">
+                        <video
+                          src={resolveApiUrl(vid)}
+                          controls
+                          playsInline
+                          preload="metadata"
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Details Section: 2 Columns on Desktop */}

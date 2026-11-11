@@ -4,6 +4,8 @@ import { MapPin, ShieldCheck, FileText, Cookie, AlertTriangle, HelpCircle, Build
 import { CITIES } from '../data/properties';
 import { useLanguage } from '../context/LanguageContext';
 import { LegalPolicyId } from '../data/legalPolicies';
+import { SeoKeywordsSection } from './SeoKeywordsSection';
+import type { AppPageRouteKey } from '../data/seoMetadata';
 
 interface FooterProps {
   onCityClick: (city: string) => void;
@@ -12,6 +14,7 @@ interface FooterProps {
   onOpenLegalPolicy?: (policyId: LegalPolicyId) => void;
   onNavigateCity?: (city: string) => void;
   onNavigateGuides?: (slug?: string) => void;
+  onNavigatePage?: (page: AppPageRouteKey) => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
@@ -20,6 +23,7 @@ export const Footer: React.FC<FooterProps> = ({
   onOpenLegalPolicy,
   onNavigateCity,
   onNavigateGuides,
+  onNavigatePage,
 }) => {
   const { isHindi } = useLanguage();
 
@@ -241,6 +245,12 @@ export const Footer: React.FC<FooterProps> = ({
         </div>
 
       </div>
+
+      <SeoKeywordsSection
+        onNavigatePage={onNavigatePage}
+        onNavigateCity={onNavigateCity || onCityClick}
+        compact={true}
+      />
 
     </footer>
   );

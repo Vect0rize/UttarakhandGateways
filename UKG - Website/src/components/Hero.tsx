@@ -36,9 +36,9 @@ export const Hero: React.FC<HeroProps> = ({
       {/* Main Hero Content Container */}
       <div className="relative z-30 max-w-5xl mx-auto px-4 sm:px-6 flex flex-col items-center w-full">
         
-        {/* Hero Title: Refined luxury scale */}
+        {/* Hero Title: Refined proportional scale */}
         <div className="relative w-full flex flex-col items-center pt-1 sm:pt-2">
-          <h1 className="font-serif-luxury text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black tracking-tight text-[#0a271c] dark:text-white drop-shadow-md leading-tight text-center flex items-center justify-center gap-2 sm:gap-3.5 whitespace-nowrap">
+          <h1 className="font-serif-luxury text-[22px] sm:text-3xl md:text-[34px] lg:text-[40px] font-black tracking-tight text-[#0a271c] dark:text-white drop-shadow-md leading-tight text-center flex items-center justify-center gap-1.5 sm:gap-3 whitespace-nowrap">
             <span>Uttarakhand</span>
             <span className="italic font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 via-teal-700 to-green-600 dark:from-emerald-400 dark:via-teal-300 dark:to-emerald-300 drop-shadow-md">
               Gateways
@@ -47,10 +47,10 @@ export const Hero: React.FC<HeroProps> = ({
         </div>
 
         {/* Text "REAL ESTATE" with circles on both sides */}
-        <div className="flex items-center justify-center gap-2.5 sm:gap-3.5 my-2.5 sm:my-3 mx-auto">
+        <div className="flex items-center justify-center gap-2 sm:gap-3 my-2 sm:my-2.5 mx-auto">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400 shrink-0 shadow-xs" />
           
-          <span className="font-cinzel tracking-[0.35em] sm:tracking-[0.45em] text-[11px] sm:text-xs font-extrabold text-[#0a271c] dark:text-emerald-200 uppercase whitespace-nowrap px-1">
+          <span className="font-cinzel tracking-[0.3em] sm:tracking-[0.4em] text-[10px] sm:text-xs font-extrabold text-[#0a271c] dark:text-emerald-200 uppercase whitespace-nowrap px-1">
             {isHindi ? 'रियल एस्टेट' : 'REAL ESTATE'}
           </span>
 
@@ -58,8 +58,8 @@ export const Hero: React.FC<HeroProps> = ({
         </div>
 
         {/* Subtitle Description (Semantic H2 for SEO hierarchy) */}
-        <div className="w-full max-w-3xl mx-auto mb-3.5 sm:mb-4 px-3 sm:px-4 relative z-20">
-          <h2 className="font-serif-luxury italic text-base sm:text-lg md:text-xl lg:text-2xl text-[#0a271c] dark:text-emerald-100 font-medium leading-tight tracking-wide text-center drop-shadow-xs mb-1.5">
+        <div className="w-full max-w-3xl mx-auto mb-3 sm:mb-4 px-3 sm:px-4 relative z-20">
+          <h2 className="font-serif-luxury italic text-sm sm:text-base md:text-lg lg:text-xl text-[#0a271c] dark:text-emerald-100 font-medium leading-tight tracking-wide text-center drop-shadow-xs mb-1">
             {isHindi ? 'पहाड़ों में आपके सपनों का आशियाना' : 'Your Gateway To Mountains'}
           </h2>
           <p className="text-xs sm:text-sm text-slate-600 dark:text-emerald-200/80 max-w-xl mx-auto font-normal">

@@ -419,7 +419,9 @@ export const HomeLoanCalculator: React.FC<HomeLoanCalculatorProps> = ({
                   <label className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                     Net Monthly Income
                   </label>
-                  <Info className="w-3.5 h-3.5 text-slate-400 cursor-help" title="Take-home salary after taxes & EPF" />
+                  <span title="Take-home salary after taxes & EPF" className="inline-flex items-center">
+                    <Info className="w-3.5 h-3.5 text-slate-400 cursor-help" />
+                  </span>
                 </div>
                 
                 {/* Underline Style Input Matching Screenshot */}

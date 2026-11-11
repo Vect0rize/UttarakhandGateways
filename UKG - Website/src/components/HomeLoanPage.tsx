@@ -20,10 +20,12 @@ import { Navbar } from './Navbar';
 import { Footer } from './Footer';
 import { HomeLoanCalculator, TOP_BANKS } from './HomeLoanCalculator';
 import { BankLogo } from './BankLogo';
+import { getPageSeoMeta, type AppPageRouteKey } from '../data/seoMetadata';
 
 interface HomeLoanPageProps {
   onBackToMain: () => void;
   onNavigatePage?: (page: string) => void;
+  onNavigateCity?: (city: string) => void;
   isDark?: boolean;
   onToggleTheme?: () => void;
 }
@@ -31,6 +33,7 @@ interface HomeLoanPageProps {
 export const HomeLoanPage: React.FC<HomeLoanPageProps> = ({
   onBackToMain,
   onNavigatePage,
+  onNavigateCity,
   isDark: propIsDark,
   onToggleTheme,
 }) => {
@@ -49,15 +52,20 @@ export const HomeLoanPage: React.FC<HomeLoanPageProps> = ({
   });
 
   useEffect(() => {
-    document.title = 'Uttarakhand Home Loan EMI Calculator & Bank Offers | Uttarakhand Gateways';
-    
-    let descTag = document.querySelector('meta[name="description"]');
-    if (!descTag) {
-      descTag = document.createElement('meta');
-      descTag.setAttribute('name', 'description');
-      document.head.appendChild(descTag);
-    }
-    descTag.setAttribute('content', 'Calculate home loan EMI and eligibility for Uttarakhand mountain properties. Compare lowest interest rate offers from SBI, HDFC, ICICI, and PNB.');
+    const seo = getPageSeoMeta('home-loan');
+    document.title = seo.title;
+
+    const upsert = (name: string, val: string) => {
+      let tag = document.querySelector(`meta[name="${name}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute('name', name);
+        document.head.appendChild(tag);
+      }
+      tag.setAttribute('content', val);
+    };
+    upsert('description', seo.description);
+    upsert('keywords', seo.keywords);
 
     let canonicalTag = document.querySelector('link[rel="canonical"]');
     if (!canonicalTag) {
@@ -442,8 +450,19 @@ export const HomeLoanPage: React.FC<HomeLoanPageProps> = ({
 
       </main>
 
-      {/* Footer */}
-      <Footer onCityClick={() => {}} onCategoryClick={() => {}} />
+      {/* Footer (includes SeoKeywordsSection) */}
+      <Footer
+        onCityClick={(city) => {
+          if (onNavigateCity) onNavigateCity(city);
+          else window.location.href = `/properties-in-${city.toLowerCase()}`;
+        }}
+        onCategoryClick={(cat) => {
+          window.location.href = `/buy?category=${encodeURIComponent(cat)}`;
+        }}
+        onNavigateCity={onNavigateCity}
+        onNavigateGuides={() => onNavigatePage ? onNavigatePage('guides') : (window.location.href = '/guides')}
+        onNavigatePage={(p: AppPageRouteKey) => onNavigatePage ? onNavigatePage(p) : (window.location.href = `/${p === 'home' ? '' : p}`)}
+      />
 
     </div>
   );

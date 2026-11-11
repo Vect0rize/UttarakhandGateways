@@ -20,6 +20,8 @@ import {
   Scale
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { SeoKeywordsSection } from './SeoKeywordsSection';
+import type { AppPageRouteKey } from '../data/seoMetadata';
 
 interface CityPropertyLandingPageProps {
   cityName: string;
@@ -391,7 +393,11 @@ export const CityPropertyLandingPage: React.FC<CityPropertyLandingPageProps> = (
         </div>
       </section>
 
-      {/* 5. FOOTER */}
+      {/* 5. SEO Keywords & FOOTER */}
+      <SeoKeywordsSection
+        onNavigatePage={onNavigatePage ? (p: AppPageRouteKey) => onNavigatePage(p) : undefined}
+        onNavigateCity={onNavigateCity}
+      />
       <footer className="py-6 border-t border-emerald-200 dark:border-emerald-800 bg-white dark:bg-[#071f17] text-center text-xs text-slate-500">
         <p>© {new Date().getFullYear()} Uttarakhand Gateways. 0% Brokerage Mountain Real Estate Marketplace.</p>
       </footer>

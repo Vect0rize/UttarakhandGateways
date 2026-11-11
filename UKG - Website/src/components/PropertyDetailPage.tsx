@@ -33,6 +33,7 @@ import {
   Car,
   TreePine,
   Shield,
+  Video,
   Building,
   CheckCheck,
   Clock,
@@ -41,6 +42,9 @@ import {
   ArrowRight,
   Calculator
 } from 'lucide-react';
+import { resolveApiUrl } from '../config/apiConfig';
+import { SeoKeywordsSection } from './SeoKeywordsSection';
+import type { AppPageRouteKey } from '../data/seoMetadata';
 import { EmiCalculatorModal } from './EmiCalculatorModal';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
@@ -66,6 +70,8 @@ interface PropertyDetailPageProps {
   onSelectProperty?: (property: Property) => void;
   onOpenLegalPolicy?: (policyId: LegalPolicyId) => void;
   onReportListing?: (property: Property) => void;
+  onNavigatePage?: (page: AppPageRouteKey) => void;
+  onNavigateCity?: (city: string) => void;
 }
 
 export const WhatsAppIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
@@ -99,6 +105,8 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
   onSelectProperty,
   onOpenLegalPolicy,
   onReportListing,
+  onNavigatePage,
+  onNavigateCity,
 }) => {
   // Safe Image & Amenities Guards to guarantee zero runtime crashes
   const safeImages = useMemo(() => {
@@ -748,6 +756,39 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
             </div>
 
           </div>
+
+          {/* Property Video Tour */}
+          {(() => {
+            const propVideos = Array.from(
+              new Set(
+                [...(Array.isArray(property.videos) ? property.videos : []), ...(property.videoUrl ? [property.videoUrl] : [])].filter(
+                  (v): v is string => Boolean(v && typeof v === 'string')
+                )
+              )
+            );
+            if (propVideos.length === 0) return null;
+            return (
+              <div className="pt-2 space-y-2.5">
+                <h3 className="text-sm font-extrabold text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+                  <Video className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <span>{isHindi ? 'प्रॉपर्टी वीडियो टूर' : 'Property Video Tour'}</span>
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {propVideos.map((vid, vIdx) => (
+                    <div key={vIdx} className="rounded-2xl overflow-hidden bg-black border border-slate-200 dark:border-emerald-800/80 aspect-video shadow-lg">
+                      <video
+                        src={resolveApiUrl(vid)}
+                        controls
+                        playsInline
+                        preload="metadata"
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* 4. MAIN DETAILS & OWNER SIDEBAR (2-COLUMN GRID) */}
@@ -1288,6 +1329,12 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
         isOpen={showEmiModal}
         onClose={() => setShowEmiModal(false)}
         initialPrice={property.price}
+      />
+
+      {/* Uttarakhand Real Estate SEO Keyword Links */}
+      <SeoKeywordsSection
+        onNavigatePage={onNavigatePage}
+        onNavigateCity={onNavigateCity}
       />
 
     </div>

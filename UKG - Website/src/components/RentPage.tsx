@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { CITIES } from '../data/properties';
+import { SeoKeywordsSection } from './SeoKeywordsSection';
+import { getPageSeoMeta, type AppPageRouteKey } from '../data/seoMetadata';
 
 interface RentPageProps {
   properties: Property[];
@@ -29,6 +31,8 @@ interface RentPageProps {
   onDeleteProperty: (id: string) => void;
   onToggleSold: (id: string) => void;
   onEditProperty: (property: Property) => void;
+  onNavigatePage?: (page: AppPageRouteKey) => void;
+  onNavigateCity?: (city: string) => void;
 }
 
 const ITEMS_PER_PAGE = 10;
@@ -46,25 +50,39 @@ export const RentPage: React.FC<RentPageProps> = ({
   onDeleteProperty,
   onToggleSold,
   onEditProperty,
+  onNavigatePage,
+  onNavigateCity,
 }) => {
   const { isHindi } = useLanguage();
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(() => {
+    try {
+      const qType = new URLSearchParams(window.location.search).get('type');
+      return qType ? qType : '';
+    } catch {
+      return '';
+    }
+  });
   const [selectedCity, setSelectedCity] = useState('All');
   const [bhkConfig, setBhkConfig] = useState('all');
   const [rentBudget, setRentBudget] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
-    document.title = 'Houses & Flats for Rent in Uttarakhand | 0% Brokerage | Uttarakhand Gateways';
-    
-    let descTag = document.querySelector('meta[name="description"]');
-    if (!descTag) {
-      descTag = document.createElement('meta');
-      descTag.setAttribute('name', 'description');
-      document.head.appendChild(descTag);
-    }
-    descTag.setAttribute('content', 'Find verified long-term rentals, mountain cottages, furnished apartments, and villas across Dehradun, Rishikesh, Mussoorie, Nainital with 0% brokerage.');
+    const seo = getPageSeoMeta('rent');
+    document.title = seo.title;
+
+    const upsert = (name: string, val: string) => {
+      let tag = document.querySelector(`meta[name="${name}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute('name', name);
+        document.head.appendChild(tag);
+      }
+      tag.setAttribute('content', val);
+    };
+    upsert('description', seo.description);
+    upsert('keywords', seo.keywords);
 
     let canonicalTag = document.querySelector('link[rel="canonical"]');
     if (!canonicalTag) {
@@ -414,6 +432,11 @@ export const RentPage: React.FC<RentPageProps> = ({
           </div>
         )}
       </main>
+
+      <SeoKeywordsSection
+        onNavigatePage={onNavigatePage}
+        onNavigateCity={onNavigateCity}
+      />
 
     </div>
   );

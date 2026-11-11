@@ -36,15 +36,18 @@ import {
   Waves,
   Dumbbell,
   CheckCircle2,
+  Video,
 } from 'lucide-react';
 import { Property, PropertyType, PropertyCategory, UttarakhandCity, Region } from '../types';
 import { CITIES, CATEGORIES } from '../data/properties';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { resolveApiUrl } from '../config/apiConfig';
+import { resolveApiUrl, isNativeAndroidApp } from '../config/apiConfig';
 import {
   AreaUnit,
+  AREA_UNITS,
   formatAreaValueWithUnit,
+  getAreaUnitConfig,
   getPropertyAreaInput,
   isLandOrPlotType,
 } from '../utils/areaUnits';
@@ -179,7 +182,9 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
   const [transactionType, setTransactionType] = useState<'sale' | 'rent'>(determineInitialType());
 
   // Form States
-  const [sellerType, setSellerType] = useState<'Owner' | 'Broker' | 'Verified Builder' | 'Agent'>(initialRole);
+  const normalizeSellerRole = (r?: string): 'Owner' | 'Broker' | 'Verified Builder' | 'Agent' =>
+    r === 'Broker' || r === 'Verified Builder' || r === 'Agent' ? r : 'Owner';
+  const [sellerType, setSellerType] = useState<'Owner' | 'Broker' | 'Verified Builder' | 'Agent'>(() => normalizeSellerRole(initialRole));
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<PropertyCategory>('Residential');
   const [type, setType] = useState<PropertyType>('Villa');
@@ -206,17 +211,14 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
   // Rent Period: Monthly, Quarterly, Yearly
   const [rentPeriod, setRentPeriod] = useState<'monthly' | 'quarterly' | 'yearly'>('monthly');
 
-  // Photos & Media (Gallery / Device Upload Only)
+  // Photos & Videos (Gallery / Device Upload)
   const [images, setImages] = useState<string[]>([]);
   const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
+  const [videos, setVideos] = useState<string[]>([]);
+  const [isUploadingVideo, setIsUploadingVideo] = useState<boolean>(false);
 
-  // Amenities
-  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([
-    '24/7 Water Supply',
-    'Electricity / Power Backup',
-    'Dedicated Car Parking',
-    'Mountain & Valley View',
-  ]);
+  // Amenities (none selected by default)
+  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [customAmenityInput, setCustomAmenityInput] = useState<string>('');
 
   // Contact & Description
@@ -236,6 +238,7 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
 
   const cleanNameCandidate = (name?: string | null): string => {
     if (!name || typeof name !== 'string') return '';
@@ -272,6 +275,7 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
       setLocationAddress(property.location || '');
       setBedrooms(property.bedrooms ?? 2);
       setBathrooms(property.bathrooms ?? 2);
+      setBalconies(property.balconies ?? (isLandOrPlotType(property.type) ? 0 : 1));
 
       const { areaValue: savedAreaVal, areaUnit: savedAreaUnit } = getPropertyAreaInput(property);
       const effectiveAreaVal =
@@ -300,21 +304,30 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
         );
       } else {
         setTotalPriceInput((property.price || 7500000).toString());
-        setMaintenanceInput((property.maintenanceCharges || 0).toString());
+        setMaintenanceInput('0');
       }
 
       setImages(Array.isArray(property.images) ? [...property.images] : []);
+      const existingVideos = Array.from(
+        new Set(
+          [
+            ...(Array.isArray(property.videos) ? property.videos : []),
+            ...(property.videoUrl ? [property.videoUrl] : []),
+          ].filter((v): v is string => Boolean(v && typeof v === 'string'))
+        )
+      );
+      setVideos(existingVideos);
       setSelectedAmenities(
-        Array.isArray(property.amenities) && property.amenities.length > 0
+        Array.isArray(property.amenities)
           ? property.amenities.filter((a) => !/road|highway|motorable/i.test(a))
-          : ['24/7 Water Supply', 'Electricity / Power Backup', 'Dedicated Car Parking']
+          : []
       );
 
       setSellerName(cleanNameCandidate(property.sellerName) || cleanNameCandidate(currentUser?.username) || '');
       const rawPhone = cleanPhoneCandidate(property.sellerPhone) || cleanPhoneCandidate(property.ownerContact) || '';
       setSellerPhone(rawPhone);
       setSellerWhatsApp(rawPhone);
-      setSellerType(property.sellerType || initialRole);
+      setSellerType(normalizeSellerRole(property.sellerType || initialRole));
       setDescription(property.description || '');
       setErrorMsg(null);
       setSuccessMsg(null);
@@ -341,17 +354,13 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
       setAvailableFrom('Immediate');
       setTenantPreferences(['Family', 'Working Professionals']);
       setImages([]);
-      setSelectedAmenities([
-        '24/7 Water Supply',
-        'Electricity / Power Backup',
-        'Dedicated Car Parking',
-        'Mountain & Valley View',
-      ]);
+      setVideos([]);
+      setSelectedAmenities([]);
       setSellerName(cleanNameCandidate(currentUser?.username) || '');
       const rawContact = cleanPhoneCandidate((currentUser as any)?.phone) || cleanPhoneCandidate(currentUser?.contact) || '';
       setSellerPhone(rawContact);
       setSellerWhatsApp(rawContact);
-      setSellerType(initialRole);
+      setSellerType(normalizeSellerRole(initialRole));
       setDescription('');
       setErrorMsg(null);
       setSuccessMsg(null);
@@ -442,7 +451,7 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
     for (const file of filesToProcess) {
       if (!file.type.startsWith('image/')) continue;
       try {
-        const compressedBase64 = await compressAndNormalizeImage(file, 1400, 1050, 0.82);
+        const compressedBase64 = await compressAndNormalizeImage(file, 1400, 0.82);
         const modResult = await moderateImageWithAI(compressedBase64, file.name);
         if (!modResult.isSafe) {
           setErrorMsg(
@@ -494,6 +503,97 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
   // Delete Image
   const removeImage = (index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // Property Video Upload Handler (max 3 videos, 40MB each)
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const maxVideos = 3;
+    const remainingSlots = maxVideos - videos.length;
+    if (remainingSlots <= 0) {
+      setErrorMsg(
+        isHindi
+          ? `अधिकतम ${maxVideos} वीडियो ही जोड़े जा सकते हैं।`
+          : `Maximum of ${maxVideos} videos allowed per property.`
+      );
+      if (videoInputRef.current) videoInputRef.current.value = '';
+      return;
+    }
+
+    setIsUploadingVideo(true);
+    setErrorMsg(null);
+    const filesToProcess = Array.from(files).slice(0, remainingSlots);
+    const uploadedUrls: string[] = [];
+
+    for (const file of filesToProcess) {
+      if (!file.type.startsWith('video/')) {
+        setErrorMsg(
+          isHindi
+            ? 'कृपया एक मान्य वीडियो फाइल चुनें (.mp4, .mov, .webm)।'
+            : 'Please select a valid video file (.mp4, .mov, .webm).'
+        );
+        continue;
+      }
+      if (file.size > 40 * 1024 * 1024) {
+        setErrorMsg(
+          isHindi
+            ? `${file.name}: वीडियो आकार 40 MB से कम होना चाहिए।`
+            : `${file.name}: Video file must be under 40 MB.`
+        );
+        continue;
+      }
+
+      try {
+        const res = await fetch(resolveApiUrl('/api/upload-video'), {
+          method: 'POST',
+          headers: {
+            'Content-Type': file.type || 'video/mp4',
+            'x-filename': encodeURIComponent(file.name),
+          },
+          body: file,
+        });
+        const data = await res.json().catch(() => null);
+        if (res.ok && data?.success && data?.url) {
+          uploadedUrls.push(data.url);
+          continue;
+        }
+      } catch (err) {
+        console.warn('Server video upload fallback check:', err);
+      }
+
+      // Data-URL fallback for offline / smaller clips
+      if (file.size <= 10 * 1024 * 1024) {
+        try {
+          const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result || ''));
+            reader.onerror = () => reject(new Error('Failed to read video file'));
+            reader.readAsDataURL(file);
+          });
+          if (dataUrl) uploadedUrls.push(dataUrl);
+        } catch {
+          setErrorMsg(isHindi ? 'वीडियो लोड करने में समस्या आई।' : 'Failed to load video file.');
+        }
+      } else {
+        setErrorMsg(
+          isHindi
+            ? 'वीडियो अपलोड विफल रहा। कृपया लॉगिन करें या 10 MB से छोटा वीडियो चुनें।'
+            : 'Video upload failed. Please ensure you are signed in and try again.'
+        );
+      }
+    }
+
+    if (uploadedUrls.length > 0) {
+      setVideos((prev) => [...prev, ...uploadedUrls]);
+    }
+    setIsUploadingVideo(false);
+    if (videoInputRef.current) videoInputRef.current.value = '';
+  };
+
+  const removeVideo = (index: number) => {
+    setVideos((prev) => prev.filter((_, i) => i !== index));
   };
 
   // AI Description Enhancement: STRICTLY preserves only user input
@@ -664,16 +764,8 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
       const region: Region = garhwalCities.includes(city) ? 'Garhwal' : 'Kumaon';
 
       // Numeric area calculation in sqft for standard filtering
-      const unitMultipliers: Record<AreaUnit, number> = {
-        sqft: 1,
-        gaj: 9,
-        nali: 2160,
-        bigha: 6806,
-        mutthi: 135,
-        acre: 43560,
-      };
-      const sqFtMultiplier = unitMultipliers[areaUnit] || 1;
-      const computedSqFt = Math.round(parsedArea * sqFtMultiplier);
+      const unitConfig = getAreaUnitConfig(areaUnit);
+      const computedSqFt = Math.round(parsedArea * unitConfig.toSqFt);
 
       const isLand = isLandOrPlotType(type) || category === 'Agriculture';
 
@@ -704,6 +796,15 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
         priceDisplayStr = `₹${priceNumeric.toLocaleString('en-IN')}${suffix}`;
       }
 
+      const saleRatePerSqFt =
+        transactionType === 'sale' && priceNumeric > 0 && computedSqFt > 0
+          ? `₹${Math.round(priceNumeric / computedSqFt).toLocaleString('en-IN')}/Sq.Ft`
+          : property?.ratePerSqFt;
+      const saleRatePerUnit =
+        transactionType === 'sale' && areaUnit !== 'sqft' && priceNumeric > 0 && parsedArea > 0
+          ? `₹${Math.round(priceNumeric / parsedArea).toLocaleString('en-IN')}/${unitConfig.shortEn}`
+          : undefined;
+
       // Configuration string
       const configStr = isLand
         ? `${formatAreaValueWithUnit(parsedArea, areaUnit, false)} Plot`
@@ -719,7 +820,7 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
       );
 
       // Highlights
-      const highlights: string[] = ['0% Brokerage', furnishing];
+      const highlights: string[] = isLand ? ['0% Brokerage'] : ['0% Brokerage', furnishing];
       if (transactionType === 'rent') {
         highlights.push(`Tenants: ${tenantPreferences.slice(0, 2).join(', ')}`);
       }
@@ -753,31 +854,34 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
         areaValue: parsedArea,
         areaDisplay: formatAreaValueWithUnit(parsedArea, areaUnit, false),
         areaUnit,
+        ratePerSqFt: saleRatePerSqFt,
+        ratePerGajOrNali: saleRatePerUnit,
         pricingUnit: transactionType === 'rent'
           ? (rentPeriod === 'quarterly' ? 'Per Quarter' : rentPeriod === 'yearly' ? 'Per Year' : 'Per Month')
           : 'Total Price',
-        monthlyRent: transactionType === 'rent'
-          ? (rentPeriod === 'quarterly' ? Math.round(priceNumeric / 3) : rentPeriod === 'yearly' ? Math.round(priceNumeric / 12) : priceNumeric)
-          : undefined,
         rentPeriod: transactionType === 'rent' ? rentPeriod : undefined,
         configuration: configStr,
         bedrooms: isLand ? 0 : bedrooms,
         bathrooms: isLand ? 0 : bathrooms,
+        balconies: isLand ? 0 : balconies,
         images: effectiveImages,
-        videoUrl: undefined,
+        videoUrl: videos[0] || undefined,
+        videos: videos.length > 0 ? videos : undefined,
         description:
           description.trim() ||
           (transactionType === 'rent'
-            ? `Well-maintained ${configStr} in ${city}. Furnishing: ${furnishing}. Preferred Tenants: ${tenantPreferences.join(
-                ', '
-              )}. 0% Brokerage.`
-            : `Beautiful ${configStr} located in ${city}. 0% Brokerage.`),
+            ? isLand
+              ? `Well-maintained ${configStr} in ${city}. 0% Brokerage.`
+              : `Well-maintained ${configStr} in ${city}. Furnishing: ${furnishing}. Preferred Tenants: ${tenantPreferences.join(
+                  ', '
+                )}. 0% Brokerage.`
+            : `Verified ${configStr} located in ${city}. 0% Brokerage.`),
         highlights,
         amenities: finalAmenities,
-        furnishing,
+        furnishing: isLand ? undefined : furnishing,
         sellerName: sellerName.trim() || currentUser?.username || 'Direct Owner',
         sellerPhone: cleanPhone,
-        sellerEmail: currentUser?.email || undefined,
+        sellerEmail: (currentUser as any)?.email || undefined,
         sellerType,
         ownerId: property?.ownerId || currentUser?.id || `guest-${Date.now()}`,
         ownerContact: cleanPhone,
@@ -785,10 +889,12 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
         isSold: property?.isSold || false,
         isAvailableForRent: transactionType === 'rent',
         purpose: transactionType,
-        monthlyRent: transactionType === 'rent' ? priceNumeric : undefined,
+        monthlyRent: transactionType === 'rent'
+          ? (rentPeriod === 'quarterly' ? Math.round(priceNumeric / 3) : rentPeriod === 'yearly' ? Math.round(priceNumeric / 12) : priceNumeric)
+          : undefined,
         securityDeposit:
           transactionType === 'rent' ? parseFloat(securityDepositInput) || 0 : undefined,
-        maintenanceCharges: parseFloat(maintenanceInput) || 0,
+        maintenanceCharges: transactionType === 'rent' ? parseFloat(maintenanceInput) || 0 : 0,
         availableFrom: transactionType === 'rent' ? availableFrom : undefined,
         preferredTenants: transactionType === 'rent' ? tenantPreferences : undefined,
         createdAt: property?.createdAt || new Date().toISOString(),
@@ -811,8 +917,8 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
           headers: {
             'Content-Type': 'application/json',
             'x-user-id': currentUser?.id || propertyPayload.ownerId || '',
-            'x-user-contact': currentUser?.contact || currentUser?.email || cleanPhone,
-            'x-user-role': currentUser?.role || 'owner',
+            'x-user-contact': currentUser?.contact || (currentUser as any)?.email || cleanPhone,
+            'x-user-role': (currentUser as any)?.role || (currentUser?.isOwner ? 'owner' : 'user'),
             'x-client-platform': typeof window !== 'undefined' && isNativeAndroidApp() ? 'android' : 'web',
           },
           body: JSON.stringify(propertyPayload),
@@ -858,7 +964,7 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
           : 'Property published successfully!'
       );
 
-      onPropertySaved(propertyPayload);
+      onPropertySaved?.(propertyPayload);
 
       setTimeout(() => {
         setIsSaving(false);
@@ -875,6 +981,22 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
   };
 
   if (!isOpen && !isPageMode) return null;
+
+  const isLandOrPlotSelected = isLandOrPlotType(type) || category === 'Agriculture';
+  const selectedAreaUnitConfig = getAreaUnitConfig(areaUnit);
+  const parsedSalePriceNum = parseFloat(totalPriceInput.replace(/,/g, '')) || 0;
+  const parsedAreaInputNum = parseFloat(areaValue) || 0;
+  const pricePerSelectedUnit =
+    transactionType === 'sale' && parsedSalePriceNum > 0 && parsedAreaInputNum > 0
+      ? Math.round(parsedSalePriceNum / parsedAreaInputNum)
+      : 0;
+  const pricePerSqFtSale =
+    transactionType === 'sale' &&
+    parsedSalePriceNum > 0 &&
+    parsedAreaInputNum > 0 &&
+    selectedAreaUnitConfig.toSqFt > 0
+      ? Math.round(parsedSalePriceNum / (parsedAreaInputNum * selectedAreaUnitConfig.toSqFt))
+      : 0;
 
   const content = (
     <div
@@ -1146,90 +1268,24 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
         {/* SECTION 2: CONFIGURATION & PROPERTY SIZE */}
         <div className="p-3 sm:p-5 rounded-xl sm:rounded-2xl bg-slate-50/70 dark:bg-[#0a2318] border border-slate-200/80 dark:border-emerald-900/40 space-y-3.5 sm:space-y-4">
           <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-extrabold text-sm uppercase tracking-wide border-b border-slate-200/80 dark:border-emerald-950 pb-2">
-            <Bed className="w-4 h-4" />
-            <span>2. {isHindi ? 'कॉन्फ़िगरेशन व क्षेत्रफल' : 'Configuration & Area'}</span>
+            <Layers className="w-4 h-4" />
+            <span>
+              2.{' '}
+              {isLandOrPlotSelected
+                ? isHindi
+                  ? 'भूमि / प्लॉट क्षेत्रफल'
+                  : 'Plot / Land Area'
+                : isHindi
+                ? 'क्षेत्रफल और कॉन्फ़िगरेशन'
+                : 'Area & Configuration'}
+            </span>
           </div>
 
-          {/* Rooms Counters */}
-          <div className="grid grid-cols-3 gap-3">
-            {/* Bedrooms */}
-            <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
-              <span className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">
-                {isHindi ? 'बेडरूम (Bedrooms)' : 'Bedrooms'}
-              </span>
-              <div className="flex items-center justify-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setBedrooms((prev) => Math.max(0, prev - 1))}
-                  className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold flex items-center justify-center hover:bg-emerald-100 active:scale-95 cursor-pointer"
-                >
-                  -
-                </button>
-                <span className="font-extrabold text-sm w-5">{bedrooms}</span>
-                <button
-                  type="button"
-                  onClick={() => setBedrooms((prev) => Math.min(10, prev + 1))}
-                  className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold flex items-center justify-center hover:bg-emerald-100 active:scale-95 cursor-pointer"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-
-            {/* Bathrooms */}
-            <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
-              <span className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">
-                {isHindi ? 'बाथरूम (Baths)' : 'Bathrooms'}
-              </span>
-              <div className="flex items-center justify-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setBathrooms((prev) => Math.max(0, prev - 1))}
-                  className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold flex items-center justify-center hover:bg-emerald-100 active:scale-95 cursor-pointer"
-                >
-                  -
-                </button>
-                <span className="font-extrabold text-sm w-5">{bathrooms}</span>
-                <button
-                  type="button"
-                  onClick={() => setBathrooms((prev) => Math.min(10, prev + 1))}
-                  className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold flex items-center justify-center hover:bg-emerald-100 active:scale-95 cursor-pointer"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-
-            {/* Balconies */}
-            <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
-              <span className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">
-                {isHindi ? 'बालकनी (Balconies)' : 'Balconies'}
-              </span>
-              <div className="flex items-center justify-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setBalconies((prev) => Math.max(0, prev - 1))}
-                  className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold flex items-center justify-center hover:bg-emerald-100 active:scale-95 cursor-pointer"
-                >
-                  -
-                </button>
-                <span className="font-extrabold text-sm w-5">{balconies}</span>
-                <button
-                  type="button"
-                  onClick={() => setBalconies((prev) => Math.min(6, prev + 1))}
-                  className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold flex items-center justify-center hover:bg-emerald-100 active:scale-95 cursor-pointer"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Area & Unit */}
+          {/* 1. Area & Area Unit (Always first) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                {isHindi ? 'क्षेत्रफल मान (Area Value) *' : 'Area Value *'}
+                {isHindi ? 'क्षेत्रफल (Area) *' : 'Area *'}
               </label>
               <input
                 type="number"
@@ -1251,48 +1307,131 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
                 onChange={(e) => setAreaUnit(e.target.value as AreaUnit)}
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-900/80 bg-white dark:bg-slate-900 text-xs sm:text-sm font-semibold focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer"
               >
-                <option value="sqft">Sq. Ft (वर्ग फीट)</option>
-                <option value="gaj">Gaj (गज - 9 Sq.Ft)</option>
-                <option value="nali">Nali (नाली - 2,160 Sq.Ft)</option>
-                <option value="bigha">Bigha (बीघा - 6,806 Sq.Ft)</option>
-                <option value="mutthi">Mutthi (मुट्ठी - 135 Sq.Ft)</option>
-                <option value="acre">Acre (एकड़ - 43,560 Sq.Ft)</option>
+                {AREA_UNITS.map((unitOpt) => (
+                  <option key={unitOpt.value} value={unitOpt.value}>
+                    {isHindi
+                      ? unitOpt.labelHi
+                      : unitOpt.toSqFt === 1
+                      ? unitOpt.labelEn
+                      : `${unitOpt.labelEn} (${unitOpt.toSqFt.toLocaleString('en-IN')} Sq.Ft)`}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
 
-          {/* Furnishing */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-              {isHindi ? 'सुसज्जित स्थिति (Furnishing Status):' : 'Furnishing Status:'}
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {(['Furnished', 'Semi-Furnished', 'Unfurnished'] as const).map((f) => (
-                <button
-                  key={f}
-                  type="button"
-                  onClick={() => setFurnishing(f)}
-                  className={`py-2 px-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                    furnishing === f
-                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
-                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-emerald-400'
-                  }`}
-                >
-                  {f === 'Furnished'
-                    ? isHindi
-                      ? 'पूर्ण सुसज्जित'
-                      : 'Furnished'
-                    : f === 'Semi-Furnished'
-                    ? isHindi
-                      ? 'अर्ध सुसज्जित'
-                      : 'Semi-Furnished'
-                    : isHindi
-                    ? 'असुसज्जित'
-                    : 'Unfurnished'}
-                </button>
-              ))}
-            </div>
-          </div>
+          {/* 2. Bedrooms / Bathrooms / Balconies & 3. Furnishing (Hidden when Land/Plot is selected) */}
+          {!isLandOrPlotSelected && (
+            <>
+              {/* Rooms Counters */}
+              <div className="grid grid-cols-3 gap-3">
+                {/* Bedrooms */}
+                <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
+                  <span className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">
+                    {isHindi ? 'बेडरूम (Bedrooms)' : 'Bedrooms'}
+                  </span>
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setBedrooms((prev) => Math.max(0, prev - 1))}
+                      className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold flex items-center justify-center hover:bg-emerald-100 active:scale-95 cursor-pointer"
+                    >
+                      -
+                    </button>
+                    <span className="font-extrabold text-sm w-5">{bedrooms}</span>
+                    <button
+                      type="button"
+                      onClick={() => setBedrooms((prev) => Math.min(10, prev + 1))}
+                      className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold flex items-center justify-center hover:bg-emerald-100 active:scale-95 cursor-pointer"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                {/* Bathrooms */}
+                <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
+                  <span className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">
+                    {isHindi ? 'बाथरूम (Baths)' : 'Bathrooms'}
+                  </span>
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setBathrooms((prev) => Math.max(0, prev - 1))}
+                      className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold flex items-center justify-center hover:bg-emerald-100 active:scale-95 cursor-pointer"
+                    >
+                      -
+                    </button>
+                    <span className="font-extrabold text-sm w-5">{bathrooms}</span>
+                    <button
+                      type="button"
+                      onClick={() => setBathrooms((prev) => Math.min(10, prev + 1))}
+                      className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold flex items-center justify-center hover:bg-emerald-100 active:scale-95 cursor-pointer"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                {/* Balconies */}
+                <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
+                  <span className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">
+                    {isHindi ? 'बालकनी (Balconies)' : 'Balconies'}
+                  </span>
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setBalconies((prev) => Math.max(0, prev - 1))}
+                      className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold flex items-center justify-center hover:bg-emerald-100 active:scale-95 cursor-pointer"
+                    >
+                      -
+                    </button>
+                    <span className="font-extrabold text-sm w-5">{balconies}</span>
+                    <button
+                      type="button"
+                      onClick={() => setBalconies((prev) => Math.min(6, prev + 1))}
+                      className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold flex items-center justify-center hover:bg-emerald-100 active:scale-95 cursor-pointer"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Furnishing */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  {isHindi ? 'सुसज्जित स्थिति (Furnishing Status):' : 'Furnishing Status:'}
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['Furnished', 'Semi-Furnished', 'Unfurnished'] as const).map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => setFurnishing(f)}
+                      className={`py-2 px-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                        furnishing === f
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-emerald-400'
+                      }`}
+                    >
+                      {f === 'Furnished'
+                        ? isHindi
+                          ? 'पूर्ण सुसज्जित'
+                          : 'Furnished'
+                        : f === 'Semi-Furnished'
+                        ? isHindi
+                          ? 'अर्ध सुसज्जित'
+                          : 'Semi-Furnished'
+                        : isHindi
+                        ? 'असुसज्जित'
+                        : 'Unfurnished'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* SECTION 3: PRICING & COMMERCIAL TERMS */}
@@ -1312,7 +1451,7 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
           </div>
 
           {transactionType === 'sale' ? (
-            /* SALE PRICING */
+            /* SALE PRICING (No Monthly Maintenance; auto-calculated price per unit below price) */
             <div className="space-y-3.5">
               <div>
                 <div className="flex justify-between items-center mb-1">
@@ -1320,11 +1459,11 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
                     {isHindi ? 'कुल बिक्री मूल्य (Total Price in ₹) *' : 'Total Property Price (in ₹) *'}
                   </label>
                   {/* Live Conversion Badge */}
-                  {parseFloat(totalPriceInput) > 0 && (
+                  {parsedSalePriceNum > 0 && (
                     <span className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
-                      {parseFloat(totalPriceInput) >= 10000000
-                        ? `₹${(parseFloat(totalPriceInput) / 10000000).toFixed(2)} Cr`
-                        : `₹${(parseFloat(totalPriceInput) / 100000).toFixed(2)} Lakh`}
+                      {parsedSalePriceNum >= 10000000
+                        ? `₹${(parsedSalePriceNum / 10000000).toFixed(2)} Cr`
+                        : `₹${(parsedSalePriceNum / 100000).toFixed(2)} Lakh`}
                     </span>
                   )}
                 </div>
@@ -1340,36 +1479,45 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
                     className="w-full pl-8 pr-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-900/80 bg-white dark:bg-slate-900 text-xs sm:text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
                   />
                 </div>
+
+                {/* Auto-calculated Price Per Unit (Only in Sell) */}
+                {pricePerSelectedUnit > 0 && (
+                  <div
+                    id="sell-price-per-unit-box"
+                    className="mt-2 px-3.5 py-2 rounded-xl bg-emerald-50/90 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/80 flex flex-wrap items-center justify-between gap-2 text-xs"
+                  >
+                    <span className="font-semibold text-emerald-800 dark:text-emerald-300">
+                      {isHindi
+                        ? `ऑटो-कैलकुलेटेड दर (${selectedAreaUnitConfig.shortHi} के अनुसार):`
+                        : `Auto-calculated Price per ${selectedAreaUnitConfig.shortEn}:`}
+                    </span>
+                    <div className="flex items-center gap-2 font-black text-emerald-900 dark:text-emerald-200">
+                      <span>
+                        ₹{pricePerSelectedUnit.toLocaleString('en-IN')} /{' '}
+                        {isHindi ? selectedAreaUnitConfig.shortHi : selectedAreaUnitConfig.shortEn}
+                      </span>
+                      {areaUnit !== 'sqft' && pricePerSqFtSale > 0 && (
+                        <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-white/80 dark:bg-slate-900/70 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                          ≈ ₹{pricePerSqFtSale.toLocaleString('en-IN')} / Sq.Ft
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    {isHindi ? 'मासिक मेंटेनेंस शुल्क (वैकल्पिक)' : 'Monthly Maintenance Fee (Optional)'}
-                  </label>
+              <div className="pt-1">
+                <label className="flex items-center gap-2.5 cursor-pointer">
                   <input
-                    type="number"
-                    min={0}
-                    value={maintenanceInput}
-                    onChange={(e) => setMaintenanceInput(e.target.value)}
-                    placeholder="0"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-900/80 bg-white dark:bg-slate-900 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
+                    type="checkbox"
+                    checked={isPriceNegotiable}
+                    onChange={(e) => setIsPriceNegotiable(e.target.checked)}
+                    className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                   />
-                </div>
-
-                <div className="flex items-center pt-5">
-                  <label className="flex items-center gap-2.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={isPriceNegotiable}
-                      onChange={(e) => setIsPriceNegotiable(e.target.checked)}
-                      className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                    />
-                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                      {isHindi ? 'मूल्य पर बातचीत संभव (Price Negotiable)' : 'Price is Negotiable'}
-                    </span>
-                  </label>
-                </div>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                    {isHindi ? 'मूल्य पर बातचीत संभव (Price Negotiable)' : 'Price is Negotiable'}
+                  </span>
+                </label>
               </div>
             </div>
           ) : (
@@ -1569,19 +1717,19 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
           )}
         </div>
 
-        {/* SECTION 4: PHOTOS */}
+        {/* SECTION 4: PHOTOS & VIDEOS */}
         <div className="p-3 sm:p-5 rounded-xl sm:rounded-2xl bg-slate-50/70 dark:bg-[#0a2318] border border-slate-200/80 dark:border-emerald-900/40 space-y-3.5 sm:space-y-4">
           <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-emerald-950 pb-2">
             <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-extrabold text-sm uppercase tracking-wide">
               <ImageIcon className="w-4 h-4" />
-              <span>4. {isHindi ? 'तस्वीरें (गैलरी से)' : 'Property Photos (From Gallery)'}</span>
+              <span>4. {isHindi ? 'प्रॉपर्टी की तस्वीरें और वीडियो' : 'Property Photos & Videos'}</span>
             </div>
             <span className="text-xs font-bold text-slate-500">
-              {images.length}/15 {isHindi ? 'तस्वीरें' : 'Photos'}
+              {images.length}/15 {isHindi ? 'तस्वीरें' : 'Photos'} • {videos.length}/3 {isHindi ? 'वीडियो' : 'Videos'}
             </span>
           </div>
 
-          {/* Upload Dropzone */}
+          {/* Photo Upload Dropzone */}
           <div
             onClick={() => fileInputRef.current?.click()}
             className="border-2 border-dashed border-emerald-400/80 dark:border-emerald-800 rounded-2xl p-5 text-center cursor-pointer hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 transition-all group"
@@ -1616,11 +1764,9 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
             )}
           </div>
 
-
-
           {/* Image Thumbnails with Reordering & Cover Selection */}
           {images.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
               {images.map((img, idx) => (
                 <div
                   key={idx}
@@ -1684,7 +1830,76 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
             </div>
           )}
 
+          {/* Property Videos Upload Dropzone & Preview */}
+          <div className="pt-2 border-t border-slate-200/80 dark:border-emerald-900/50 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-extrabold text-teal-800 dark:text-teal-300">
+                <Video className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                <span>{isHindi ? 'प्रॉपर्टी वीडियो (वैकल्पिक)' : 'Property Videos (Optional Walkthrough)'}</span>
+              </div>
+              <span className="text-[11px] font-semibold text-slate-500">
+                {videos.length}/3
+              </span>
+            </div>
 
+            <div
+              onClick={() => videoInputRef.current?.click()}
+              className="border-2 border-dashed border-teal-400/80 dark:border-teal-800 rounded-2xl p-4 text-center cursor-pointer hover:bg-teal-50/50 dark:hover:bg-teal-950/20 transition-all group"
+            >
+              <input
+                type="file"
+                ref={videoInputRef}
+                multiple
+                accept="video/mp4,video/webm,video/quicktime,video/*"
+                onChange={handleVideoUpload}
+                className="hidden"
+              />
+              {isUploadingVideo ? (
+                <div className="flex flex-col items-center gap-2 text-teal-600">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span className="text-xs font-bold">{isHindi ? 'वीडियो अपलोड हो रहा है...' : 'Uploading property video...'}</span>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-1.5">
+                  <div className="w-9 h-9 rounded-full bg-teal-100 dark:bg-teal-900/50 text-teal-600 dark:text-teal-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Video className="w-4 h-4" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white block">
+                    {isHindi ? 'प्रॉपर्टी वीडियो अपलोड करें' : 'Upload Property Videos from Device'}
+                  </span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {isHindi ? 'MP4, MOV, WEBM (अधिकतम 3 वीडियो, 40 MB प्रत्येक)' : 'MP4, MOV, WEBM (Up to 3 videos • max 40 MB each)'}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {videos.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                {videos.map((vid, vIdx) => (
+                  <div
+                    key={vIdx}
+                    className="relative group rounded-xl overflow-hidden border border-teal-300 dark:border-teal-800 bg-black aspect-video shadow-sm"
+                  >
+                    <video
+                      src={resolveApiUrl(vid)}
+                      controls
+                      preload="metadata"
+                      className="w-full h-full object-contain"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeVideo(vIdx)}
+                      className="absolute top-2 right-2 p-1.5 rounded-full bg-rose-600/90 hover:bg-rose-600 text-white shadow-md cursor-pointer transition-colors"
+                      title={isHindi ? 'वीडियो हटाएं' : 'Remove video'}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* SECTION 5: AMENITIES */}

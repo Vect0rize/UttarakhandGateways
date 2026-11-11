@@ -174,7 +174,7 @@ export const AboutAndContact: React.FC<AboutAndContactProps> = () => {
 
                 <div className="pt-6">
                   <a
-                    href="?page=inbox"
+                    href="/inbox"
                     className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs"
                   >
                     <MessageSquare className="w-4 h-4" />
@@ -258,7 +258,7 @@ export const AboutAndContact: React.FC<AboutAndContactProps> = () => {
                     <span>{isHindi ? 'धारा 143 भूमि पूछताछ' : 'Inquire for Non-Agri Land'}</span>
                   </a>
                   <a
-                    href="?page=inbox"
+                    href="/inbox"
                     className="px-5 py-2.5 rounded-xl bg-white dark:bg-[#071f16] border border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-[#0c2f22] text-emerald-900 dark:text-emerald-200 font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap"
                   >
                     <MessageSquare className="w-4 h-4 text-emerald-600" />

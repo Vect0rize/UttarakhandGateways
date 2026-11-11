@@ -34,9 +34,13 @@ import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { AuthModal } from './AuthModal';
 import { UserProfileModal } from './UserProfileModal';
+import { SeoKeywordsSection } from './SeoKeywordsSection';
+import type { AppPageRouteKey } from '../data/seoMetadata';
 
 interface InboxPageProps {
   onBackToMarketplace?: () => void;
+  onNavigatePage?: (page: AppPageRouteKey) => void;
+  onNavigateCity?: (city: string) => void;
 }
 
 const cleanOwnerName = (name?: string) => {
@@ -47,7 +51,11 @@ const cleanOwnerName = (name?: string) => {
   return trimmed;
 };
 
-export const InboxPage: React.FC<InboxPageProps> = ({ onBackToMarketplace }) => {
+export const InboxPage: React.FC<InboxPageProps> = ({
+  onBackToMarketplace,
+  onNavigatePage,
+  onNavigateCity,
+}) => {
   const { currentUser, openAuthModal, logout, deleteAccount } = useAuth();
   // Theme state
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -827,6 +835,11 @@ export const InboxPage: React.FC<InboxPageProps> = ({ onBackToMarketplace }) => 
       <UserProfileModal 
         isOpen={showProfileModal} 
         onClose={() => setShowProfileModal(false)} 
+      />
+      <SeoKeywordsSection
+        onNavigatePage={onNavigatePage}
+        onNavigateCity={onNavigateCity}
+        compact={true}
       />
     </div>
   );

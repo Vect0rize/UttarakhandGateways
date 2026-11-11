@@ -5,6 +5,8 @@ import { ArrowLeft, Building2, User } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { Property } from '../types';
 import { LegalPolicyId } from '../data/legalPolicies';
+import { SeoKeywordsSection } from './SeoKeywordsSection';
+import type { AppPageRouteKey } from '../data/seoMetadata';
 
 interface SellGuiPageProps {
   onBackToMain: () => void;
@@ -13,6 +15,8 @@ interface SellGuiPageProps {
   onUpdateLastUploadTime?: (timestamp: number) => void;
   onOpenLegalPolicy?: (policyId: LegalPolicyId) => void;
   initialRole?: 'Owner' | 'Broker' | null;
+  onNavigatePage?: (page: AppPageRouteKey) => void;
+  onNavigateCity?: (city: string) => void;
 }
 
 export const SellGuiPage: React.FC<SellGuiPageProps> = ({
@@ -22,6 +26,8 @@ export const SellGuiPage: React.FC<SellGuiPageProps> = ({
   onUpdateLastUploadTime,
   onOpenLegalPolicy,
   initialRole = 'Owner',
+  onNavigatePage,
+  onNavigateCity,
 }) => {
   const { isHindi } = useLanguage();
   const effectiveRole: 'Owner' | 'Broker' = initialRole === 'Broker' ? 'Broker' : 'Owner';
@@ -81,6 +87,11 @@ export const SellGuiPage: React.FC<SellGuiPageProps> = ({
           onOpenLegalPolicy={onOpenLegalPolicy}
         />
       </main>
+
+      <SeoKeywordsSection
+        onNavigatePage={onNavigatePage}
+        onNavigateCity={onNavigateCity}
+      />
 
     </div>
   );

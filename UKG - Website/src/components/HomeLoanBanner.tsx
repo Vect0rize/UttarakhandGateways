@@ -25,19 +25,20 @@ export const HomeLoanBanner: React.FC<HomeLoanBannerProps> = ({
       ));
 
   const handleOpen = () => {
-    try {
-      window.open('?page=home-loan', '_blank');
-    } catch {
-      if (onOpenEligibility) onOpenEligibility();
+    if (onOpenEligibility) {
+      onOpenEligibility();
+    } else {
+      window.location.href = '/home-loan';
     }
   };
 
   const handleBankClick = () => {
-    try {
-      window.open('?page=home-loan#banks', '_blank');
-    } catch {
-      if (onOpenBankOffers) onOpenBankOffers();
-      else if (onOpenEligibility) onOpenEligibility();
+    if (onOpenBankOffers) {
+      onOpenBankOffers();
+    } else if (onOpenEligibility) {
+      onOpenEligibility();
+    } else {
+      window.location.href = '/home-loan';
     }
   };
 

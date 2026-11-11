@@ -9,6 +9,7 @@ import { GoogleGenAI, Type } from '@google/genai';
 import { db } from './db';
 import { CITY_MARKET_DATA } from './src/data/citySeoData';
 import { REAL_ESTATE_GUIDES } from './src/data/guidesData';
+import { getPageSeoMeta, type AppPageRouteKey } from './src/data/seoMetadata';
 
 dotenv.config();
 
@@ -88,17 +89,25 @@ app.use((req, res, next) => {
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-  res.setHeader('Content-Security-Policy', "default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data: blob:; font-src 'self' https: data:; frame-ancestors 'self';");
+  res.setHeader('Content-Security-Policy', "default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data: blob:; media-src 'self' https: data: blob:; font-src 'self' https: data:; frame-ancestors 'self';");
   if (process.env.NODE_ENV === 'production') {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
   }
   next();
 });
 
-// Protect against memory exhaustion: limit JSON payload to 10MB
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Protect against memory exhaustion while supporting rich listing payloads
+app.use(express.json({ limit: '25mb' }));
+app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 app.use(cookieParser(SESSION_SECRET));
+
+const uploadsDir = path.join(process.cwd(), 'uploads');
+try {
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+} catch {}
+app.use('/uploads', express.static(uploadsDir));
 
 const possiblePublicPaths = [
   path.join(process.cwd(), 'dist'),
@@ -297,6 +306,58 @@ app.get('/api/properties/:id', async (req, res) => {
   }
 });
 
+// Persist base64 data:video URLs onto disk (/uploads/...) so large video tours stay fast & lightweight in DB
+function persistInlineVideos(prop: any): void {
+  if (!prop || typeof prop !== 'object') return;
+  const saveDataUrl = (dataUrl: string): string => {
+    if (!dataUrl || typeof dataUrl !== 'string') return dataUrl;
+    const m = dataUrl.match(/^data:(video\/[a-z0-9.+-]+);base64,(.+)$/i);
+    if (!m) return dataUrl;
+    const rawExt = (m[1].split('/')[1] || 'mp4').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const ext = rawExt === 'quicktime' ? 'mov' : rawExt === 'xmsvideo' ? 'avi' : (rawExt || 'mp4');
+    const fileName = `ukg-vid-${Date.now()}-${crypto.randomBytes(4).toString('hex')}.${ext}`;
+    fs.writeFileSync(path.join(uploadsDir, fileName), Buffer.from(m[2], 'base64'));
+    return `/uploads/${fileName}`;
+  };
+  if (Array.isArray(prop.videos)) {
+    prop.videos = prop.videos.slice(0, 3).map((v: any) => (typeof v === 'string' ? saveDataUrl(v) : v)).filter(Boolean);
+    if (prop.videos.length > 0 && !prop.videoUrl) {
+      prop.videoUrl = prop.videos[0];
+    }
+  } else if (typeof prop.videoUrl === 'string' && prop.videoUrl.startsWith('data:video/')) {
+    prop.videoUrl = saveDataUrl(prop.videoUrl);
+    prop.videos = [prop.videoUrl];
+  }
+}
+
+app.post(
+  '/api/upload-video',
+  express.raw({ type: ['video/*', 'application/octet-stream'], limit: '45mb' }),
+  async (req, res) => {
+    try {
+      const sessionUser = await getSessionUser(req);
+      if (!sessionUser) {
+        return res.status(401).json({ success: false, error: 'Authentication required to upload property videos.' });
+      }
+      const body = req.body;
+      if (!Buffer.isBuffer(body) || body.length === 0) {
+        return res.status(400).json({ success: false, error: 'Empty video file uploaded.' });
+      }
+      const ct = String(req.headers['content-type'] || 'video/mp4').toLowerCase();
+      let ext = 'mp4';
+      if (ct.includes('webm')) ext = 'webm';
+      else if (ct.includes('quicktime') || ct.includes('mov')) ext = 'mov';
+      else if (ct.includes('ogg')) ext = 'ogv';
+      const fileName = `ukg-vid-${Date.now()}-${crypto.randomBytes(4).toString('hex')}.${ext}`;
+      fs.writeFileSync(path.join(uploadsDir, fileName), body);
+      res.json({ success: true, url: `/uploads/${fileName}` });
+    } catch (err: any) {
+      console.error('[UKG Video Upload Error]', err);
+      res.status(500).json({ success: false, error: err?.message || 'Video upload failed' });
+    }
+  }
+);
+
 app.post('/api/properties', async (req, res) => {
   try {
     // Enforce authentication for creating listings
@@ -325,7 +386,8 @@ app.post('/api/properties', async (req, res) => {
       property.createdAt = new Date().toISOString();
     }
 
-    // Securely bind authenticated user identity
+    // Securely bind authenticated user identity & persist any inline uploaded video
+    persistInlineVideos(property);
     property.ownerId = sessionUser.id;
     property.ownerUsername = sessionUser.username;
     property.ownerContact = sessionUser.contact;
@@ -425,6 +487,8 @@ app.put('/api/properties/:id', async (req, res) => {
 
     if (!updates.ownerUsername && existing.ownerUsername) updates.ownerUsername = existing.ownerUsername;
     else if (!updates.ownerUsername && sessionUser.username) updates.ownerUsername = sessionUser.username;
+
+    persistInlineVideos(updates);
 
     const updated = await db.updateProperty(id, updates);
     console.log(`[UKG Properties] Updated property "${updated.title}" (${id})`);
@@ -1960,6 +2024,9 @@ async function generateDynamicSitemapXml(): Promise<string> {
     { loc: `${DOMAIN}/`, changefreq: 'daily', priority: '1.0' },
     { loc: `${DOMAIN}/buy`, changefreq: 'daily', priority: '0.9' },
     { loc: `${DOMAIN}/rent`, changefreq: 'daily', priority: '0.9' },
+    { loc: `${DOMAIN}/list`, changefreq: 'weekly', priority: '0.9' },
+    { loc: `${DOMAIN}/list/buy`, changefreq: 'weekly', priority: '0.8' },
+    { loc: `${DOMAIN}/list/rent`, changefreq: 'weekly', priority: '0.8' },
     { loc: `${DOMAIN}/guides`, changefreq: 'weekly', priority: '0.8' },
     { loc: `${DOMAIN}/home-loan`, changefreq: 'monthly', priority: '0.8' },
   ];
@@ -2340,37 +2407,84 @@ async function handleSeoPageRender(req: express.Request, res: express.Response, 
     }
   }
 
-  // 4. Buy Page
-  if (urlPath === '/buy' || req.query.page === 'buy') {
-    html = html.replace(/<title>.*?<\/title>/i, `<title>Buy Property in Uttarakhand | Verified Plots, Villas & Flats for Sale | Uttarakhand Gateways</title>`);
-    html = html.replace(/<meta name="description".*?>/i, `<meta name="description" content="Explore verified residential plots, luxury mountain villas, cottages, and flats for outright purchase across Uttarakhand with 0% brokerage. Direct deals with owners." />`);
-    html = html.replace(/<link rel="canonical".*?>/i, `<link rel="canonical" href="${DOMAIN}/buy" />`);
+  const applyRouteSeoMeta = (pageKey: AppPageRouteKey, noindex = false) => {
+    const seo = getPageSeoMeta(pageKey);
+    const canonicalUrl = `${DOMAIN}${seo.canonicalPath}`;
+    html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(seo.title)}</title>`);
+    if (/<meta\s+name="description"[\s\S]*?>/i.test(html)) {
+      html = html.replace(/<meta\s+name="description"[\s\S]*?>/i, `<meta name="description" content="${escapeHtml(seo.description)}" />`);
+    } else {
+      html = html.replace('</head>', `  <meta name="description" content="${escapeHtml(seo.description)}" />\n</head>`);
+    }
+    if (/<meta\s+name="keywords"[\s\S]*?>/i.test(html)) {
+      html = html.replace(/<meta\s+name="keywords"[\s\S]*?>/i, `<meta name="keywords" content="${escapeHtml(seo.keywords)}" />`);
+    } else {
+      html = html.replace('</head>', `  <meta name="keywords" content="${escapeHtml(seo.keywords)}" />\n</head>`);
+    }
+    html = html.replace(/<meta\s+property="og:title"[\s\S]*?>/i, `<meta property="og:title" content="${escapeHtml(seo.title)}" />`);
+    html = html.replace(/<meta\s+property="og:description"[\s\S]*?>/i, `<meta property="og:description" content="${escapeHtml(seo.description)}" />`);
+    html = html.replace(/<meta\s+property="og:url"[\s\S]*?>/i, `<meta property="og:url" content="${canonicalUrl}" />`);
+    html = html.replace(/<link\s+rel="canonical"[\s\S]*?>/i, `<link rel="canonical" href="${canonicalUrl}" />`);
+    if (noindex) {
+      html = html.replace(/<meta\s+name="robots"[\s\S]*?>/i, `<meta name="robots" content="noindex, nofollow" />`);
+    }
+  };
+
+  const normalizedPath = urlPath.replace(/\/+$/, '') || '/';
+  const pageParam = String(req.query.page || '').toLowerCase();
+
+  // 4. List & Listing GUI Pages (/list, /list/buy, /list/sell, /list/rent)
+  if (normalizedPath === '/list' || pageParam === 'list') {
+    applyRouteSeoMeta('list');
+    return res.send(html);
+  }
+  if (normalizedPath === '/list/buy' || normalizedPath === '/list/sell' || normalizedPath === '/sell' || normalizedPath === '/sell-property' || ['sell-gui', 'sell', 'sell-property'].includes(pageParam)) {
+    applyRouteSeoMeta('sell-gui');
+    return res.send(html);
+  }
+  if (normalizedPath === '/list/rent' || normalizedPath === '/rent-gui' || normalizedPath === '/rent-list' || ['rent-gui', 'rent-list'].includes(pageParam)) {
+    applyRouteSeoMeta('rent-gui');
     return res.send(html);
   }
 
-  // 5. Rent Page
-  if (urlPath === '/rent' || req.query.page === 'rent') {
-    html = html.replace(/<title>.*?<\/title>/i, `<title>Houses & Flats for Rent in Uttarakhand | 0% Brokerage | Uttarakhand Gateways</title>`);
-    html = html.replace(/<meta name="description".*?>/i, `<meta name="description" content="Find verified long-term rentals, mountain cottages, furnished apartments, and villas across Dehradun, Rishikesh, Mussoorie, Nainital with 0% brokerage." />`);
-    html = html.replace(/<link rel="canonical".*?>/i, `<link rel="canonical" href="${DOMAIN}/rent" />`);
+  // 5. Buy Page (/buy, /lbuy, /buy-property)
+  if (normalizedPath === '/buy' || normalizedPath === '/lbuy' || normalizedPath === '/buy-property' || pageParam === 'buy') {
+    applyRouteSeoMeta('buy');
     return res.send(html);
   }
 
-  // 6. Home Loan Page
-  if (urlPath === '/home-loan' || req.query.page === 'home-loan') {
-    html = html.replace(/<title>.*?<\/title>/i, `<title>Uttarakhand Home Loan EMI Calculator & Bank Offers | Uttarakhand Gateways</title>`);
-    html = html.replace(/<meta name="description".*?>/i, `<meta name="description" content="Calculate home loan EMI and eligibility for Uttarakhand mountain properties. Compare lowest interest rate offers from SBI, HDFC, ICICI, and PNB." />`);
-    html = html.replace(/<link rel="canonical".*?>/i, `<link rel="canonical" href="${DOMAIN}/home-loan" />`);
+  // 6. Rent Page (/rent, /rent-property)
+  if (normalizedPath === '/rent' || normalizedPath === '/rent-property' || ['rent', 'rent-property'].includes(pageParam)) {
+    applyRouteSeoMeta('rent');
     return res.send(html);
   }
 
-  // 7. Private user routes (Never index)
-  if (urlPath === '/inbox' || urlPath === '/dashboard' || urlPath === '/login' || urlPath === '/register' || urlPath === '/sell-gui' || urlPath === '/rent-gui' ||
-      ['inbox', 'dashboard', 'login', 'register', 'sell-gui', 'rent-gui'].includes(String(req.query.page || ''))) {
-    html = html.replace(/<meta name="robots".*?>/i, `<meta name="robots" content="noindex, nofollow" />`);
+  // 7. Home Loan Page
+  if (normalizedPath === '/home-loan' || normalizedPath === '/emi-calculator' || normalizedPath === '/homeloan' || ['home-loan', 'emi-calculator'].includes(pageParam)) {
+    applyRouteSeoMeta('home-loan');
     return res.send(html);
   }
 
+  // 8. Account / Auth / Private Pages
+  if (normalizedPath === '/login' || normalizedPath === '/reset-password' || ['login', 'reset-password', 'forgot-password'].includes(pageParam)) {
+    applyRouteSeoMeta('login');
+    return res.send(html);
+  }
+  if (normalizedPath === '/register' || pageParam === 'register') {
+    applyRouteSeoMeta('register');
+    return res.send(html);
+  }
+  if (normalizedPath === '/inbox' || pageParam === 'inbox') {
+    applyRouteSeoMeta('inbox', true);
+    return res.send(html);
+  }
+  if (normalizedPath === '/dashboard' || normalizedPath === '/lister-dashboard' || pageParam === 'dashboard') {
+    applyRouteSeoMeta('dashboard', true);
+    return res.send(html);
+  }
+
+  // Default Home Route SEO
+  applyRouteSeoMeta('home');
   return res.send(html);
 }
 

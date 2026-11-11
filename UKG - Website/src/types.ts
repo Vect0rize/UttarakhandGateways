@@ -77,6 +77,7 @@ export interface Property {
   configuration: string; // e.g. "3 BHK Duplex Mountain Cottage" or "Residential Plot"
   bedrooms: number;
   bathrooms: number;
+  balconies?: number;
   facing?: string;
   possession?: 'Ready to Move' | 'Immediate Registry' | 'Under Construction (2026)' | string;
   reraStatus?: 'RERA Approved' | '143 Converted Clear Title' | 'MDDA Approved' | 'Regd Clear Title' | '143 Converted Freehold' | 'Regd Freehold' | string;
@@ -97,6 +98,7 @@ export interface Property {
   peakName?: string;
   images: string[];
   videoUrl?: string;
+  videos?: string[];
   areaUnit?: string;
   pricingUnit?: string;
   description: string;

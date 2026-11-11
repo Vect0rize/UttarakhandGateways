@@ -17,10 +17,13 @@ import {
   Calculator
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { SeoKeywordsSection } from './SeoKeywordsSection';
+import type { AppPageRouteKey } from '../data/seoMetadata';
 
 interface GuidesHubPageProps {
   onBackToMain: () => void;
   onNavigatePage?: (page: string) => void;
+  onNavigateCity?: (city: string) => void;
   onOpenUnitConverter?: () => void;
   initialGuideSlug?: string;
 }
@@ -28,6 +31,7 @@ interface GuidesHubPageProps {
 export const GuidesHubPage: React.FC<GuidesHubPageProps> = ({
   onBackToMain,
   onNavigatePage,
+  onNavigateCity,
   onOpenUnitConverter,
   initialGuideSlug,
 }) => {
@@ -305,7 +309,11 @@ export const GuidesHubPage: React.FC<GuidesHubPageProps> = ({
         </main>
       )}
 
-      {/* 3. FOOTER */}
+      {/* 3. SEO Keywords & FOOTER */}
+      <SeoKeywordsSection
+        onNavigatePage={onNavigatePage ? (p: AppPageRouteKey) => onNavigatePage(p) : undefined}
+        onNavigateCity={onNavigateCity}
+      />
       <footer className="py-6 border-t border-emerald-200 dark:border-emerald-800 bg-white dark:bg-[#071f17] text-center text-xs text-slate-500">
         <p>© {new Date().getFullYear()} Uttarakhand Gateways. Authentic Mountain Real Estate Legal Insights.</p>
       </footer>

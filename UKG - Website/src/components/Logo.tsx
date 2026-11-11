@@ -327,10 +327,10 @@ export const Logo: React.FC<LogoProps> = ({
   withCircle = true,
 }) => {
   const iconDimensions = {
-    sm: { width: 38, height: 38, p: 'p-1' },
-    md: { width: 48, height: 48, p: 'p-1' },
-    lg: { width: 62, height: 62, p: 'p-1.5' },
-    xl: { width: 80, height: 80, p: 'p-2' },
+    sm: { width: 38, height: 38 },
+    md: { width: 48, height: 48 },
+    lg: { width: 62, height: 62 },
+    xl: { width: 80, height: 80 },
   };
 
   const titleSizes = {
@@ -347,7 +347,7 @@ export const Logo: React.FC<LogoProps> = ({
     xl: 'text-sm sm:text-base tracking-[0.32em] font-black',
   };
 
-  const { width, height, p } = iconDimensions[size];
+  const { width, height } = iconDimensions[size];
 
   return (
     <div className={`flex items-center gap-2.5 sm:gap-3.5 select-none outline-none ring-0 border-0 [-webkit-tap-highlight-color:transparent] ${className}`}>
@@ -358,10 +358,10 @@ export const Logo: React.FC<LogoProps> = ({
       >
         {withCircle ? (
           <div 
-            className={`rounded-full bg-[#062c21] border-2 border-emerald-500/70 shadow-md ring-2 ring-emerald-500/20 flex items-center justify-center overflow-hidden select-none outline-none ${p}`}
+            className="rounded-full bg-[#000a02] ring-1 ring-amber-400/50 shadow-md flex items-center justify-center overflow-hidden select-none outline-none"
             style={{ width, height }}
           >
-            <UKGLogoEmblem className="w-full h-full object-contain pointer-events-none select-none" />
+            <UKGLogoEmblem className="w-full h-full object-cover scale-[1.05] pointer-events-none select-none" />
           </div>
         ) : (
           <div style={{ width, height }} className="select-none outline-none">

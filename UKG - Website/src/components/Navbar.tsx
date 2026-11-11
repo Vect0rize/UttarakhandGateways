@@ -60,6 +60,9 @@ interface NavbarProps {
   totalPages?: number;
   onPageChange?: (page: number) => void;
   onOpenListChooser?: () => void;
+  onOpenSignIn?: () => void;
+  onOpenRegister?: () => void;
+  onOpenHomeLoanPage?: () => void;
   onDeleteAllProperties?: () => void;
   onNavigateGuides?: () => void;
   onNavigateCity?: (city: string) => void;
@@ -75,6 +78,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenSellModal,
   onOpenRentalModal,
   onOpenListChooser,
+  onOpenSignIn,
+  onOpenRegister,
+  onOpenHomeLoanPage,
   isRentActive = false,
   isPropertyViewActive = false,
   onReturnToProperties,
@@ -181,7 +187,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 type="button"
                 onClick={() => {
                   requireAuth(() => {
-                    window.open('?page=inbox', '_blank');
+                    if (onOpenInbox) onOpenInbox();
+                    else window.location.href = '/inbox';
                   }, isHindi ? 'संदेश और इनबॉक्स देखने हेतु लॉगिन आवश्यक है।' : 'Please sign in or register to access your Inbox.');
                 }}
                 className="relative p-1.5 xl:p-2 rounded-full hover:bg-emerald-100/70 dark:hover:bg-emerald-900/60 text-slate-700 dark:text-emerald-200 transition-colors cursor-pointer"
@@ -270,27 +277,14 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             </div>
 
-            {/* Common List Button (Directs to OTP Login if not authenticated, else opens chooser for sale or rent) */}
+            {/* Common List Button -> navigates to /list page */}
             <button
               type="button"
               onClick={() => {
-                if (!currentUser) {
-                  openAuthModal(
-                    'login',
-                    isHindi 
-                    ? 'प्रॉपर्टी लिस्ट करने हेतु कृपया ईमेल (OTP) से लॉगिन करें।' 
-                    : 'Please log in with your Email via OTP to list your property.',
-                    () => {
-                      if (onOpenListChooser) onOpenListChooser();
-                      else setShowListChooserModal(true);
-                    }
-                  );
+                if (onOpenListChooser) {
+                  onOpenListChooser();
                 } else {
-                  if (onOpenListChooser) {
-                    onOpenListChooser();
-                  } else {
-                    setShowListChooserModal(true);
-                  }
+                  setShowListChooserModal(true);
                 }
               }}
               className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-gradient-to-r from-emerald-600 via-teal-600 to-green-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-xs shadow-md shadow-emerald-600/30 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer ring-1 ring-emerald-300/40 whitespace-nowrap"
@@ -356,14 +350,20 @@ export const Navbar: React.FC<NavbarProps> = ({
               <div className="hidden lg:flex items-center gap-1.5">
                 <button
                   type="button"
-                  onClick={() => openAuthModal('login')}
+                  onClick={() => {
+                    if (onOpenSignIn) onOpenSignIn();
+                    else openAuthModal('login');
+                  }}
                   className="px-2.5 py-1.5 rounded-full hover:bg-emerald-50 dark:hover:bg-emerald-950/60 text-emerald-800 dark:text-emerald-200 text-xs font-bold transition-all cursor-pointer whitespace-nowrap"
                 >
                   <span>{isHindi ? 'लॉग इन' : 'Sign In'}</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => openAuthModal('register')}
+                  onClick={() => {
+                    if (onOpenRegister) onOpenRegister();
+                    else openAuthModal('register');
+                  }}
                   className="px-3 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm active:scale-95 transition-all cursor-pointer whitespace-nowrap"
                 >
                   <span>{isHindi ? 'रजिस्टर' : 'Register'}</span>
@@ -502,7 +502,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                     type="button"
                     onClick={() => {
                       setMobileMenuOpen(false);
-                      openAuthModal('login');
+                      if (onOpenSignIn) onOpenSignIn();
+                      else openAuthModal('login');
                     }}
                     className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm cursor-pointer"
                   >
@@ -512,7 +513,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                     type="button"
                     onClick={() => {
                       setMobileMenuOpen(false);
-                      openAuthModal('register');
+                      if (onOpenRegister) onOpenRegister();
+                      else openAuthModal('register');
                     }}
                     className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white text-xs font-bold shadow-sm cursor-pointer"
                   >
@@ -562,26 +564,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {isHindi ? 'किराया' : 'Rent'}
               </button>
 
-              {/* Post Ad (with FREE mark - requires login via OTP if guest) */}
+              {/* Post Ad (with FREE mark -> navigates to /list page) */}
               <button
                 type="button"
                 onClick={() => {
                   setMobileMenuOpen(false);
-                  if (!currentUser) {
-                    openAuthModal(
-                      'login',
-                      isHindi 
-                        ? 'प्रॉपर्टी लिस्ट करने हेतु कृपया ईमेल (OTP) से लॉगिन करें।' 
-                        : 'Please log in with your Email via OTP to list your property.',
-                      () => {
-                        if (onOpenListChooser) onOpenListChooser();
-                        else setShowListChooserModal(true);
-                      }
-                    );
-                  } else {
-                    if (onOpenListChooser) onOpenListChooser();
-                    else setShowListChooserModal(true);
-                  }
+                  if (onOpenListChooser) onOpenListChooser();
+                  else setShowListChooserModal(true);
                 }}
                 className="py-2.5 px-2 bg-gradient-to-r from-emerald-600 via-teal-600 to-green-600 text-white rounded-xl text-xs font-extrabold text-center shadow-xs cursor-pointer flex items-center justify-center gap-1"
               >
@@ -670,7 +659,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onClick={() => {
                   setMobileMenuOpen(false);
                   requireAuth(() => {
-                    window.open('?page=inbox', '_blank');
+                    if (onOpenInbox) onOpenInbox();
+                    else window.location.href = '/inbox';
                   }, isHindi ? 'संदेश और इनबॉक्स देखने हेतु लॉगिन आवश्यक है।' : 'Please sign in or register to access your Inbox.');
                 }}
                 className="p-2.5 bg-emerald-50/80 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-900 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs font-bold flex items-center justify-between shadow-xs cursor-pointer"
@@ -716,7 +706,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               type="button"
               onClick={() => {
                 setMobileMenuOpen(false);
-                try { window.open('?page=home-loan', '_blank'); } catch { if (onOpenEmiCalculator) onOpenEmiCalculator(); else scrollToSection('calculator-section'); }
+                if (onOpenHomeLoanPage) onOpenHomeLoanPage();
+                else if (onOpenEmiCalculator) onOpenEmiCalculator();
+                else window.location.href = '/home-loan';
               }}
               className="text-left py-2.5 px-3 bg-white dark:bg-[#0a271d] hover:bg-emerald-50 dark:hover:bg-[#0f3427] rounded-xl text-sm font-bold flex items-center justify-between text-slate-800 dark:text-emerald-100 border border-emerald-200/80 dark:border-emerald-800 cursor-pointer shadow-xs"
             >
@@ -851,7 +843,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Navigation Links */}
             <div className="pt-2 border-t border-emerald-100 dark:border-emerald-900/60 flex flex-col space-y-1">
               <button
-                onClick={() => { setMobileMenuOpen(false); scrollToSection('hero'); }}
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  if (onLogoClick) onLogoClick();
+                  else scrollToSection('hero');
+                }}
                 className="text-left py-2 px-3 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-lg text-sm font-medium text-slate-700 dark:text-emerald-100"
               >
                 {isHindi ? 'होम' : 'Home'}

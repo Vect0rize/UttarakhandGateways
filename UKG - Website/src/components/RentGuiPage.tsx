@@ -5,17 +5,23 @@ import { ArrowLeft, Key } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { Property } from '../types';
 import { LegalPolicyId } from '../data/legalPolicies';
+import { SeoKeywordsSection } from './SeoKeywordsSection';
+import type { AppPageRouteKey } from '../data/seoMetadata';
 
 interface RentGuiPageProps {
   onBackToMain: () => void;
   onRentalUploaded: (property: Property) => void;
   onOpenLegalPolicy?: (policyId: LegalPolicyId) => void;
+  onNavigatePage?: (page: AppPageRouteKey) => void;
+  onNavigateCity?: (city: string) => void;
 }
 
 export const RentGuiPage: React.FC<RentGuiPageProps> = ({
   onBackToMain,
   onRentalUploaded,
   onOpenLegalPolicy,
+  onNavigatePage,
+  onNavigateCity,
 }) => {
   const { isHindi } = useLanguage();
 
@@ -62,6 +68,11 @@ export const RentGuiPage: React.FC<RentGuiPageProps> = ({
           onOpenLegalPolicy={onOpenLegalPolicy}
         />
       </main>
+
+      <SeoKeywordsSection
+        onNavigatePage={onNavigatePage}
+        onNavigateCity={onNavigateCity}
+      />
 
     </div>
   );

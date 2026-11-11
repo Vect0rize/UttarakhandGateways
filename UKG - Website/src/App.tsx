@@ -11,10 +11,10 @@ import { AdminReportsModal } from './components/AdminReportsModal';
 import { DeleteAllPropertiesModal } from './components/DeleteAllPropertiesModal';
 import { ReportListingModal } from './components/ReportListingModal';
 import { LandUnitConverterModal } from './components/LandUnitConverterModal';
-import { UploadPropertyModal } from './components/UploadPropertyModal';
-import { ListRentalModal } from './components/ListRentalModal';
 import { UnifiedListingModal } from './components/UnifiedListingModal';
 import { InboxModal } from './components/InboxModal';
+import { ListPage } from './components/ListPage';
+import { getPageSeoMeta, ROUTE_PATH_MAP, type AppPageRouteKey } from './data/seoMetadata';
 import { AboutAndContact } from './components/AboutAndContact';
 import { Footer } from './components/Footer';
 import { PropertyCalculator } from './components/PropertyCalculator';
@@ -81,7 +81,7 @@ const INITIAL_FILTERS: FilterState = {
   sortBy: 'price-low',
 };
 
-export type ActivePageView = 'home' | 'buy' | 'rent' | 'login' | 'register' | 'sell-gui' | 'rent-gui' | 'inbox' | 'dashboard' | 'home-loan' | 'city' | 'guides';
+export type ActivePageView = AppPageRouteKey;
 
 export default function App() {
   const { isHindi } = useLanguage();
@@ -134,15 +134,16 @@ export default function App() {
     try {
       const params = new URLSearchParams(window.location.search);
       const p = params.get('page');
-      const path = (window.location.pathname || '').toLowerCase();
-      if (p === 'buy' || path === '/buy' || path === '/buy-property') return 'buy';
+      const path = (window.location.pathname || '').toLowerCase().replace(/\/+$/, '') || '/';
+      if (p === 'list' || path === '/list') return 'list';
+      if (p === 'buy' || path === '/buy' || path === '/lbuy' || path === '/buy-property') return 'buy';
       if (p === 'rent' || path === '/rent' || p === 'rent-property' || path === '/rent-property') return 'rent';
       if (path.startsWith('/properties-in-') || p === 'city') return 'city';
       if (path.startsWith('/guides') || path.startsWith('/guide') || p === 'guides') return 'guides';
       if (p === 'login' || path === '/login' || p === 'reset-password' || path === '/reset-password' || params.get('token') || params.get('resetToken') || p === 'forgot-password') return 'login';
       if (p === 'register' || path === '/register') return 'register';
-      if (p === 'sell-gui' || p === 'sell' || path === '/sell' || p === 'sell-property' || path === '/sell-property') return 'sell-gui';
-      if (p === 'rent-gui' || p === 'rent-list' || path === '/rent-gui' || path === '/rent-list') return 'rent-gui';
+      if (p === 'sell-gui' || p === 'sell' || path === '/list/buy' || path === '/list/sell' || path === '/sell' || p === 'sell-property' || path === '/sell-property') return 'sell-gui';
+      if (p === 'rent-gui' || p === 'rent-list' || path === '/list/rent' || path === '/rent-gui' || path === '/rent-list') return 'rent-gui';
       if (p === 'inbox' || path === '/inbox') return 'inbox';
       if (p === 'dashboard' || path === '/dashboard' || path === '/lister-dashboard') return 'dashboard';
       if (p === 'home-loan' || p === 'emi-calculator' || path === '/home-loan' || path === '/emi-calculator' || path === '/homeloan') return 'home-loan';
@@ -161,9 +162,9 @@ export default function App() {
       const params = new URLSearchParams(window.location.search);
       const p = params.get('page');
       const propId = params.get('property');
-      const path = (window.location.pathname || '').toLowerCase();
+      const path = (window.location.pathname || '').toLowerCase().replace(/\/+$/, '') || '/';
 
-      if (propId) {
+      if (propId || path.startsWith('/property/')) {
         return; // Handled by handleCheckUrlProperty
       }
 
@@ -183,7 +184,11 @@ export default function App() {
         setActivePage('guides');
         setSelectedProperty(null);
         setPropertyNotFound(false);
-      } else if (p === 'buy' || path === '/buy' || path === '/buy-property') {
+      } else if (p === 'list' || path === '/list') {
+        setActivePage('list');
+        setSelectedProperty(null);
+        setPropertyNotFound(false);
+      } else if (p === 'buy' || path === '/buy' || path === '/lbuy' || path === '/buy-property') {
         setActivePage('buy');
         setSelectedProperty(null);
         setPropertyNotFound(false);
@@ -199,11 +204,11 @@ export default function App() {
         setActivePage('register');
         setSelectedProperty(null);
         setPropertyNotFound(false);
-      } else if (p === 'sell-gui' || p === 'sell' || path === '/sell' || p === 'sell-property' || path === '/sell-property') {
+      } else if (p === 'sell-gui' || p === 'sell' || path === '/list/buy' || path === '/list/sell' || path === '/sell' || p === 'sell-property' || path === '/sell-property') {
         setActivePage('sell-gui');
         setSelectedProperty(null);
         setPropertyNotFound(false);
-      } else if (p === 'rent-gui' || p === 'rent-list' || path === '/rent-gui' || path === '/rent-list') {
+      } else if (p === 'rent-gui' || p === 'rent-list' || path === '/list/rent' || path === '/rent-gui' || path === '/rent-list') {
         setActivePage('rent-gui');
         setSelectedProperty(null);
         setPropertyNotFound(false);
@@ -215,7 +220,7 @@ export default function App() {
         setActivePage('dashboard');
         setSelectedProperty(null);
         setPropertyNotFound(false);
-      } else if (p === 'home-loan' || path === '/home-loan') {
+      } else if (p === 'home-loan' || path === '/home-loan' || path === '/emi-calculator' || path === '/homeloan') {
         setActivePage('home-loan');
         setSelectedProperty(null);
         setPropertyNotFound(false);
@@ -229,16 +234,18 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const navigateToPage = (target: ActivePageView) => {
+  const navigateToPage = (target: ActivePageView, queryOrHash?: string) => {
     setActivePage(target);
     setSelectedProperty(null);
     setPropertyNotFound(false);
     try {
-      if (target === 'home') {
-        window.history.pushState({}, '', '/');
-      } else {
-        window.history.pushState({ page: target }, '', `?page=${target}`);
-      }
+      const basePath = target === 'city'
+        ? `/properties-in-${activeCityHub.toLowerCase()}`
+        : target === 'guides'
+          ? (activeGuideSlug ? `/guides/${activeGuideSlug}` : '/guides')
+          : (ROUTE_PATH_MAP[target] || '/');
+      const nextUrl = queryOrHash ? `${basePath}${queryOrHash}` : basePath;
+      window.history.pushState({ page: target }, '', nextUrl);
     } catch {}
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -368,41 +375,38 @@ export default function App() {
     setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
   };
 
-  // Synchronize browser tab title (home page is strictly "Uttarakhand Gateways")
+  // Synchronize browser tab title, meta keywords, description & canonical across every route
   useEffect(() => {
-    if (selectedProperty) {
-      document.title = `${selectedProperty.title} | Uttarakhand Gateways`;
-    } else {
-      switch (activePage) {
-        case 'home':
-          document.title = 'Uttarakhand Gateways';
-          break;
-        case 'buy':
-          document.title = 'Buy Properties | Uttarakhand Gateways';
-          break;
-        case 'rent':
-          document.title = 'Rent Properties | Uttarakhand Gateways';
-          break;
-        case 'login':
-          document.title = 'Sign In | Uttarakhand Gateways';
-          break;
-        case 'register':
-          document.title = 'Create Account | Uttarakhand Gateways';
-          break;
-        case 'sell-gui':
-          document.title = 'List Property for Sale | Uttarakhand Gateways';
-          break;
-        case 'rent-gui':
-          document.title = 'List Rental Property | Uttarakhand Gateways';
-          break;
-        case 'inbox':
-          document.title = 'Inbox & Inquiries | Uttarakhand Gateways';
-          break;
-        default:
-          document.title = 'Uttarakhand Gateways';
+    const upsertMeta = (attr: 'name' | 'property', key: string, content: string) => {
+      let el = document.querySelector(`meta[${attr}="${key}"]`);
+      if (!el) {
+        el = document.createElement('meta');
+        el.setAttribute(attr, key);
+        document.head.appendChild(el);
       }
+      el.setAttribute('content', content);
+    };
+
+    const seo = selectedProperty
+      ? {
+          title: `${selectedProperty.title} | ${selectedProperty.city} Uttarakhand Property - Uttarakhand Gateways`,
+          description: `${selectedProperty.title} in ${selectedProperty.location}, ${selectedProperty.city}, Uttarakhand. Direct 0% brokerage ${selectedProperty.type || 'property'} for ${(selectedProperty.type === 'Rent/Lease' || selectedProperty.purpose === 'rent') ? 'rent' : 'sale'} on Uttarakhand Gateways (UKG Properties).`,
+          keywords: `${selectedProperty.title}, properties in ${selectedProperty.city}, ${selectedProperty.city} real estate, properties in uttarakhand, real estate uttarakhand, properties in rishikesh, properties in dehradun, ukg properties, uttarakhand properties, uttraakhand properties, sell property in uttarakhand, rent property in uttarakhand, purchase property in uttarakhand, pg in uttarakhand`,
+          canonicalPath: `/property/${encodeURIComponent(selectedProperty.id)}`,
+        }
+      : getPageSeoMeta(activePage, { cityName: activeCityHub, guideSlug: activeGuideSlug });
+
+    document.title = seo.title;
+    upsertMeta('name', 'description', seo.description);
+    upsertMeta('name', 'keywords', seo.keywords);
+    upsertMeta('property', 'og:title', seo.title);
+    upsertMeta('property', 'og:description', seo.description);
+    upsertMeta('property', 'og:url', `https://uttarakhandgateways.com${seo.canonicalPath}`);
+    const canonicalLink = document.querySelector('link[rel="canonical"]');
+    if (canonicalLink) {
+      canonicalLink.setAttribute('href', `https://uttarakhandgateways.com${seo.canonicalPath}`);
     }
-  }, [activePage, selectedProperty]);
+  }, [activePage, activeCityHub, activeGuideSlug, selectedProperty]);
 
   useEffect(() => {
     let active = true;
@@ -525,7 +529,10 @@ export default function App() {
     let active = true;
     const handlePopStateProperty = async () => {
       const params = new URLSearchParams(window.location.search);
-      const propId = params.get('property');
+      let propId = params.get('property');
+      if (!propId && window.location.pathname.startsWith('/property/')) {
+        propId = decodeURIComponent(window.location.pathname.replace('/property/', ''));
+      }
 
       if (!propId) {
         setSelectedProperty(null);
@@ -582,8 +589,8 @@ export default function App() {
   };
 
   const handleSelectProperty = (property: Property) => {
-    // Open property details in a new tab while preserving the current webpage's exact browsing state and scroll position
-    const fullUrl = `${window.location.origin}${window.location.pathname.startsWith('/?') ? '/' : window.location.pathname}?property=${encodeURIComponent(property.id)}`;
+    // Open clean property webpage in a new tab
+    const fullUrl = `${window.location.origin}/property/${encodeURIComponent(property.id)}`;
     window.open(fullUrl, '_blank');
   };
 
@@ -593,13 +600,12 @@ export default function App() {
     try {
       localStorage.removeItem('uk_gateways_selected_property');
       sessionStorage.removeItem('uk_gateways_selected_property');
-      if (activePage === 'buy') {
-        window.history.pushState({ page: 'buy' }, '', '?page=buy');
-      } else if (activePage === 'rent') {
-        window.history.pushState({ page: 'rent' }, '', '?page=rent');
-      } else {
-        window.history.pushState({}, '', '/');
-      }
+      const targetPath = activePage === 'city'
+        ? `/properties-in-${activeCityHub.toLowerCase()}`
+        : activePage === 'guides'
+          ? (activeGuideSlug ? `/guides/${activeGuideSlug}` : '/guides')
+          : (ROUTE_PATH_MAP[activePage] || '/');
+      window.history.pushState({ page: activePage }, '', targetPath);
     } catch {}
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -1117,7 +1123,7 @@ export default function App() {
 
     // Open standalone inbox webpage in new tab or open modal
     try {
-      window.open('?page=inbox&propertyId=' + property.id, '_blank');
+      window.open(`/inbox?propertyId=${encodeURIComponent(property.id)}`, '_blank');
     } catch {
       setIsInboxOpen(true);
     }
@@ -1377,6 +1383,7 @@ export default function App() {
         <HomeLoanPage
           onBackToMain={() => navigateToPage('home')}
           onNavigatePage={(page) => navigateToPage(page as ActivePageView)}
+          onNavigateCity={navigateToCity}
           isDark={isDark}
           onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
         />
@@ -1387,8 +1394,10 @@ export default function App() {
   if (activePage === 'inbox') {
     return (
       <ErrorBoundary fallbackTitle="Unable to load Inbox" onReset={() => navigateToPage('home')}>
-        <InboxPage 
-          onBackToMarketplace={() => navigateToPage('home')} 
+        <InboxPage
+          onBackToMarketplace={() => navigateToPage('home')}
+          onNavigatePage={(page) => navigateToPage(page as ActivePageView)}
+          onNavigateCity={navigateToCity}
         />
       </ErrorBoundary>
     );
@@ -1397,10 +1406,12 @@ export default function App() {
   if (activePage === 'login') {
     return (
       <ErrorBoundary fallbackTitle="Unable to load Sign In" onReset={() => navigateToPage('home')}>
-        <LoginPage 
+        <LoginPage
           initialMode="login"
           onBackToMain={() => navigateToPage('home')}
           onLoginSuccess={() => navigateToPage('home')}
+          onNavigatePage={(page) => navigateToPage(page as ActivePageView)}
+          onNavigateCity={navigateToCity}
         />
       </ErrorBoundary>
     );
@@ -1409,10 +1420,12 @@ export default function App() {
   if (activePage === 'register') {
     return (
       <ErrorBoundary fallbackTitle="Unable to load Registration" onReset={() => navigateToPage('home')}>
-        <LoginPage 
+        <LoginPage
           initialMode="register"
           onBackToMain={() => navigateToPage('home')}
           onLoginSuccess={() => navigateToPage('home')}
+          onNavigatePage={(page) => navigateToPage(page as ActivePageView)}
+          onNavigateCity={navigateToCity}
         />
       </ErrorBoundary>
     );
@@ -1431,6 +1444,8 @@ export default function App() {
           onUpdateLastUploadTime={setLastUploadTime}
           onOpenLegalPolicy={handleOpenLegalPolicy}
           initialRole={sellListingRole}
+          onNavigatePage={(page) => navigateToPage(page as ActivePageView)}
+          onNavigateCity={navigateToCity}
         />
       </ErrorBoundary>
     );
@@ -1446,6 +1461,8 @@ export default function App() {
             navigateToPage('rent');
           }}
           onOpenLegalPolicy={handleOpenLegalPolicy}
+          onNavigatePage={(page) => navigateToPage(page as ActivePageView)}
+          onNavigateCity={navigateToCity}
         />
       </ErrorBoundary>
     );
@@ -1459,13 +1476,11 @@ export default function App() {
           onSelectProperty={handleSelectProperty}
           onEditProperty={(prop) => setEditingProperty(prop)}
           onDeleteProperty={handleDeleteProperty}
+          onToggleSold={handleToggleSoldStatus}
           onBackToMain={() => navigateToPage('home')}
-          onOpenPostListing={() => {
-            requireAuth(() => {
-              setListChooserStep('type');
-              setShowListChooser(true);
-            }, isHindi ? 'प्रॉपर्टी लिस्ट करने हेतु कृपया ईमेल (OTP) से लॉगिन करें।' : 'Please sign in with your email via OTP to list a property.');
-          }}
+          onOpenListChooser={() => navigateToPage('list')}
+          onNavigatePage={(page) => navigateToPage(page as ActivePageView)}
+          onNavigateCity={navigateToCity}
         />
         <EditPropertyModal
           isOpen={Boolean(editingProperty)}
@@ -1473,28 +1488,26 @@ export default function App() {
           property={editingProperty}
           onPropertyUpdated={handlePropertyUpdated}
         />
-        {showListChooser && (
-          <ListChooserModal
-            isOpen={showListChooser}
-            onClose={() => {
-              setShowListChooser(false);
-              setListChooserStep('type');
-            }}
-            step={listChooserStep}
-            onSelectSale={() => setListChooserStep('sale-role')}
-            onSelectRental={() => {
-              setShowListChooser(false);
-              navigateToPage('rent-gui');
-            }}
-            onSelectRole={(role) => {
-              setSellListingRole(role);
-              setShowListChooser(false);
-              setListChooserStep('type');
-              navigateToPage('sell-gui');
-            }}
-            onBackToType={() => setListChooserStep('type')}
-          />
-        )}
+      </ErrorBoundary>
+    );
+  }
+
+  if (activePage === 'list' && !selectedProperty) {
+    return (
+      <ErrorBoundary fallbackTitle="Unable to load Property Listing Options" onReset={() => navigateToPage('home')}>
+        <ListPage
+          onBackToMain={() => navigateToPage('home')}
+          onSelectSaleRole={(role) => {
+            setSellListingRole(role);
+            navigateToPage('sell-gui');
+          }}
+          onSelectRent={() => navigateToPage('rent-gui')}
+          onNavigatePage={(page, slug) => {
+            if (page === 'guides') navigateToGuides(slug);
+            else navigateToPage(page);
+          }}
+          onNavigateCity={navigateToCity}
+        />
       </ErrorBoundary>
     );
   }
@@ -1512,6 +1525,8 @@ export default function App() {
           onDeleteProperty={handleDeleteProperty}
           onToggleSold={handleToggleSoldStatus}
           onEditProperty={(prop) => setEditingProperty(prop)}
+          onNavigatePage={(page) => navigateToPage(page as ActivePageView)}
+          onNavigateCity={navigateToCity}
         />
         <EditPropertyModal
           isOpen={Boolean(editingProperty)}
@@ -1556,6 +1571,7 @@ export default function App() {
         <GuidesHubPage
           onBackToMain={() => navigateToPage('home')}
           onNavigatePage={(page) => navigateToPage(page as ActivePageView)}
+          onNavigateCity={navigateToCity}
           onOpenUnitConverter={() => setIsUnitConverterOpen(true)}
           initialGuideSlug={activeGuideSlug}
         />
@@ -1576,6 +1592,8 @@ export default function App() {
           onDeleteProperty={handleDeleteProperty}
           onToggleSold={handleToggleSoldStatus}
           onEditProperty={(prop) => setEditingProperty(prop)}
+          onNavigatePage={(page) => navigateToPage(page as ActivePageView)}
+          onNavigateCity={navigateToCity}
         />
         <EditPropertyModal
           isOpen={Boolean(editingProperty)}
@@ -1632,22 +1650,14 @@ export default function App() {
         onEditProperty={(prop) => setEditingProperty(prop)}
         onDeleteProperty={handleDeleteProperty}
         onDeleteAllProperties={() => setIsDeleteAllModalOpen(true)}
-        onOpenSellModal={() => {
-          requireAuth(() => {
-            navigateToPage('sell-gui');
-          }, isHindi ? 'प्रॉपर्टी लिस्ट करने हेतु कृपया ईमेल (OTP) से लॉगिन करें।' : 'Please sign in with your email via OTP to list a property.');
-        }}
-        onOpenRentalModal={() => {
-          requireAuth(() => {
-            navigateToPage('rent-gui');
-          }, isHindi ? 'किराये की प्रॉपर्टी लिस्ट करने हेतु कृपया ईमेल (OTP) से लॉगिन करें।' : 'Please sign in with your email via OTP to list a property.');
-        }}
-        onOpenListChooser={() => {
-          requireAuth(() => {
-            setListChooserStep('type');
-            setShowListChooser(true);
-          }, isHindi ? 'प्रॉपर्टी लिस्ट करने हेतु कृपया ईमेल (OTP) से लॉगिन करें।' : 'Please sign in with your email via OTP to list a property.');
-        }}
+        onOpenSellModal={() => navigateToPage('sell-gui')}
+        onOpenRentalModal={() => navigateToPage('rent-gui')}
+        onOpenListChooser={() => navigateToPage('list')}
+        onOpenSignIn={() => navigateToPage('login')}
+        onOpenRegister={() => navigateToPage('register')}
+        onOpenHomeLoanPage={() => navigateToPage('home-loan')}
+        onNavigateGuides={() => navigateToGuides()}
+        onNavigateCity={navigateToCity}
         isRentActive={showRentFilter || filters.category === 'Rent/Lease'}
         isPropertyViewActive={Boolean(selectedProperty)}
         onReturnToProperties={handleBackToMarketplace}
@@ -1705,6 +1715,8 @@ export default function App() {
             allProperties={properties}
             onSelectProperty={handleSelectProperty}
             onOpenLegalPolicy={handleOpenLegalPolicy}
+            onNavigatePage={(page) => navigateToPage(page as ActivePageView)}
+            onNavigateCity={navigateToCity}
             onReportListing={(property) => setReportingProperty(property)}
           />
         </main>
@@ -1748,17 +1760,8 @@ export default function App() {
           {/* Hero Section with Buy, Sell, Rent buttons above Filters & Search Bar */}
           <Hero
             isRentActive={false}
-            onSellClick={() => {
-              requireAuth(() => {
-                setListChooserStep('type');
-                setShowListChooser(true);
-              }, isHindi ? 'प्रॉपर्टी लिस्ट करने हेतु कृपया ईमेल (OTP) से लॉगिन करें।' : 'Please sign in with your email via OTP to list a property.');
-            }}
-            onRentalClick={() => {
-              requireAuth(() => {
-                navigateToPage('rent-gui');
-              }, isHindi ? 'किराये की प्रॉपर्टी लिस्ट करने हेतु कृपया ईमेल (OTP) से लॉगिन करें।' : 'Please sign in with your email via OTP to list a property.');
-            }}
+            onSellClick={() => navigateToPage('list')}
+            onRentalClick={() => navigateToPage('rent-gui')}
             onBuyClick={() => navigateToPage('buy')}
             onRentClick={() => navigateToPage('rent')}
             onExploreClick={scrollToProperties}
@@ -1933,14 +1936,10 @@ export default function App() {
             </h3>
           </div>
 
-          {/* Common List Button (Directs to Chooser for Sale or Rent GUI) */}
+          {/* Common List Button -> navigates to /list */}
           <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
             <button
-              onClick={() => {
-                requireAuth(() => {
-                  setShowListChooser(true);
-                }, isHindi ? 'प्रॉपर्टी लिस्ट करने हेतु कृपया ईमेल (OTP) से लॉगिन करें।' : 'Please sign in with your email via OTP to list a property.');
-              }}
+              onClick={() => navigateToPage('list')}
               className="text-xs sm:text-sm px-4 sm:px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-green-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold flex items-center gap-2 transition-all shadow-md shadow-emerald-700/25 hover:shadow-lg hover:scale-[1.02] active:scale-95 cursor-pointer"
               title={isHindi ? 'प्रॉपर्टी लिस्ट करें' : 'List Property'}
             >
@@ -2084,7 +2083,7 @@ export default function App() {
             <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
               <button
                 type="button"
-                onClick={(showRentFilter || filters.category === 'Rent/Lease') ? handleOpenRentalModal : handleOpenUploadModal}
+                onClick={() => navigateToPage((showRentFilter || filters.category === 'Rent/Lease') ? 'rent-gui' : 'list')}
                 className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-gradient-to-r from-emerald-600 via-teal-600 to-green-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-sm shadow-lg shadow-emerald-600/30 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
               >
                 {(showRentFilter || filters.category === 'Rent/Lease') ? (
@@ -2150,20 +2149,8 @@ export default function App() {
         {/* Banner beneath Land Calculator: Home Loan Graphics & Check Eligibility */}
         <HomeLoanBanner
           isDark={isDark}
-          onOpenEligibility={() => {
-            try {
-              window.open('?page=home-loan', '_blank');
-            } catch {
-              navigateToPage('home-loan');
-            }
-          }}
-          onOpenBankOffers={() => {
-            try {
-              window.open('?page=home-loan#banks', '_blank');
-            } catch {
-              navigateToPage('home-loan');
-            }
-          }}
+          onOpenEligibility={() => navigateToPage('home-loan')}
+          onOpenBankOffers={() => navigateToPage('home-loan', '#banks')}
         />
 
         {/* Authoritative SEO Knowledge & FAQ Guide */}
@@ -2183,9 +2170,9 @@ export default function App() {
         }}
         onNavigateCity={navigateToCity}
         onNavigateGuides={navigateToGuides}
+        onNavigatePage={(page) => navigateToPage(page)}
         onCategoryClick={(category) => {
-          handleFilterChange({ ...filters, category });
-          scrollToProperties();
+          navigateToPage('buy', `?category=${encodeURIComponent(category)}`);
         }}
         onOpenUnitConverter={() => setIsUnitConverterOpen(true)}
         onOpenLegalPolicy={handleOpenLegalPolicy}
@@ -2358,12 +2345,7 @@ export default function App() {
       {/* Sleek AI Chatbot in Bottom Right Corner - strictly on home screen, hidden when on sell/rent GUI, listing modals, or detail views */}
       {activePage === 'home' && !selectedProperty && !urlPropId && !isUploadModalOpen && !isRentalModalOpen && !showListChooser && !editingProperty && (
         <AiChatbot
-          onOpenSellModal={() => {
-            requireAuth(() => {
-              setListChooserStep('type');
-              setShowListChooser(true);
-            }, isHindi ? 'प्रॉपर्टी लिस्ट करने हेतु कृपया ईमेल से लॉगिन करें।' : 'Please sign in to list a property.');
-          }}
+          onOpenSellModal={() => navigateToPage('list')}
           onOpenUnitConverter={() => setIsUnitConverterOpen(true)}
           onExploreProperties={() => {
             navigateToPage('home');

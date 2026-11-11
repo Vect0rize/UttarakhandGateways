@@ -1392,6 +1392,134 @@ var REAL_ESTATE_GUIDES = [
   }
 ];
 
+// src/data/seoMetadata.ts
+var CORE_UTTARAKHAND_KEYWORDS = [
+  "properties in uttarakhand",
+  "real estate uttarakhand",
+  "properties in rishikesh",
+  "properties in dehradun",
+  "ukg properties",
+  "uttarakhand properties",
+  "uttraakhand properties",
+  "sell property in uttarakhand",
+  "rent property in uttarakhand",
+  "purchase property in uttarakhand",
+  "pg in uttarakhand",
+  "buy property in uttarakhand",
+  "properties in haridwar",
+  "properties in nainital",
+  "properties in mussoorie",
+  "properties in haldwani",
+  "properties in almora",
+  "properties in mukteshwar",
+  "plots in uttarakhand",
+  "flats in dehradun",
+  "villas in uttarakhand",
+  "cottages in nainital",
+  "0% brokerage property uttarakhand",
+  "uttarakhand gateways"
+];
+function getPageSeoMeta(page, options) {
+  const coreKw = CORE_UTTARAKHAND_KEYWORDS.join(", ");
+  switch (page) {
+    case "buy":
+      return {
+        title: "Buy & Purchase Property in Uttarakhand | Properties in Dehradun, Rishikesh | Uttarakhand Gateways",
+        description: "Purchase property in Uttarakhand with 0% brokerage. Browse verified plots, flats, cottages, villas, and commercial UKG properties across Dehradun, Rishikesh, Haridwar, Nainital & Mussoorie.",
+        keywords: `purchase property in uttarakhand, buy property in uttarakhand, flats for sale in dehradun, plots for sale in rishikesh, villas in nainital, ${coreKw}`,
+        canonicalPath: "/buy"
+      };
+    case "rent":
+      return {
+        title: "Rent Property & PG in Uttarakhand | Houses, Flats & Rooms for Rent | Uttarakhand Gateways",
+        description: "Rent property in Uttarakhand & find verified PG in Uttarakhand with 0% brokerage. Houses, furnished flats, rooms, cottages, and offices for rent in Dehradun, Rishikesh, Haridwar, Haldwani & Nainital.",
+        keywords: `rent property in uttarakhand, pg in uttarakhand, house for rent in dehradun, flats for rent in rishikesh, rooms for rent in haridwar, ${coreKw}`,
+        canonicalPath: "/rent"
+      };
+    case "list":
+      return {
+        title: "Sell or Rent Property Free in Uttarakhand | Post Ad | Uttarakhand Gateways",
+        description: "Post your free property ad on UKG Properties. Sell property in Uttarakhand or rent property in Uttarakhand directly to verified buyers & tenants with 0% brokerage.",
+        keywords: `sell property in uttarakhand, rent property in uttarakhand, post free property ad uttarakhand, list property uttarakhand, ${coreKw}`,
+        canonicalPath: "/list"
+      };
+    case "sell-gui":
+      return {
+        title: "Sell Property in Uttarakhand (Free Listing) | List Plots, Flats & Villas | Uttarakhand Gateways",
+        description: "Sell property in Uttarakhand faster with 0% brokerage. List residential plots, agricultural land, flats, houses, villas, and resorts across Dehradun, Rishikesh, Nainital & Haridwar.",
+        keywords: `sell property in uttarakhand, list plot for sale uttarakhand, sell land in dehradun, sell house in rishikesh, ${coreKw}`,
+        canonicalPath: "/list/buy"
+      };
+    case "rent-gui":
+      return {
+        title: "List Rental Property & PG in Uttarakhand | 0% Brokerage | Uttarakhand Gateways",
+        description: "Rent property in Uttarakhand & list your PG in Uttarakhand, house, flat, homestay, or commercial space directly with verified tenants at 0% commission.",
+        keywords: `rent property in uttarakhand, list pg in uttarakhand, rent flat in dehradun, rent room in rishikesh, ${coreKw}`,
+        canonicalPath: "/list/rent"
+      };
+    case "home-loan":
+      return {
+        title: "Uttarakhand Home Loan EMI Calculator & Eligibility | UKG Properties",
+        description: "Calculate home loan EMI for purchasing property in Uttarakhand. Compare SBI, HDFC, ICICI & PNB home loan rates for properties in Dehradun, Rishikesh, Haridwar & Nainital.",
+        keywords: `home loan uttarakhand, uttarakhand property loan emi calculator, purchase property in uttarakhand loan, ${coreKw}`,
+        canonicalPath: "/home-loan"
+      };
+    case "city": {
+      const city = options?.cityName || "Dehradun";
+      const cityLower = city.toLowerCase();
+      return {
+        title: `Properties in ${city} | Buy, Sell & Rent in ${city}, Uttarakhand | Uttarakhand Gateways`,
+        description: `Explore verified properties in ${city}, Uttarakhand with 0% brokerage. Buy, purchase, sell, or rent flats, plots, villas, and PG in ${city} directly with owners.`,
+        keywords: `properties in ${cityLower}, ${cityLower} real estate, buy property in ${cityLower}, rent property in ${cityLower}, pg in ${cityLower}, ${coreKw}`,
+        canonicalPath: `/properties-in-${cityLower}`
+      };
+    }
+    case "guides":
+      return {
+        title: options?.guideTitle ? `${options.guideTitle} | Uttarakhand Gateways` : "Uttarakhand Land Laws (Section 154 & Bhoo Kanoon) & Property Guides | Uttarakhand Gateways",
+        description: options?.guideDescription || "Complete legal guides for real estate Uttarakhand: Section 154 land limit, Bhoo Kanoon, Dakhil Kharij, RERA & registry rules before buying or selling property in Uttarakhand.",
+        keywords: `uttarakhand bhoo kanoon, section 154 uttarakhand land law, purchase property in uttarakhand rules, ${coreKw}`,
+        canonicalPath: options?.guideSlug ? `/guides/${options.guideSlug}` : "/guides"
+      };
+    case "login":
+      return {
+        title: "Sign In | Uttarakhand Gateways (UKG Properties)",
+        description: "Sign in to Uttarakhand Gateways to manage listings, unlock owner contacts, sell or rent property in Uttarakhand, and chat directly with 0% brokerage.",
+        keywords: coreKw,
+        canonicalPath: "/login"
+      };
+    case "register":
+      return {
+        title: "Create Account | Uttarakhand Gateways (UKG Properties)",
+        description: "Create your free Uttarakhand Gateways account to buy, sell, purchase, or rent properties across Dehradun, Rishikesh, Haridwar, Nainital & Mussoorie.",
+        keywords: coreKw,
+        canonicalPath: "/register"
+      };
+    case "inbox":
+      return {
+        title: "Direct Messages & Property Inquiries | Uttarakhand Gateways",
+        description: "Chat directly with property buyers, owners, and tenants on UKG Properties across Uttarakhand with 0% brokerage.",
+        keywords: coreKw,
+        canonicalPath: "/inbox"
+      };
+    case "dashboard":
+      return {
+        title: "Seller & Owner Dashboard | Manage UKG Properties | Uttarakhand Gateways",
+        description: "Track views, inquiries, and manage your Uttarakhand real estate sale and rental listings directly from your UKG Properties dashboard.",
+        keywords: coreKw,
+        canonicalPath: "/dashboard"
+      };
+    case "home":
+    default:
+      return {
+        title: "Uttarakhand Gateways | Properties in Uttarakhand \u2022 Buy, Sell & Rent (0% Brokerage)",
+        description: "Explore UKG Properties & real estate Uttarakhand with 0% brokerage. Buy, sell, purchase, or rent verified properties in Dehradun, Rishikesh, Haridwar, Nainital, Mussoorie, and PG in Uttarakhand.",
+        keywords: coreKw,
+        canonicalPath: "/"
+      };
+  }
+}
+
 // server.ts
 import_dotenv2.default.config();
 var app = (0, import_express.default)();
@@ -1460,15 +1588,23 @@ app.use((req, res, next) => {
   res.setHeader("X-XSS-Protection", "1; mode=block");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
-  res.setHeader("Content-Security-Policy", "default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data: blob:; font-src 'self' https: data:; frame-ancestors 'self';");
+  res.setHeader("Content-Security-Policy", "default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data: blob:; media-src 'self' https: data: blob:; font-src 'self' https: data:; frame-ancestors 'self';");
   if (process.env.NODE_ENV === "production") {
     res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
   }
   next();
 });
-app.use(import_express.default.json({ limit: "10mb" }));
-app.use(import_express.default.urlencoded({ extended: true, limit: "10mb" }));
+app.use(import_express.default.json({ limit: "25mb" }));
+app.use(import_express.default.urlencoded({ extended: true, limit: "25mb" }));
 app.use((0, import_cookie_parser.default)(SESSION_SECRET));
+var uploadsDir = import_path2.default.join(process.cwd(), "uploads");
+try {
+  if (!import_fs2.default.existsSync(uploadsDir)) {
+    import_fs2.default.mkdirSync(uploadsDir, { recursive: true });
+  }
+} catch {
+}
+app.use("/uploads", import_express.default.static(uploadsDir));
 var possiblePublicPaths = [
   import_path2.default.join(process.cwd(), "dist"),
   import_path2.default.join(process.cwd(), "public"),
@@ -1642,6 +1778,55 @@ app.get("/api/properties/:id", async (req, res) => {
     res.status(500).json({ success: false, error: err?.message || "Server error" });
   }
 });
+function persistInlineVideos(prop) {
+  if (!prop || typeof prop !== "object") return;
+  const saveDataUrl = (dataUrl) => {
+    if (!dataUrl || typeof dataUrl !== "string") return dataUrl;
+    const m = dataUrl.match(/^data:(video\/[a-z0-9.+-]+);base64,(.+)$/i);
+    if (!m) return dataUrl;
+    const rawExt = (m[1].split("/")[1] || "mp4").toLowerCase().replace(/[^a-z0-9]/g, "");
+    const ext = rawExt === "quicktime" ? "mov" : rawExt === "xmsvideo" ? "avi" : rawExt || "mp4";
+    const fileName = `ukg-vid-${Date.now()}-${import_crypto2.default.randomBytes(4).toString("hex")}.${ext}`;
+    import_fs2.default.writeFileSync(import_path2.default.join(uploadsDir, fileName), Buffer.from(m[2], "base64"));
+    return `/uploads/${fileName}`;
+  };
+  if (Array.isArray(prop.videos)) {
+    prop.videos = prop.videos.slice(0, 3).map((v) => typeof v === "string" ? saveDataUrl(v) : v).filter(Boolean);
+    if (prop.videos.length > 0 && !prop.videoUrl) {
+      prop.videoUrl = prop.videos[0];
+    }
+  } else if (typeof prop.videoUrl === "string" && prop.videoUrl.startsWith("data:video/")) {
+    prop.videoUrl = saveDataUrl(prop.videoUrl);
+    prop.videos = [prop.videoUrl];
+  }
+}
+app.post(
+  "/api/upload-video",
+  import_express.default.raw({ type: ["video/*", "application/octet-stream"], limit: "45mb" }),
+  async (req, res) => {
+    try {
+      const sessionUser = await getSessionUser(req);
+      if (!sessionUser) {
+        return res.status(401).json({ success: false, error: "Authentication required to upload property videos." });
+      }
+      const body = req.body;
+      if (!Buffer.isBuffer(body) || body.length === 0) {
+        return res.status(400).json({ success: false, error: "Empty video file uploaded." });
+      }
+      const ct = String(req.headers["content-type"] || "video/mp4").toLowerCase();
+      let ext = "mp4";
+      if (ct.includes("webm")) ext = "webm";
+      else if (ct.includes("quicktime") || ct.includes("mov")) ext = "mov";
+      else if (ct.includes("ogg")) ext = "ogv";
+      const fileName = `ukg-vid-${Date.now()}-${import_crypto2.default.randomBytes(4).toString("hex")}.${ext}`;
+      import_fs2.default.writeFileSync(import_path2.default.join(uploadsDir, fileName), body);
+      res.json({ success: true, url: `/uploads/${fileName}` });
+    } catch (err) {
+      console.error("[UKG Video Upload Error]", err);
+      res.status(500).json({ success: false, error: err?.message || "Video upload failed" });
+    }
+  }
+);
 app.post("/api/properties", async (req, res) => {
   try {
     const sessionUser = await getSessionUser(req);
@@ -1667,6 +1852,7 @@ app.post("/api/properties", async (req, res) => {
     if (!property.createdAt) {
       property.createdAt = (/* @__PURE__ */ new Date()).toISOString();
     }
+    persistInlineVideos(property);
     property.ownerId = sessionUser.id;
     property.ownerUsername = sessionUser.username;
     property.ownerContact = sessionUser.contact;
@@ -1740,6 +1926,7 @@ app.put("/api/properties/:id", async (req, res) => {
     else if (!updates.ownerContact && sessionUser.contact) updates.ownerContact = sessionUser.contact;
     if (!updates.ownerUsername && existing.ownerUsername) updates.ownerUsername = existing.ownerUsername;
     else if (!updates.ownerUsername && sessionUser.username) updates.ownerUsername = sessionUser.username;
+    persistInlineVideos(updates);
     const updated = await db.updateProperty(id, updates);
     console.log(`[UKG Properties] Updated property "${updated.title}" (${id})`);
     res.json({ success: true, property: updated });
@@ -3045,6 +3232,9 @@ async function generateDynamicSitemapXml() {
     { loc: `${DOMAIN}/`, changefreq: "daily", priority: "1.0" },
     { loc: `${DOMAIN}/buy`, changefreq: "daily", priority: "0.9" },
     { loc: `${DOMAIN}/rent`, changefreq: "daily", priority: "0.9" },
+    { loc: `${DOMAIN}/list`, changefreq: "weekly", priority: "0.9" },
+    { loc: `${DOMAIN}/list/buy`, changefreq: "weekly", priority: "0.8" },
+    { loc: `${DOMAIN}/list/rent`, changefreq: "weekly", priority: "0.8" },
     { loc: `${DOMAIN}/guides`, changefreq: "weekly", priority: "0.8" },
     { loc: `${DOMAIN}/home-loan`, changefreq: "monthly", priority: "0.8" }
   ];
@@ -3410,28 +3600,73 @@ Sitemap: ${DOMAIN}/sitemap.xml
       return res.send(html);
     }
   }
-  if (urlPath === "/buy" || req.query.page === "buy") {
-    html = html.replace(/<title>.*?<\/title>/i, `<title>Buy Property in Uttarakhand | Verified Plots, Villas & Flats for Sale | Uttarakhand Gateways</title>`);
-    html = html.replace(/<meta name="description".*?>/i, `<meta name="description" content="Explore verified residential plots, luxury mountain villas, cottages, and flats for outright purchase across Uttarakhand with 0% brokerage. Direct deals with owners." />`);
-    html = html.replace(/<link rel="canonical".*?>/i, `<link rel="canonical" href="${DOMAIN}/buy" />`);
+  const applyRouteSeoMeta = (pageKey, noindex = false) => {
+    const seo = getPageSeoMeta(pageKey);
+    const canonicalUrl = `${DOMAIN}${seo.canonicalPath}`;
+    html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(seo.title)}</title>`);
+    if (/<meta\s+name="description"[\s\S]*?>/i.test(html)) {
+      html = html.replace(/<meta\s+name="description"[\s\S]*?>/i, `<meta name="description" content="${escapeHtml(seo.description)}" />`);
+    } else {
+      html = html.replace("</head>", `  <meta name="description" content="${escapeHtml(seo.description)}" />
+</head>`);
+    }
+    if (/<meta\s+name="keywords"[\s\S]*?>/i.test(html)) {
+      html = html.replace(/<meta\s+name="keywords"[\s\S]*?>/i, `<meta name="keywords" content="${escapeHtml(seo.keywords)}" />`);
+    } else {
+      html = html.replace("</head>", `  <meta name="keywords" content="${escapeHtml(seo.keywords)}" />
+</head>`);
+    }
+    html = html.replace(/<meta\s+property="og:title"[\s\S]*?>/i, `<meta property="og:title" content="${escapeHtml(seo.title)}" />`);
+    html = html.replace(/<meta\s+property="og:description"[\s\S]*?>/i, `<meta property="og:description" content="${escapeHtml(seo.description)}" />`);
+    html = html.replace(/<meta\s+property="og:url"[\s\S]*?>/i, `<meta property="og:url" content="${canonicalUrl}" />`);
+    html = html.replace(/<link\s+rel="canonical"[\s\S]*?>/i, `<link rel="canonical" href="${canonicalUrl}" />`);
+    if (noindex) {
+      html = html.replace(/<meta\s+name="robots"[\s\S]*?>/i, `<meta name="robots" content="noindex, nofollow" />`);
+    }
+  };
+  const normalizedPath = urlPath.replace(/\/+$/, "") || "/";
+  const pageParam = String(req.query.page || "").toLowerCase();
+  if (normalizedPath === "/list" || pageParam === "list") {
+    applyRouteSeoMeta("list");
     return res.send(html);
   }
-  if (urlPath === "/rent" || req.query.page === "rent") {
-    html = html.replace(/<title>.*?<\/title>/i, `<title>Houses & Flats for Rent in Uttarakhand | 0% Brokerage | Uttarakhand Gateways</title>`);
-    html = html.replace(/<meta name="description".*?>/i, `<meta name="description" content="Find verified long-term rentals, mountain cottages, furnished apartments, and villas across Dehradun, Rishikesh, Mussoorie, Nainital with 0% brokerage." />`);
-    html = html.replace(/<link rel="canonical".*?>/i, `<link rel="canonical" href="${DOMAIN}/rent" />`);
+  if (normalizedPath === "/list/buy" || normalizedPath === "/list/sell" || normalizedPath === "/sell" || normalizedPath === "/sell-property" || ["sell-gui", "sell", "sell-property"].includes(pageParam)) {
+    applyRouteSeoMeta("sell-gui");
     return res.send(html);
   }
-  if (urlPath === "/home-loan" || req.query.page === "home-loan") {
-    html = html.replace(/<title>.*?<\/title>/i, `<title>Uttarakhand Home Loan EMI Calculator & Bank Offers | Uttarakhand Gateways</title>`);
-    html = html.replace(/<meta name="description".*?>/i, `<meta name="description" content="Calculate home loan EMI and eligibility for Uttarakhand mountain properties. Compare lowest interest rate offers from SBI, HDFC, ICICI, and PNB." />`);
-    html = html.replace(/<link rel="canonical".*?>/i, `<link rel="canonical" href="${DOMAIN}/home-loan" />`);
+  if (normalizedPath === "/list/rent" || normalizedPath === "/rent-gui" || normalizedPath === "/rent-list" || ["rent-gui", "rent-list"].includes(pageParam)) {
+    applyRouteSeoMeta("rent-gui");
     return res.send(html);
   }
-  if (urlPath === "/inbox" || urlPath === "/dashboard" || urlPath === "/login" || urlPath === "/register" || urlPath === "/sell-gui" || urlPath === "/rent-gui" || ["inbox", "dashboard", "login", "register", "sell-gui", "rent-gui"].includes(String(req.query.page || ""))) {
-    html = html.replace(/<meta name="robots".*?>/i, `<meta name="robots" content="noindex, nofollow" />`);
+  if (normalizedPath === "/buy" || normalizedPath === "/lbuy" || normalizedPath === "/buy-property" || pageParam === "buy") {
+    applyRouteSeoMeta("buy");
     return res.send(html);
   }
+  if (normalizedPath === "/rent" || normalizedPath === "/rent-property" || ["rent", "rent-property"].includes(pageParam)) {
+    applyRouteSeoMeta("rent");
+    return res.send(html);
+  }
+  if (normalizedPath === "/home-loan" || normalizedPath === "/emi-calculator" || normalizedPath === "/homeloan" || ["home-loan", "emi-calculator"].includes(pageParam)) {
+    applyRouteSeoMeta("home-loan");
+    return res.send(html);
+  }
+  if (normalizedPath === "/login" || normalizedPath === "/reset-password" || ["login", "reset-password", "forgot-password"].includes(pageParam)) {
+    applyRouteSeoMeta("login");
+    return res.send(html);
+  }
+  if (normalizedPath === "/register" || pageParam === "register") {
+    applyRouteSeoMeta("register");
+    return res.send(html);
+  }
+  if (normalizedPath === "/inbox" || pageParam === "inbox") {
+    applyRouteSeoMeta("inbox", true);
+    return res.send(html);
+  }
+  if (normalizedPath === "/dashboard" || normalizedPath === "/lister-dashboard" || pageParam === "dashboard") {
+    applyRouteSeoMeta("dashboard", true);
+    return res.send(html);
+  }
+  applyRouteSeoMeta("home");
   return res.send(html);
 }
 async function startServer() {

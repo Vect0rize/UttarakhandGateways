@@ -29,6 +29,8 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { isPropertyOwner } from '../utils/propertyOwnership';
 import { formatLocalizedPrice } from '../utils/language';
+import { SeoKeywordsSection } from './SeoKeywordsSection';
+import type { AppPageRouteKey } from '../data/seoMetadata';
 
 interface ListerDashboardProps {
   properties: Property[];
@@ -38,6 +40,8 @@ interface ListerDashboardProps {
   onDeleteProperty: (propertyId: string) => void;
   onToggleSold: (propertyId: string) => void;
   onOpenListChooser: () => void;
+  onNavigatePage?: (page: AppPageRouteKey) => void;
+  onNavigateCity?: (city: string) => void;
 }
 
 export const ListerDashboard: React.FC<ListerDashboardProps> = ({
@@ -48,6 +52,8 @@ export const ListerDashboard: React.FC<ListerDashboardProps> = ({
   onDeleteProperty,
   onToggleSold,
   onOpenListChooser,
+  onNavigatePage,
+  onNavigateCity,
 }) => {
   const { currentUser } = useAuth();
   const { isHindi } = useLanguage();
@@ -626,6 +632,11 @@ export const ListerDashboard: React.FC<ListerDashboardProps> = ({
         </div>
 
       </main>
+
+      <SeoKeywordsSection
+        onNavigatePage={onNavigatePage}
+        onNavigateCity={onNavigateCity}
+      />
     </div>
   );
 };
