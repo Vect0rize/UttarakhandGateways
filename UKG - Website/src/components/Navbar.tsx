@@ -415,7 +415,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               id="main-nav-menu-btn"
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full border transition-all shadow-xs active:scale-95 cursor-pointer font-bold text-xs select-none ${
+              className={`flex items-center justify-center p-2 sm:p-2.5 rounded-full border transition-all shadow-xs active:scale-95 cursor-pointer select-none ${
                 mobileMenuOpen
                   ? 'bg-emerald-600 text-white border-emerald-500 shadow-emerald-700/20'
                   : 'bg-emerald-50/90 dark:bg-[#0a271d] hover:bg-emerald-100 dark:hover:bg-[#0f3427] text-slate-800 dark:text-emerald-100 border-emerald-300/80 dark:border-emerald-800'
@@ -424,11 +424,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               title={isHindi ? "मेनू" : "Menu"}
             >
               {mobileMenuOpen ? (
-                <X className="w-4 h-4 text-current transition-transform duration-200" />
+                <X className="w-5 h-5 text-current transition-transform duration-200" />
               ) : (
-                <Menu className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+                <Menu className="w-5 h-5 text-emerald-700 dark:text-emerald-400" />
               )}
-              <span>{isHindi ? 'मेनू' : 'Menu'}</span>
             </button>
 
           </div>

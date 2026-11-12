@@ -36,9 +36,9 @@ export const Hero: React.FC<HeroProps> = ({
       {/* Main Hero Content Container */}
       <div className="relative z-30 max-w-5xl mx-auto px-4 sm:px-6 flex flex-col items-center w-full">
         
-        {/* Hero Title: Refined proportional scale */}
+        {/* Hero Title: Balanced prominent scale across mobile and desktop */}
         <div className="relative w-full flex flex-col items-center pt-1 sm:pt-2">
-          <h1 className="font-serif-luxury text-[22px] sm:text-3xl md:text-[34px] lg:text-[40px] font-black tracking-[0.025em] text-[#0E3A2B] dark:text-[#F4F3EF] drop-shadow-md leading-tight text-center flex items-center justify-center gap-1.5 sm:gap-2.5 whitespace-nowrap">
+          <h1 className="font-serif-luxury text-[26px] min-[375px]:text-[30px] sm:text-5xl md:text-6xl lg:text-7xl font-black tracking-[0.025em] text-[#0E3A2B] dark:text-[#F4F3EF] drop-shadow-md leading-tight text-center flex items-center justify-center gap-1.5 sm:gap-3 whitespace-nowrap">
             <span>Uttarakhand</span>
             <span className="italic text-[#AA8F7C] dark:text-[#C2A691]">
               Gateways
@@ -47,10 +47,10 @@ export const Hero: React.FC<HeroProps> = ({
         </div>
 
         {/* Text "REAL ESTATE" with circles on both sides */}
-        <div className="flex items-center justify-center gap-2 sm:gap-3 my-2 sm:my-2.5 mx-auto">
+        <div className="flex items-center justify-center gap-2 sm:gap-3 my-2.5 sm:my-3 mx-auto">
           <span className="w-1.5 h-1.5 rounded-full bg-[#0E3A2B] dark:bg-[#AA8F7C] shrink-0 shadow-xs" />
           
-          <span className="font-cinzel tracking-[0.3em] sm:tracking-[0.4em] text-[10px] sm:text-xs font-extrabold text-[#0E3A2B] dark:text-[#D4B9A6] uppercase whitespace-nowrap px-1">
+          <span className="font-cinzel tracking-[0.3em] sm:tracking-[0.4em] text-[11px] sm:text-xs md:text-sm font-extrabold text-[#0E3A2B] dark:text-[#D4B9A6] uppercase whitespace-nowrap px-1">
             {isHindi ? 'रियल एस्टेट' : 'REAL ESTATE'}
           </span>
 
@@ -58,11 +58,11 @@ export const Hero: React.FC<HeroProps> = ({
         </div>
 
         {/* Subtitle Description (Semantic H2 for SEO hierarchy) */}
-        <div className="w-full max-w-3xl mx-auto mb-3 sm:mb-4 px-3 sm:px-4 relative z-20">
-          <h2 className="font-serif-luxury italic text-sm sm:text-base md:text-lg lg:text-xl text-[#0E3A2B] dark:text-[#F4F3EF] font-medium leading-tight tracking-wide text-center drop-shadow-xs mb-1">
+        <div className="w-full max-w-3xl mx-auto mb-3.5 sm:mb-4 px-3 sm:px-4 relative z-20">
+          <h2 className="font-serif-luxury italic text-base sm:text-xl md:text-2xl lg:text-[26px] text-[#0E3A2B] dark:text-[#F4F3EF] font-medium leading-tight tracking-wide text-center drop-shadow-xs mb-1.5">
             {isHindi ? 'पहाड़ों में आपके सपनों का आशियाना' : 'Your Gateway To Mountains'}
           </h2>
-          <p className="text-xs sm:text-sm text-[#495A50] dark:text-[#C7D3CC] max-w-xl mx-auto font-normal">
+          <p className="text-xs sm:text-sm md:text-base text-[#495A50] dark:text-[#C7D3CC] max-w-xl mx-auto font-normal">
             {isHindi 
               ? '0% ब्रोकरेज के साथ सीधे संपत्ति मालिकों और ब्रोकरों से आवासीय प्लॉट, फ्लैट और विला खोजें।' 
               : 'Discover verified residential plots, luxury flats, and villas directly with 0% brokerage.'
