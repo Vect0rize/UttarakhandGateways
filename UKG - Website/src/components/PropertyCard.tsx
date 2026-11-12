@@ -22,13 +22,14 @@ import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { isPropertyOwner, canManageProperty, getPropertyOwnerDisplayName } from '../utils/propertyOwnership';
 import { formatLocalizedPrice, translatePropertyType } from '../utils/language';
+import { getPropertySlugPath } from '../data/programmaticSeo';
 import { formatPostTime } from '../utils/timeAgo';
 import { formatPropertyArea, formatPropertyRate, isLandOrPlotProperty } from '../utils/areaUnits';
 
 interface PropertyCardProps {
   property: Property;
   onSelect: (property: Property) => void;
-  index: number;
+  index?: number;
   isFavorite: boolean;
   onToggleFavorite: (id: string) => void;
   onStartChat?: (property: Property) => void;
@@ -40,6 +41,7 @@ interface PropertyCardProps {
 export const PropertyCard: React.FC<PropertyCardProps> = ({
   property,
   onSelect,
+  index = 99,
   isFavorite,
   onToggleFavorite,
   onStartChat,
@@ -157,7 +159,10 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
         <img
           src={currentImage}
           alt={`${property.title} - ${property.category || 'Property'} for ${isForRent ? 'rent' : 'sale'} in ${property.location || property.city || 'Uttarakhand'}`}
-          loading="lazy"
+          width="400"
+          height="224"
+          loading={index < 3 ? 'eager' : 'lazy'}
+          fetchPriority={index < 3 ? 'high' : 'auto'}
           decoding="async"
           onError={() => setImgError(true)}
           className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
@@ -317,11 +322,10 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
           <div className="space-y-1.5">
             <h3 className="font-bold text-slate-900 dark:text-white text-base sm:text-[17px] leading-snug line-clamp-1 group-hover:text-emerald-600 dark:group-hover:text-emerald-300 transition-colors">
               <a
-                href={`/property/${encodeURIComponent(property.id)}`}
+                href={getPropertySlugPath(property)}
                 onClick={(e) => {
                   if (!e.ctrlKey && !e.metaKey && e.button === 0) {
                     e.preventDefault();
-                    onSelect(property);
                   }
                 }}
                 className="hover:underline text-inherit"

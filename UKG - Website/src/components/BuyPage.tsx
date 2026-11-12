@@ -57,8 +57,20 @@ export const BuyPage: React.FC<BuyPageProps> = ({
 }) => {
   const { isHindi } = useLanguage();
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCity, setSelectedCity] = useState('All');
+  const [searchQuery, setSearchQuery] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search);
+      return p.get('search') || p.get('q') || '';
+    }
+    return '';
+  });
+  const [selectedCity, setSelectedCity] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search);
+      return p.get('city') || 'All';
+    }
+    return 'All';
+  });
   const [selectedType, setSelectedType] = useState(() => {
     try {
       const cat = new URLSearchParams(window.location.search).get('category');
@@ -257,7 +269,7 @@ export const BuyPage: React.FC<BuyPageProps> = ({
           
           <p className="text-xs sm:text-sm text-slate-600 dark:text-emerald-200/80 max-w-2xl mx-auto">
             {isHindi 
-              ? 'आवासीय प्लॉट, विला, कॉटेज, फ्लैट और फार्महाउस सीधे मालिकों व सत्यापित बिल्डरों से खरीदें।' 
+              ? 'आवासीय प्लॉट, विला, कॉटेज, फ्लैट और फार्महाउस सीधे मालिकों व सत्यापित ब्रोकरों से खरीदें।' 
               : 'Explore verified residential plots, hill cottages, luxury villas, and apartments for outright purchase.'}
           </p>
 

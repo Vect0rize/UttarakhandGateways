@@ -2,7 +2,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Property } from '../types';
 import { PropertyCard } from './PropertyCard';
 import { Logo } from './Logo';
-import { CITY_MARKET_DATA, CityMarketData } from '../data/citySeoData';
+import { CITY_MARKET_DATA, CityMarketData, getCityMarketData } from '../data/citySeoData';
+import { getCitySlug, slugify } from '../data/programmaticSeo';
 import { 
   ArrowLeft, 
   MapPin, 
@@ -30,6 +31,7 @@ interface CityPropertyLandingPageProps {
   onSelectProperty: (property: Property) => void;
   onNavigateCity?: (cityName: string) => void;
   onNavigatePage?: (page: string) => void;
+  onNavigatePath?: (path: string) => void;
   favorites: string[];
   onToggleFavorite: (id: string) => void;
   onStartChat: (property: Property) => void;
@@ -45,6 +47,7 @@ export const CityPropertyLandingPage: React.FC<CityPropertyLandingPageProps> = (
   onSelectProperty,
   onNavigateCity,
   onNavigatePage,
+  onNavigatePath,
   favorites,
   onToggleFavorite,
   onStartChat,
@@ -58,21 +61,20 @@ export const CityPropertyLandingPage: React.FC<CityPropertyLandingPageProps> = (
 
   // Normalize city name
   const marketData: CityMarketData = useMemo(() => {
-    const found = Object.keys(CITY_MARKET_DATA).find(
-      (c) => c.toLowerCase() === cityName.toLowerCase()
-    );
-    return found ? CITY_MARKET_DATA[found] : CITY_MARKET_DATA['Dehradun'];
-  }, [cityName]);
+    return getCityMarketData(cityName, properties) || CITY_MARKET_DATA['Dehradun'];
+  }, [cityName, properties]);
 
   // Filter actual genuine listings from database for this city
   const cityProperties = useMemo(() => {
     if (!Array.isArray(properties)) return [];
+    const targetSlug = slugify(marketData.city);
+    const targetLower = marketData.city.toLowerCase();
     return properties.filter((p) => {
-      if (!p) return false;
-      const pCity = (p.city || '').toLowerCase();
+      if (!p || p.isSold) return false;
+      if (targetSlug === 'uttarakhand') return true;
+      const pCitySlug = slugify(p.city || '');
       const pLoc = (p.location || '').toLowerCase();
-      const target = marketData.city.toLowerCase();
-      return pCity.includes(target) || pLoc.includes(target);
+      return pCitySlug === targetSlug || pLoc.includes(targetLower);
     });
   }, [properties, marketData.city]);
 
@@ -107,15 +109,26 @@ export const CityPropertyLandingPage: React.FC<CityPropertyLandingPageProps> = (
     }
     descTag.setAttribute('content', marketData.metaDescription);
 
+    const canonicalSlug = getCitySlug(marketData.city);
+    const canonicalUrl = `https://uttarakhandgateways.com/properties-in-${canonicalSlug}`;
+
+    const metaRobots = document.querySelector('meta[name="robots"]');
+    if (metaRobots) {
+      metaRobots.setAttribute(
+        'content',
+        cityProperties.length >= 2 ? 'index, follow, max-image-preview:large' : 'noindex, follow'
+      );
+    }
+
     let canonicalTag = document.querySelector('link[rel="canonical"]');
     if (!canonicalTag) {
       canonicalTag = document.createElement('link');
       canonicalTag.setAttribute('rel', 'canonical');
       document.head.appendChild(canonicalTag);
     }
-    canonicalTag.setAttribute('href', `https://uttarakhandgateways.com/properties-in-${marketData.city.toLowerCase()}`);
+    canonicalTag.setAttribute('href', canonicalUrl);
 
-    const schemaId = `schema-city-${marketData.city.toLowerCase()}`;
+    const schemaId = `schema-city-${canonicalSlug}`;
     let scriptTag = document.getElementById(schemaId) as HTMLScriptElement | null;
     if (!scriptTag) {
       scriptTag = document.createElement('script');
@@ -131,8 +144,8 @@ export const CityPropertyLandingPage: React.FC<CityPropertyLandingPageProps> = (
           '@type': 'BreadcrumbList',
           'itemListElement': [
             { '@type': 'ListItem', 'position': 1, 'name': 'Home', 'item': 'https://uttarakhandgateways.com/' },
-            { '@type': 'ListItem', 'position': 2, 'name': 'Uttarakhand Properties', 'item': 'https://uttarakhandgateways.com/buy' },
-            { '@type': 'ListItem', 'position': 3, 'name': `Properties in ${marketData.city}`, 'item': `https://uttarakhandgateways.com/properties-in-${marketData.city.toLowerCase()}` }
+            { '@type': 'ListItem', 'position': 2, 'name': 'Uttarakhand Properties', 'item': 'https://uttarakhandgateways.com/properties-in-uttarakhand' },
+            { '@type': 'ListItem', 'position': 3, 'name': `Properties in ${marketData.city}`, 'item': `https://uttarakhandgateways.com/properties-in-${getCitySlug(marketData.city)}` }
           ]
         },
         {
@@ -373,6 +386,39 @@ export const CityPropertyLandingPage: React.FC<CityPropertyLandingPageProps> = (
           </div>
         </div>
 
+        {/* Programmatic Category Links in Current City */}
+        <div className="p-6 rounded-3xl bg-white dark:bg-[#071f17] border border-emerald-200 dark:border-emerald-800 space-y-3">
+          <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider block">
+            Explore Categories in {marketData.city}
+          </span>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { label: `Buy Property in ${marketData.city}`, path: `/buy-property-in-${getCitySlug(marketData.city)}` },
+              { label: `Rental Properties in ${marketData.city}`, path: `/rental-properties-in-${getCitySlug(marketData.city)}` },
+              { label: `Flats for Sale in ${marketData.city}`, path: `/flats-for-sale-in-${getCitySlug(marketData.city)}` },
+              { label: `Plots for Sale in ${marketData.city}`, path: `/plots-for-sale-in-${getCitySlug(marketData.city)}` },
+              { label: `Land for Sale in ${marketData.city}`, path: `/land-for-sale-in-${getCitySlug(marketData.city)}` },
+              { label: `Houses for Sale in ${marketData.city}`, path: `/houses-for-sale-in-${getCitySlug(marketData.city)}` },
+              { label: `Villas in ${marketData.city}`, path: `/villas-for-sale-in-${getCitySlug(marketData.city)}` },
+              { label: `Cottages in ${marketData.city}`, path: `/cottages-for-sale-in-${getCitySlug(marketData.city)}` },
+            ].map((cat) => (
+              <a
+                key={cat.path}
+                href={cat.path}
+                onClick={(e) => {
+                  if (onNavigatePath) {
+                    e.preventDefault();
+                    onNavigatePath(cat.path);
+                  }
+                }}
+                className="px-3.5 py-1.5 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-xs font-bold text-emerald-900 dark:text-emerald-200 hover:bg-emerald-600 hover:text-white transition-colors"
+              >
+                {cat.label}
+              </a>
+            ))}
+          </div>
+        </div>
+
         {/* Explore Other Uttarakhand Mountain Cities */}
         <div className="p-6 rounded-3xl bg-emerald-100/50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-center space-y-3">
           <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider block">
@@ -382,7 +428,7 @@ export const CityPropertyLandingPage: React.FC<CityPropertyLandingPageProps> = (
             {otherCities.map((c) => (
               <a
                 key={c}
-                href={`/properties-in-${c.toLowerCase()}`}
+                href={`/properties-in-${getCitySlug(c)}`}
                 onClick={(e) => {
                   e.preventDefault();
                   if (onNavigateCity) onNavigateCity(c);
@@ -400,6 +446,7 @@ export const CityPropertyLandingPage: React.FC<CityPropertyLandingPageProps> = (
       <SeoKeywordsSection
         onNavigatePage={onNavigatePage ? (p: AppPageRouteKey) => onNavigatePage(p) : undefined}
         onNavigateCity={onNavigateCity}
+        onNavigatePath={onNavigatePath}
       />
       <footer className="py-6 border-t border-emerald-200 dark:border-emerald-800 bg-white dark:bg-[#071f17] text-center text-xs text-slate-500">
         <p>© {new Date().getFullYear()} Uttarakhand Gateways. 0% Brokerage Mountain Real Estate Marketplace.</p>

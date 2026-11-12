@@ -11,41 +11,51 @@ interface SeoKeywordLink {
 }
 
 const POPULAR_SEO_LINKS: SeoKeywordLink[] = [
-  { label: 'Properties in Uttarakhand', href: '/buy', page: 'buy' },
-  { label: 'Real Estate Uttarakhand', href: '/buy', page: 'buy' },
-  { label: 'Properties in Rishikesh', href: '/properties-in-rishikesh', city: 'Rishikesh' },
+  { label: 'Properties in Uttarakhand', href: '/properties-in-uttarakhand' },
+  { label: 'Buy Property in Uttarakhand', href: '/buy-property-in-uttarakhand' },
+  { label: 'Flats for Sale in Dehradun', href: '/flats-for-sale-in-dehradun' },
+  { label: 'Plots for Sale in Rishikesh', href: '/plots-for-sale-in-rishikesh' },
+  { label: 'Land for Sale in Uttarakhand', href: '/land-for-sale-in-uttarakhand' },
+  { label: 'Houses for Sale in Uttarakhand', href: '/houses-for-sale-in-uttarakhand' },
+  { label: 'Commercial Property in Uttarakhand', href: '/commercial-property-in-uttarakhand' },
+  { label: 'Rental Properties in Dehradun', href: '/rental-properties-in-dehradun' },
+  { label: 'Agricultural Land in Uttarakhand', href: '/agricultural-land-in-uttarakhand' },
+  { label: 'Property Dealers in Uttarakhand', href: '/property-dealers-in-uttarakhand' },
   { label: 'Properties in Dehradun', href: '/properties-in-dehradun', city: 'Dehradun' },
-  { label: 'UKG Properties', href: '/', page: 'home' },
-  { label: 'Uttarakhand Properties', href: '/buy', page: 'buy' },
-  { label: 'Uttraakhand Properties', href: '/buy', page: 'buy' },
-  { label: 'Sell Property in Uttarakhand', href: '/list/buy', page: 'sell-gui' },
-  { label: 'Rent Property in Uttarakhand', href: '/list/rent', page: 'rent-gui' },
-  { label: 'Purchase Property in Uttarakhand', href: '/buy', page: 'buy' },
-  { label: 'PG in Uttarakhand', href: '/rent?type=PG', page: 'rent' },
+  { label: 'Properties in Rishikesh', href: '/properties-in-rishikesh', city: 'Rishikesh' },
   { label: 'Properties in Haridwar', href: '/properties-in-haridwar', city: 'Haridwar' },
   { label: 'Properties in Nainital', href: '/properties-in-nainital', city: 'Nainital' },
   { label: 'Properties in Mussoorie', href: '/properties-in-mussoorie', city: 'Mussoorie' },
   { label: 'Properties in Haldwani', href: '/properties-in-haldwani', city: 'Haldwani' },
-  { label: 'Post Free Property Ad', href: '/list', page: 'list' },
-  { label: 'Home Loan Calculator Uttarakhand', href: '/home-loan', page: 'home-loan' },
-  { label: 'Uttarakhand Land Laws & Guides', href: '/guides', page: 'guides' },
+  { label: 'Properties in Tehri Garhwal', href: '/properties-in-tehri-garhwal', city: 'Tehri Garhwal' },
+  { label: 'Sell Property in Uttarakhand', href: '/list/buy', page: 'sell-gui' },
+  { label: 'Rent Property in Uttarakhand', href: '/list/rent', page: 'rent-gui' },
+  { label: 'Uttarakhand Property Guides', href: '/guides', page: 'guides' },
+  { label: 'About Uttarakhand Gateways', href: '/about' },
 ];
 
 interface SeoKeywordsSectionProps {
   onNavigatePage?: (page: AppPageRouteKey) => void;
   onNavigateCity?: (city: string) => void;
+  onNavigatePath?: (path: string) => void;
   compact?: boolean;
 }
 
 export const SeoKeywordsSection: React.FC<SeoKeywordsSectionProps> = ({
   onNavigatePage,
   onNavigateCity,
+  onNavigatePath,
   compact = false,
 }) => {
   const { isHindi } = useLanguage();
 
   const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, item: SeoKeywordLink) => {
     if (e.ctrlKey || e.metaKey || e.button !== 0) return;
+    if (onNavigatePath && !item.page && !item.city) {
+      e.preventDefault();
+      onNavigatePath(item.href);
+      return;
+    }
     if (item.city && onNavigateCity) {
       e.preventDefault();
       onNavigateCity(item.city);

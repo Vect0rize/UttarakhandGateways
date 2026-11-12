@@ -11,7 +11,14 @@ export type AppPageRouteKey =
   | 'login'
   | 'register'
   | 'inbox'
-  | 'dashboard';
+  | 'dashboard'
+  | 'about'
+  | 'contact'
+  | 'privacy'
+  | 'terms'
+  | 'listing-guidelines'
+  | 'programmatic'
+  | 'not-found';
 
 export const CORE_UTTARAKHAND_KEYWORDS: string[] = [
   'properties in uttarakhand',
@@ -40,7 +47,10 @@ export const CORE_UTTARAKHAND_KEYWORDS: string[] = [
   'uttarakhand gateways',
 ];
 
-export const ROUTE_PATH_MAP: Record<Exclude<AppPageRouteKey, 'city' | 'guides'>, string> = {
+export const ROUTE_PATH_MAP: Record<
+  Exclude<AppPageRouteKey, 'city' | 'guides' | 'programmatic' | 'not-found'>,
+  string
+> = {
   home: '/',
   buy: '/buy',
   rent: '/rent',
@@ -48,6 +58,11 @@ export const ROUTE_PATH_MAP: Record<Exclude<AppPageRouteKey, 'city' | 'guides'>,
   'sell-gui': '/list/buy',
   'rent-gui': '/list/rent',
   'home-loan': '/home-loan',
+  about: '/about',
+  contact: '/contact',
+  privacy: '/privacy',
+  terms: '/terms',
+  'listing-guidelines': '/listing-guidelines',
   login: '/login',
   register: '/register',
   inbox: '/inbox',
@@ -173,6 +188,56 @@ export function getPageSeoMeta(
           'Track views, inquiries, and manage your Uttarakhand real estate sale and rental listings directly from your UKG Properties dashboard.',
         keywords: coreKw,
         canonicalPath: '/dashboard',
+      };
+    case 'about':
+      return {
+        title: 'About Uttarakhand Gateways | Transparent Real Estate Platform in Devbhoomi',
+        description:
+          'Learn how Uttarakhand Gateways connects homebuyers, landowners, tenants, and verified local brokers across Dehradun, Rishikesh, Nainital & Kumaon-Garhwal with 0% portal commission.',
+        keywords:
+          'about uttarakhand gateways, uttarakhand real estate platform, direct owner property uttarakhand',
+        canonicalPath: '/about',
+      };
+    case 'contact':
+      return {
+        title: 'Contact & Helpdesk | Uttarakhand Gateways Real Estate Support',
+        description:
+          'Reach the Uttarakhand Gateways support desk for listing assistance, technical help, grievance redressal, or broker onboarding across Uttarakhand.',
+        keywords:
+          'contact uttarakhand gateways, uttarakhand real estate support, property listing helpdesk',
+        canonicalPath: '/contact',
+      };
+    case 'privacy':
+      return {
+        title: 'Privacy Policy | Uttarakhand Gateways',
+        description:
+          'How Uttarakhand Gateways handles user account data, property listing information, contact request privacy, and DPDP compliance.',
+        keywords: 'uttarakhand gateways privacy policy, property portal data protection',
+        canonicalPath: '/privacy',
+      };
+    case 'terms':
+      return {
+        title: 'Terms of Service & Buyer Due Diligence | Uttarakhand Gateways',
+        description:
+          'Platform terms, independent land title verification disclaimer, RERA notes, and user responsibilities for Uttarakhand Gateways.',
+        keywords: 'uttarakhand gateways terms of service, property verification disclaimer',
+        canonicalPath: '/terms',
+      };
+    case 'listing-guidelines':
+      return {
+        title: 'Listing Verification & Publishing Guidelines | Uttarakhand Gateways',
+        description:
+          'Mandatory disclosure standards for owners and verified brokers publishing properties in Uttarakhand: authentic pricing, clear area units, and anti-duplicate rules.',
+        keywords: 'property listing guidelines uttarakhand, verified property standards',
+        canonicalPath: '/listing-guidelines',
+      };
+    case 'not-found':
+      return {
+        title: 'Page Not Found (404) | Uttarakhand Gateways',
+        description:
+          'The requested page or property listing could not be found. Browse active properties across Dehradun, Rishikesh, Haridwar, Nainital & Uttarakhand.',
+        keywords: 'uttarakhand gateways 404, browse uttarakhand properties',
+        canonicalPath: '/properties-in-uttarakhand',
       };
     case 'home':
     default:

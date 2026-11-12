@@ -182,9 +182,9 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
   const [transactionType, setTransactionType] = useState<'sale' | 'rent'>(determineInitialType());
 
   // Form States
-  const normalizeSellerRole = (r?: string): 'Owner' | 'Broker' | 'Verified Builder' | 'Agent' =>
-    r === 'Broker' || r === 'Verified Builder' || r === 'Agent' ? r : 'Owner';
-  const [sellerType, setSellerType] = useState<'Owner' | 'Broker' | 'Verified Builder' | 'Agent'>(() => normalizeSellerRole(initialRole));
+  const normalizeSellerRole = (r?: string): 'Owner' | 'Broker' =>
+    r && r.trim().toLowerCase() !== 'owner' ? 'Broker' : 'Owner';
+  const [sellerType, setSellerType] = useState<'Owner' | 'Broker'>(() => normalizeSellerRole(initialRole));
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<PropertyCategory>('Residential');
   const [type, setType] = useState<PropertyType>('Villa');
@@ -1124,8 +1124,8 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
               {isHindi ? 'मैं लिस्ट कर रहा हूँ (Listing As):' : 'I am listing as:'}
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {(['Owner', 'Broker', 'Verified Builder', 'Agent'] as const).map((r) => (
+            <div className="grid grid-cols-2 gap-2">
+              {(['Owner', 'Broker'] as const).map((r) => (
                 <button
                   key={r}
                   type="button"
@@ -1138,19 +1138,11 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
                 >
                   {r === 'Owner'
                     ? isHindi
-                      ? 'मालिक (Owner)'
+                      ? 'सीधे मालिक (Owner)'
                       : 'Direct Owner'
-                    : r === 'Broker'
-                    ? isHindi
-                      ? 'ब्रोकर (Broker)'
-                      : 'Broker'
-                    : r === 'Verified Builder'
-                    ? isHindi
-                      ? 'बिल्डर (Builder)'
-                      : 'Builder'
                     : isHindi
-                    ? 'एजेंट (Agent)'
-                    : 'Agent'}
+                      ? 'सत्यापित ब्रोकर (Broker)'
+                      : 'Verified Broker'}
                 </button>
               ))}
             </div>

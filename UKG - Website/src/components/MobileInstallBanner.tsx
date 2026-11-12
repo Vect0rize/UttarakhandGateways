@@ -48,7 +48,7 @@ export const MobileInstallBanner: React.FC = () => {
   const handleInstallClick = () => {
     // Download the actual native Android APK file directly
     const link = document.createElement('a');
-    link.href = '/UKG - App.apk?v=7';
+    link.href = '/UKG - App.apk?v=8';
     link.download = 'UKG - App.apk';
     document.body.appendChild(link);
     link.click();

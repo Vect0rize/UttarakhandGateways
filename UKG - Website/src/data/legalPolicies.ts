@@ -290,8 +290,8 @@ export const LEGAL_POLICIES: Record<LegalPolicyId, LegalPolicy> = {
       {
         titleEn: '1. Independent Due Diligence & Title Search Notice',
         titleHi: '१. स्वतंत्र कानूनी जांच एवं स्वामित्व सत्यापन सूचना',
-        contentEn: 'Uttarakhand Gateways is an online discovery marketplace and does NOT act as a title insurer, legal advocate, escrow authority, or certified property appraiser. All property details, photographs, super built-up areas, amenities, and pricing are uploaded directly by individual property owners, builders, or authorized representatives. Buyers are strictly advised to engage qualified legal counsel and conduct a comprehensive title search at the Sub-Registrar Office before executing any financial transaction.',
-        contentHi: 'उत्तराखंड गेटवेज केवल एक ऑनलाइन खोज मंच है और यह कोई कानूनी सलाहकार, टाइटल बीमाकर्ता या सरकारी मूल्यांकक नहीं है। सभी विवरण, क्षेत्रफल, तस्वीरें और दरें संपत्ति मालिकों या बिल्डरों द्वारा स्वयं दर्ज की जाती हैं। खरीदारों को पुरजोर सलाह दी जाती है कि वे कोई भी धन देने से पूर्व उप-निबंधक (Sub-Registrar) कार्यालय में जाकर १२ वर्षीय भार-मुक्त प्रमाणपत्र (Non-Encumbrance) व खतौनी की स्वतंत्र कानूनी जांच अवश्य करवाएं।',
+        contentEn: 'Uttarakhand Gateways is an online discovery marketplace and does NOT act as a title insurer, legal advocate, escrow authority, or certified property appraiser. All property details, photographs, super built-up areas, amenities, and pricing are uploaded directly by individual property owners, verified brokers, or authorized representatives. Buyers are strictly advised to engage qualified legal counsel and conduct a comprehensive title search at the Sub-Registrar Office before executing any financial transaction.',
+        contentHi: 'उत्तराखंड गेटवेज केवल एक ऑनलाइन खोज मंच है और यह कोई कानूनी सलाहकार, टाइटल बीमाकर्ता या सरकारी मूल्यांकक नहीं है। सभी विवरण, क्षेत्रफल, तस्वीरें और दरें संपत्ति मालिकों या सत्यापित ब्रोकरों द्वारा स्वयं दर्ज की जाती हैं। खरीदारों को पुरजोर सलाह दी जाती है कि वे कोई भी धन देने से पूर्व उप-निबंधक (Sub-Registrar) कार्यालय में जाकर १२ वर्षीय भार-मुक्त प्रमाणपत्र (Non-Encumbrance) व खतौनी की स्वतंत्र कानूनी जांच अवश्य करवाएं।',
         bulletPointsEn: [
           'Verification of Khatauni, Khasra, and Mutation (Dakhil-Kharij) is mandatory for buyers.',
           'Physical boundary survey with a certified local Patwari/Lekhpal is strongly recommended.',
@@ -414,8 +414,8 @@ export const LEGAL_POLICIES: Record<LegalPolicyId, LegalPolicy> = {
       {
         titleEn: '1. Genuine Ownership or Direct Authorization',
         titleHi: '१. वास्तविक स्वामित्व अथवा प्रत्यक्ष प्राधिकार',
-        contentEn: 'Every listing published on Uttarakhand Gateways must represent an authentic, marketable property. The listing submitter must either be the documented legal titleholder (Khatedar / Registered Owner) or an expressly authorized power of attorney (POA) holder or direct verified builder. Phantom listings, speculative broker poaching, and unauthorized listings from other portals are strictly prohibited.',
-        contentHi: 'उत्तराखंड गेटवेज पर प्रकाशित प्रत्येक संपत्ति का वास्तविक व बिक्री योग्य होना अनिवार्य है। लिस्ट करने वाला व्यक्ति स्वयं अभिलेखित भूमि स्वामी (खातेदार/रजिस्टर्ड ओनर), वैध पावर ऑफ अटॉर्नी धारक या अधिकृत बिल्डर होना चाहिए। अन्य वेबसाइटों से बिना अनुमति चुराई गई तस्वीरें या फर्जी लिस्टिंग पूरी तरह निषिद्ध हैं।',
+        contentEn: 'Every listing published on Uttarakhand Gateways must represent an authentic, marketable property. The listing submitter must either be the documented legal titleholder (Khatedar / Registered Owner) or an expressly authorized power of attorney (POA) holder or verified broker. Phantom listings, speculative broker poaching, and unauthorized listings from other portals are strictly prohibited.',
+        contentHi: 'उत्तराखंड गेटवेज पर प्रकाशित प्रत्येक संपत्ति का वास्तविक व बिक्री योग्य होना अनिवार्य है। लिस्ट करने वाला व्यक्ति स्वयं अभिलेखित भूमि स्वामी (खातेदार/रजिस्टर्ड ओनर), वैध पावर ऑफ अटॉर्नी धारक या सत्यापित ब्रोकर होना चाहिए। अन्य वेबसाइटों से बिना अनुमति चुराई गई तस्वीरें या फर्जी लिस्टिंग पूरी तरह निषिद्ध हैं।',
         bulletPointsEn: [
           'Mandatory legal authority to sell the parcel or housing unit.',
           'Immediate delisting of duplicate or unauthorized broker submissions.',

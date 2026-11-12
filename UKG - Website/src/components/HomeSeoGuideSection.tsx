@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { HelpCircle, ChevronDown, ChevronUp, BookOpen, Scale, FileCheck, MapPin, Sparkles, Building, Key } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -12,8 +12,8 @@ export const HomeSeoGuideSection: React.FC = () => {
       icon: <Building className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />,
       titleEn: 'What is Uttarakhand Gateways and How Does 0% Brokerage Work?',
       titleHi: 'उत्तराखंड गेटवेज क्या है और 0% ब्रोकरेज मॉडल कैसे काम करता है?',
-      contentEn: 'Uttarakhand Gateways is a verified real estate marketplace dedicated exclusively to mountain properties across Uttarakhand. Unlike traditional property portals that charge hefty commissions or hide owner contact numbers behind broker desks, Uttarakhand Gateways connects buyers directly with genuine owners and verified developers with zero brokerage. Listing properties for sale or rent is completely free, providing a transparent, commission-free experience.',
-      contentHi: 'उत्तराखंड गेटवेज उत्तराखंड की पहाड़ी संपत्तियों के लिए समर्पित एक सत्यापित रियल एस्टेट मार्केटप्लेस है। पारंपरिक ब्रोकरों के विपरीत जो भारी कमीशन लेते हैं या बिचौलियों के माध्यम से संपर्क कराते हैं, उत्तराखंड गेटवेज खरीदारों को सीधे असली संपत्ति मालिकों और बिल्डरों से जोड़ता है—वो भी 0% ब्रोकरेज पर। यहां प्रॉपर्टी की बिक्री या किराए की लिस्टिंग पोस्ट करना पूरी तरह से निःशुल्क है।'
+      contentEn: 'Uttarakhand Gateways is a verified real estate marketplace dedicated exclusively to mountain properties across Uttarakhand. Unlike traditional property portals that charge hefty commissions or hide owner contact numbers behind broker desks, Uttarakhand Gateways connects buyers directly with genuine owners and verified brokers with zero brokerage. Listing properties for sale or rent is completely free, providing a transparent, commission-free experience.',
+      contentHi: 'उत्तराखंड गेटवेज उत्तराखंड की पहाड़ी संपत्तियों के लिए समर्पित एक सत्यापित रियल एस्टेट मार्केटप्लेस है। पारंपरिक ब्रोकरों के विपरीत जो भारी कमीशन लेते हैं या बिचौलियों के माध्यम से संपर्क कराते हैं, उत्तराखंड गेटवेज खरीदारों को सीधे असली संपत्ति मालिकों और सत्यापित ब्रोकरों से जोड़ता है—वो भी 0% ब्रोकरेज पर। यहां प्रॉपर्टी की बिक्री या किराए की लिस्टिंग पोस्ट करना पूरी तरह से निःशुल्क है।'
     },
     {
       id: 'outside-buyers-rules',
@@ -48,6 +48,32 @@ export const HomeSeoGuideSection: React.FC = () => {
       contentHi: 'प्रमुख रियल एस्टेट गंतव्यों में देहरादून (राजधानी, उच्च स्तरीय शिक्षा व स्वास्थ्य सुविधाएं), मसूरी व धनोल्टी (पहाड़ों की रानी व पर्यटन केंद्र), ऋषिकेश (गंगा किनारे आध्यात्मिक व योग नगरी), नैनीताल व भीमताल (झीलों का शांत वातावरण), मुक्तेश्वर व रामगढ़ (हिमालय की बर्फीली चोटियों के दृश्य और सेब के बगीचे) तथा अल्मोड़ा व रानीखेत (चीड़ के जंगलों से घिरे खूबसूरत कॉटेज) शामिल हैं।'
     }
   ];
+
+  useEffect(() => {
+    const schemaId = 'ukg-home-faq-ldjson';
+    let script = document.getElementById(schemaId) as HTMLScriptElement | null;
+    if (!script) {
+      script = document.createElement('script');
+      script.id = schemaId;
+      script.type = 'application/ld+json';
+      document.head.appendChild(script);
+    }
+    script.textContent = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: guides.map((g) => ({
+        '@type': 'Question',
+        name: g.titleEn,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: g.contentEn,
+        },
+      })),
+    });
+    return () => {
+      document.getElementById(schemaId)?.remove();
+    };
+  }, []);
 
   return (
     <section id="seo-knowledge-guide" className="my-16 pt-10 border-t border-emerald-200/80 dark:border-emerald-950/80 max-w-6xl mx-auto px-4 sm:px-6">

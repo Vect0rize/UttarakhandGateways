@@ -1,3 +1,5 @@
+import { EXTRA_REAL_ESTATE_GUIDES, GuideRelatedLink } from './extraGuidesData';
+
 export interface RealEstateGuide {
   slug: string;
   titleEn: string;
@@ -6,6 +8,11 @@ export interface RealEstateGuide {
   metaDescription: string;
   readTime: string;
   category: string;
+  authorName?: string;
+  authorRole?: string;
+  publishedDate?: string;
+  updatedDate?: string;
+  relatedLinks?: GuideRelatedLink[];
   summaryEn: string;
   summaryHi: string;
   sections: {
@@ -17,6 +24,7 @@ export interface RealEstateGuide {
 }
 
 export const REAL_ESTATE_GUIDES: RealEstateGuide[] = [
+  ...EXTRA_REAL_ESTATE_GUIDES,
   {
     slug: 'buying-property-in-uttarakhand',
     titleEn: 'Step-by-Step Guide to Buying Property in Uttarakhand (2026)',
@@ -74,7 +82,7 @@ export const REAL_ESTATE_GUIDES: RealEstateGuide[] = [
       {
         headingEn: '2. No Ceiling Inside Municipal Corporation & MDDA Limits',
         headingHi: '2. नगर निगम व एमडीडीए क्षेत्रों में कोई सीलिंग नहीं',
-        contentEn: 'In designated urban areas—including Dehradun Nagar Nigam, Haridwar Municipal Corporation, Rishikesh, Haldwani, and development authorities (MDDA, HRDA)—there is NO land size restriction for buying apartments, residential flats, builder floors, or commercial properties.',
+        contentEn: 'In designated urban areas—including Dehradun Nagar Nigam, Haridwar Municipal Corporation, Rishikesh, Haldwani, and development authorities (MDDA, HRDA)—there is NO land size restriction for buying apartments, residential flats, independent floors, or commercial properties.',
         contentHi: 'नगर निगम क्षेत्रों और विकास प्राधिकरणों (जैसे देहरादून, हरिद्वार, ऋषिकेश, हल्द्वानी) के अंतर्गत आने वाले फ्लैट्स, विला और आवासीय प्लॉट्स पर कोई 250 वर्ग मीटर की सीमा लागू नहीं होती।'
       },
       {

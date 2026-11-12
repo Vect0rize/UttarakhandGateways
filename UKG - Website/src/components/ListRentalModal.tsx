@@ -614,10 +614,10 @@ export const ListRentalModal: React.FC<ListRentalModalProps> = ({
                     </div>
                     <div className="min-w-0">
                       <div className="text-xs sm:text-sm font-black text-slate-900 dark:text-white flex items-center gap-1.5">
-                        <span>{isHindi ? 'मैं रियल एस्टेट ब्रोकर हूँ' : 'I am a Real Estate Broker'}</span>
+                        <span>{isHindi ? 'मैं सत्यापित ब्रोकर हूँ' : 'I am a Verified Broker'}</span>
                       </div>
                       <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        {isHindi ? 'अधिकृत ब्रोकर या रेंटल एजेंट' : 'Licensed broker / rental agent'}
+                        {isHindi ? 'अधिकृत रेंटल ब्रोकर' : 'Authorized rental broker'}
                       </div>
                     </div>
                   </button>

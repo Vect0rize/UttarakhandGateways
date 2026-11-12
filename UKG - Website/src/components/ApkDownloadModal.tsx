@@ -97,7 +97,7 @@ export const ApkDownloadModal: React.FC = () => {
 
     // Trigger direct native APK download
     const link = document.createElement('a');
-    link.href = '/UKG - App.apk?v=7';
+    link.href = '/UKG - App.apk?v=8';
     link.download = 'UKG - App.apk';
     document.body.appendChild(link);
     link.click();
@@ -154,7 +154,7 @@ export const ApkDownloadModal: React.FC = () => {
           </div>
           <span className="mt-2 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#C2A691] text-[#032D1F] text-[10px] font-black uppercase tracking-wider shadow-xs">
             <Smartphone className="w-3 h-3" />
-            <span>Official Android APK • 13.2 MB</span>
+            <span>Official Android APK • 13.7 MB</span>
           </span>
         </div>
 
@@ -186,7 +186,7 @@ export const ApkDownloadModal: React.FC = () => {
             <span className="w-5 h-5 rounded-full bg-[#0E3A2B] text-[#C2A691] flex items-center justify-center shrink-0">
               <Check className="w-3 h-3 stroke-[3]" />
             </span>
-            <span>{isHindi ? 'सुपरफास्ट लोडिंग • मात्र 13.2 MB का हल्का ऐप' : 'Lightweight native performance (Only 13.2 MB)'}</span>
+            <span>{isHindi ? 'सुपरफास्ट लोडिंग • मात्र 13.7 MB का हल्का ऐप' : 'Lightweight native performance (Only 13.7 MB)'}</span>
           </div>
         </div>
 
@@ -202,7 +202,7 @@ export const ApkDownloadModal: React.FC = () => {
             <span>
               {downloading 
                 ? (isHindi ? 'डाउनलोड शुरू हो रहा है...' : 'Starting Download...') 
-                : (isHindi ? 'डाउनलोड APK (मुफ़्त • 13.2 MB)' : 'Download APK (Free • 13.2 MB)')}
+                : (isHindi ? 'डाउनलोड APK (मुफ़्त • 13.7 MB)' : 'Download APK (Free • 13.7 MB)')}
             </span>
           </button>
 

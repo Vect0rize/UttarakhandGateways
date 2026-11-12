@@ -159,7 +159,7 @@ export const AiChatbot: React.FC<AiChatbotProps> = ({
       } else if (lower.includes('outside') || lower.includes('rule') || lower.includes('legal') || lower.includes('ceiling') || lower.includes('buy land')) {
         fallbackText = "📜 **Outside Buyer Rules in Uttarakhand:**\n• Any Indian citizen can buy property here.\n• **Agricultural/Rural Land:** Up to **250 sq. meters** (~2,700 sq.ft or ~1.25 Nali) per person without special state permission (Section 154 UPZA&LR).\n• **Municipal Corporation / MDDA Limits:** In urban limits (Dehradun, Rishikesh, Haridwar, etc.), there is **NO ceiling** on purchasing flats or residential plots!";
       } else if (lower.includes('sell') || lower.includes('list') || lower.includes('brokerage') || lower.includes('commission')) {
-        fallbackText = "✦ **0% Brokerage Guarantee on UKG:**\n• Listing your property is **100% free**.\n• No commissions or hidden agent charges.\n• Interested buyers connect with you directly via phone or instant inbox messages!";
+        fallbackText = "✦ **0% Brokerage Guarantee on UKG:**\n• Listing your property is **100% free**.\n• No commissions or hidden middleman fees.\n• Interested buyers connect with you directly via phone or instant inbox messages!";
       } else if (lower.includes('143') || lower.includes('rera') || lower.includes('mdda') || lower.includes('title')) {
         fallbackText = "🏛️ **Legal Badges Explained:**\n• **143 Converted:** Land officially converted to non-agricultural residential freehold, allowing direct construction.\n• **MDDA Approved:** Layout sanctioned by Mussoorie Dehradun Development Authority.\n• **RERA Verified:** Real Estate Regulatory Authority registered project with guaranteed buyer protection.";
       }

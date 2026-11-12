@@ -197,7 +197,7 @@ export const ListChooserModal: React.FC<ListChooserModalProps> = ({
               </div>
             </div>
 
-            {/* Role 2: Agent / Verified Builder / Broker */}
+            {/* Role 2: Verified Broker */}
             <div
               onClick={() => {
                 onClose();
@@ -212,7 +212,7 @@ export const ListChooserModal: React.FC<ListChooserModalProps> = ({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-base font-black text-slate-900 dark:text-white group-hover:text-teal-700 dark:group-hover:text-teal-300 transition-colors">
-                    {isHindi ? 'सत्यापित बिल्डर / ब्रोकर' : 'Verified Builder / Broker'}
+                    {isHindi ? 'सत्यापित ब्रोकर' : 'Verified Broker'}
                   </span>
                   <span className="px-2 py-0.5 rounded-full bg-teal-600 text-white font-black text-[10px] uppercase">
                     Broker
@@ -220,8 +220,8 @@ export const ListChooserModal: React.FC<ListChooserModalProps> = ({
                 </div>
                 <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
                   {isHindi
-                    ? 'मैं एक पेशेवर बिल्डर, प्रॉपर्टी सलाहकार, डीलर या अधिकृत ब्रोकर हूँ।'
-                    : 'I am a verified builder, property dealer, or authorized real estate broker.'}
+                    ? 'मैं एक अधिकृत रियल एस्टेट ब्रोकर हूँ।'
+                    : 'I am an authorized real estate broker.'}
                 </p>
               </div>
               <div className="w-9 h-9 rounded-full bg-white dark:bg-slate-800 text-teal-600 flex items-center justify-center shrink-0 border border-teal-200 dark:border-slate-700 group-hover:translate-x-1 transition-transform">

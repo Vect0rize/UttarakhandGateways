@@ -7,9 +7,17 @@ import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import { GoogleGenAI, Type } from '@google/genai';
 import { db } from './db';
-import { CITY_MARKET_DATA } from './src/data/citySeoData';
+import { CITY_MARKET_DATA, getCityMarketData } from './src/data/citySeoData';
 import { REAL_ESTATE_GUIDES } from './src/data/guidesData';
 import { getPageSeoMeta, type AppPageRouteKey } from './src/data/seoMetadata';
+import {
+  findPropertyBySlugOrId,
+  getCitySlug,
+  getIndexableProgrammaticPaths,
+  getPropertySlugPath,
+  resolveProgrammaticSeoRoute,
+  slugify,
+} from './src/data/programmaticSeo';
 
 dotenv.config();
 
@@ -77,7 +85,7 @@ app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
   } else {
-    res.setHeader('Access-Control-Allow-Origin', 'https://www.uttarakhandgateways.com');
+    res.setHeader('Access-Control-Allow-Origin', 'https://uttarakhandgateways.com');
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Session-Token');
@@ -140,7 +148,11 @@ app.get(['/UKG - App.apk', '/UKG%20-%20App.apk', '/UKG-App.apk', '/download-app'
   res.status(404).send('APK file not found on server.');
 });
 
-app.use(express.static(publicPath, { index: false }));
+const publicStaticMiddleware = express.static(publicPath, { index: false });
+app.use((req, res, next) => {
+  if (req.path === '/sitemap.xml' || req.path === '/robots.txt') return next();
+  return publicStaticMiddleware(req, res, next);
+});
 
 // Safe user serializer
 function formatSafeUser(u: any) {
@@ -290,6 +302,46 @@ app.get('/api/properties', async (req, res) => {
   }
 });
 
+function stripHtmlTags(val: unknown): string {
+  if (typeof val !== 'string') return '';
+  return val
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+    .replace(/<[^>]+>/g, '')
+    .trim();
+}
+
+function isSafeMediaUrl(url: unknown): boolean {
+  if (typeof url !== 'string') return false;
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+  if (/^(javascript|vbscript|data:text\/html|data:image\/svg\+xml)/i.test(trimmed)) return false;
+  if (trimmed.startsWith('/uploads/') || trimmed.startsWith('/assets/') || trimmed === '/logo.png') return true;
+  if (/^https?:\/\//i.test(trimmed)) return true;
+  if (/^data:image\/(png|jpeg|jpg|webp|gif|avif);base64,/i.test(trimmed)) return true;
+  if (/^data:video\/[a-z0-9.+-]+;base64,/i.test(trimmed)) return true;
+  return false;
+}
+
+function sanitizePropertyInput(obj: any): void {
+  if (!obj || typeof obj !== 'object') return;
+  const textFields = ['title', 'description', 'location', 'address', 'city', 'sellerName', 'category', 'area', 'priceDisplay'];
+  for (const field of textFields) {
+    if (typeof obj[field] === 'string') {
+      obj[field] = stripHtmlTags(obj[field]);
+    }
+  }
+  if (Array.isArray(obj.images)) {
+    obj.images = obj.images.filter((img: unknown) => isSafeMediaUrl(img)).slice(0, 15);
+  }
+  if (Array.isArray(obj.videos)) {
+    obj.videos = obj.videos.filter((vid: unknown) => isSafeMediaUrl(vid)).slice(0, 3);
+  }
+  if (typeof obj.videoUrl === 'string' && !isSafeMediaUrl(obj.videoUrl)) {
+    obj.videoUrl = '';
+  }
+}
+
 app.get('/api/properties/:id', async (req, res) => {
   res.set({
     'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
@@ -299,7 +351,11 @@ app.get('/api/properties/:id', async (req, res) => {
   });
   try {
     const { id } = req.params;
-    const prop = await db.getPropertyById(id);
+    let prop = await db.getPropertyById(id);
+    if (!prop) {
+      const allProps = await db.getAllProperties();
+      prop = findPropertyBySlugOrId(id, allProps);
+    }
     if (prop) {
       return res.json({ success: true, property: prop });
     }
@@ -389,7 +445,11 @@ app.post('/api/properties', async (req, res) => {
       property.createdAt = new Date().toISOString();
     }
 
-    // Securely bind authenticated user identity & persist any inline uploaded video
+    // Sanitize user-supplied strings and URLs before storing, then bind owner identity
+    sanitizePropertyInput(property);
+    if (property.title.length < 3) {
+      return res.status(400).json({ success: false, error: 'Title must contain at least 3 non-HTML characters.' });
+    }
     persistInlineVideos(property);
     property.ownerId = sessionUser.id;
     property.ownerUsername = sessionUser.username;
@@ -491,6 +551,7 @@ app.put('/api/properties/:id', async (req, res) => {
     if (!updates.ownerUsername && existing.ownerUsername) updates.ownerUsername = existing.ownerUsername;
     else if (!updates.ownerUsername && sessionUser.username) updates.ownerUsername = sessionUser.username;
 
+    sanitizePropertyInput(updates);
     persistInlineVideos(updates);
 
     const updated = await db.updateProperty(id, updates);
@@ -2019,6 +2080,41 @@ function escapeHtml(str: string): string {
     .replace(/'/g, '&#039;');
 }
 
+function safeJsonLd(obj: unknown): string {
+  return JSON.stringify(obj)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
+}
+
+function toAbsoluteSafeImage(rawUrl: unknown, domain: string): string {
+  if (typeof rawUrl !== 'string') return `${domain}/logo.png`;
+  const trimmed = rawUrl.trim();
+  if (!trimmed || trimmed.startsWith('data:') || !isSafeMediaUrl(trimmed)) {
+    return `${domain}/logo.png`;
+  }
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (trimmed.startsWith('/')) return `${domain}${trimmed}`;
+  return `${domain}/${trimmed}`;
+}
+
+function getSchemaTypeForProperty(prop: any): string | string[] {
+  const cat = String(prop?.category || '').toLowerCase();
+  const type = String(prop?.type || '').toLowerCase();
+  if (cat.includes('land') || cat.includes('plot') || cat.includes('agricultural') || cat.includes('commercial') || cat.includes('shop') || cat.includes('office')) {
+    return 'RealEstateListing';
+  }
+  if (cat.includes('flat') || cat.includes('apartment') || cat.includes('penthouse') || cat.includes('studio') || type.includes('flat')) {
+    return ['RealEstateListing', 'Apartment'];
+  }
+  if (cat.includes('house') || cat.includes('villa') || cat.includes('cottage') || cat.includes('homestay') || cat.includes('bungalow')) {
+    return ['RealEstateListing', 'SingleFamilyResidence'];
+  }
+  return 'RealEstateListing';
+}
+
 async function generateDynamicSitemapXml(): Promise<string> {
   const DOMAIN = 'https://uttarakhandgateways.com';
   const today = new Date().toISOString().split('T')[0];
@@ -2030,38 +2126,62 @@ async function generateDynamicSitemapXml(): Promise<string> {
     { loc: `${DOMAIN}/list`, changefreq: 'weekly', priority: '0.9' },
     { loc: `${DOMAIN}/list/buy`, changefreq: 'weekly', priority: '0.8' },
     { loc: `${DOMAIN}/list/rent`, changefreq: 'weekly', priority: '0.8' },
-    { loc: `${DOMAIN}/guides`, changefreq: 'weekly', priority: '0.8' },
+    { loc: `${DOMAIN}/guides`, changefreq: 'weekly', priority: '0.9' },
     { loc: `${DOMAIN}/home-loan`, changefreq: 'monthly', priority: '0.8' },
+    { loc: `${DOMAIN}/about`, changefreq: 'monthly', priority: '0.6' },
+    { loc: `${DOMAIN}/contact`, changefreq: 'monthly', priority: '0.6' },
+    { loc: `${DOMAIN}/listing-guidelines`, changefreq: 'monthly', priority: '0.5' },
+    { loc: `${DOMAIN}/privacy`, changefreq: 'yearly', priority: '0.4' },
+    { loc: `${DOMAIN}/terms`, changefreq: 'yearly', priority: '0.4' },
   ];
 
-  const cityHubKeys = ['dehradun', 'rishikesh', 'haridwar', 'nainital', 'mussoorie', 'haldwani'];
-  const cityPages = cityHubKeys.map(k => ({
-    loc: `${DOMAIN}/properties-in-${k}`,
-    changefreq: 'weekly',
-    priority: '0.9'
-  }));
-
-  const guidePages = REAL_ESTATE_GUIDES.map(g => ({
+  const guidePages = REAL_ESTATE_GUIDES.map((g) => ({
     loc: `${DOMAIN}/guides/${g.slug}`,
     changefreq: 'monthly',
-    priority: '0.8'
+    priority: '0.8',
   }));
 
-  let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+  const seenLocs = new Set<string>();
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n`;
 
-  for (const p of [...staticPages, ...cityPages, ...guidePages]) {
-    xml += `  <url>\n    <loc>${p.loc}</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>${p.changefreq}</changefreq>\n    <priority>${p.priority}</priority>\n  </url>\n`;
+  const appendUrl = (loc: string, lastmod: string, changefreq: string, priority: string, imagesXml = '') => {
+    if (seenLocs.has(loc)) return;
+    seenLocs.add(loc);
+    xml += `  <url>\n    <loc>${escapeHtml(loc)}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>${changefreq}</changefreq>\n    <priority>${priority}</priority>\n${imagesXml}  </url>\n`;
+  };
+
+  for (const p of [...staticPages, ...guidePages]) {
+    appendUrl(p.loc, today, p.changefreq, p.priority);
   }
 
   try {
     const allProps = await db.getAllProperties();
-    for (const prop of allProps) {
-      if (!prop || !prop.id || prop.isDeleted || prop.status === 'deleted') continue;
-      const propUrl = `${DOMAIN}/property/${encodeURIComponent(prop.id)}`;
-      const dateStr = prop.updatedAt || prop.createdAt || today;
-      const modDate = (dateStr && dateStr.includes('T')) ? dateStr.split('T')[0] : today;
+    const programmaticPaths = getIndexableProgrammaticPaths(allProps);
+    for (const pPath of programmaticPaths) {
+      const priority = pPath.startsWith('/properties-in-') ? '0.9' : '0.85';
+      appendUrl(`${DOMAIN}${pPath}`, today, 'daily', priority);
+    }
 
-      xml += `  <url>\n    <loc>${propUrl}</loc>\n    <lastmod>${modDate}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
+    for (const rawProp of allProps) {
+      const prop = rawProp as any;
+      if (!prop || !prop.id || prop.isDeleted || prop.status === 'deleted') continue;
+      const propUrl = `${DOMAIN}${getPropertySlugPath(prop)}`;
+      const dateStr = prop.updatedAt || prop.createdAt || today;
+      const modDate = (typeof dateStr === 'string' && dateStr.includes('T')) ? dateStr.split('T')[0] : today;
+
+      const validImages: string[] = (Array.isArray(prop.images) ? prop.images : [])
+        .filter((img: unknown) => typeof img === 'string' && !img.startsWith('data:') && isSafeMediaUrl(img))
+        .slice(0, 3)
+        .map((img: string) => toAbsoluteSafeImage(img, DOMAIN));
+
+      const imagesXml = validImages
+        .map(
+          (imgUrl: string) =>
+            `    <image:image>\n      <image:loc>${escapeHtml(imgUrl)}</image:loc>\n      <image:title>${escapeHtml(prop.title || 'Uttarakhand Property')}</image:title>\n    </image:image>\n`
+        )
+        .join('');
+
+      appendUrl(propUrl, modDate, 'weekly', '0.8', imagesXml);
     }
   } catch (err) {
     console.error('[UKG Sitemap] Error generating dynamic sitemap from database:', err);
@@ -2072,8 +2192,9 @@ async function generateDynamicSitemapXml(): Promise<string> {
 }
 
 async function handleSeoPageRender(req: express.Request, res: express.Response, distPath: string) {
-  const urlPath = (req.path || '').toLowerCase();
   const DOMAIN = 'https://uttarakhandgateways.com';
+  const rawPath = req.path || '/';
+  const urlPath = rawPath.toLowerCase();
 
   // 1. Robots.txt
   if (urlPath === '/robots.txt') {
@@ -2089,7 +2210,9 @@ async function handleSeoPageRender(req: express.Request, res: express.Response, 
       }
     }
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    return res.send(`User-agent: *\nAllow: /\nDisallow: /inbox\nDisallow: /dashboard\nDisallow: /admin\nSitemap: ${DOMAIN}/sitemap.xml\n`);
+    return res.send(
+      `User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /login\nDisallow: /register\nDisallow: /reset-password\nDisallow: /inbox\nDisallow: /dashboard\nDisallow: /lister-dashboard\nDisallow: /admin\nDisallow: /*?search=\nDisallow: /*?token=\nDisallow: /*?resetToken=\nDisallow: /*?property=\nSitemap: ${DOMAIN}/sitemap.xml\n`
+    );
   }
 
   // 2. Sitemap.xml
@@ -2105,6 +2228,25 @@ async function handleSeoPageRender(req: express.Request, res: express.Response, 
         return res.sendFile(sitemapFile);
       }
     }
+  }
+
+  // 2b. Trailing slash 301 normalization for GET routes (except root '/')
+  if (req.method === 'GET' && rawPath.length > 1 && rawPath.endsWith('/')) {
+    const trimmed = rawPath.replace(/\/+$/, '') || '/';
+    const qs = req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '';
+    return res.redirect(301, `${trimmed}${qs}`);
+  }
+
+  // 2c. Legacy /?property=<id> 301 redirect to canonical /property/<slug>-<id>
+  if (req.method === 'GET' && urlPath === '/' && typeof req.query.property === 'string' && req.query.property.trim()) {
+    const qPropId = req.query.property.trim();
+    try {
+      const allProps = await db.getAllProperties();
+      const found: any = findPropertyBySlugOrId(qPropId, allProps);
+      if (found && !found.isDeleted && found.status !== 'deleted') {
+        return res.redirect(301, getPropertySlugPath(found));
+      }
+    } catch {}
   }
 
   // Read base index.html
@@ -2129,214 +2271,217 @@ async function handleSeoPageRender(req: express.Request, res: express.Response, 
     );
   }
 
-  // 3. Property Detail Dynamic SSR Meta Injection (/property/:id or ?property=:id)
+  const upsertHeadTag = (regex: RegExp, replacement: string) => {
+    if (regex.test(html)) {
+      html = html.replace(regex, replacement);
+    } else {
+      html = html.replace('</head>', `  ${replacement}\n</head>`);
+    }
+  };
+
+  const applyHeadMeta = (opts: {
+    title: string;
+    description: string;
+    keywords?: string;
+    canonicalUrl: string;
+    ogImage?: string;
+    robots?: string;
+    schemaId?: string;
+    schemaObj?: unknown;
+  }) => {
+    const safeTitle = escapeHtml(opts.title);
+    const safeDesc = escapeHtml(opts.description);
+    const safeCanonical = escapeHtml(opts.canonicalUrl);
+    const safeImg = escapeHtml(opts.ogImage || `${DOMAIN}/logo.png`);
+    const safeRobots = escapeHtml(opts.robots || 'index, follow');
+
+    upsertHeadTag(/<title>[\s\S]*?<\/title>/i, `<title>${safeTitle}</title>`);
+    upsertHeadTag(/<meta\s+name="description"[\s\S]*?>/i, `<meta name="description" content="${safeDesc}" />`);
+    if (opts.keywords) {
+      upsertHeadTag(/<meta\s+name="keywords"[\s\S]*?>/i, `<meta name="keywords" content="${escapeHtml(opts.keywords)}" />`);
+    }
+    upsertHeadTag(/<meta\s+name="robots"[\s\S]*?>/i, `<meta name="robots" content="${safeRobots}" />`);
+    upsertHeadTag(/<link\s+rel="canonical"[\s\S]*?>/i, `<link rel="canonical" href="${safeCanonical}" />`);
+    upsertHeadTag(/<meta\s+property="og:title"[\s\S]*?>/i, `<meta property="og:title" content="${safeTitle}" />`);
+    upsertHeadTag(/<meta\s+property="og:description"[\s\S]*?>/i, `<meta property="og:description" content="${safeDesc}" />`);
+    upsertHeadTag(/<meta\s+property="og:url"[\s\S]*?>/i, `<meta property="og:url" content="${safeCanonical}" />`);
+    upsertHeadTag(/<meta\s+property="og:image"[\s\S]*?>/i, `<meta property="og:image" content="${safeImg}" />`);
+    upsertHeadTag(/<meta\s+name="twitter:title"[\s\S]*?>/i, `<meta name="twitter:title" content="${safeTitle}" />`);
+    upsertHeadTag(/<meta\s+name="twitter:description"[\s\S]*?>/i, `<meta name="twitter:description" content="${safeDesc}" />`);
+    upsertHeadTag(/<meta\s+name="twitter:image"[\s\S]*?>/i, `<meta name="twitter:image" content="${safeImg}" />`);
+
+    if (opts.schemaId && opts.schemaObj) {
+      html = html.replace(
+        '</head>',
+        `<script type="application/ld+json" id="${escapeHtml(opts.schemaId)}">${safeJsonLd(opts.schemaObj)}</script>\n</head>`
+      );
+    }
+  };
+
+  const renderNotFound = (heading = 'Page Not Found (404)', message = 'The requested page could not be found on Uttarakhand Gateways.') => {
+    res.status(404);
+    applyHeadMeta({
+      title: `${heading} | Uttarakhand Gateways`,
+      description: message,
+      canonicalUrl: `${DOMAIN}/`,
+      robots: 'noindex, nofollow',
+    });
+    html = html.replace(
+      /<div id="root"><\/div>/i,
+      `<div id="root"><main style="font-family:sans-serif;max-width:720px;margin:72px auto;padding:24px;text-align:center;">
+        <h1 style="color:#064e3b;font-size:30px;margin-bottom:10px;">${escapeHtml(heading)}</h1>
+        <p style="color:#475569;margin-bottom:24px;">${escapeHtml(message)}</p>
+        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+          <a href="/buy" style="padding:10px 18px;background:#064e3b;color:#fff;border-radius:20px;text-decoration:none;font-weight:bold;">Buy Properties</a>
+          <a href="/rent" style="padding:10px 18px;background:#047857;color:#fff;border-radius:20px;text-decoration:none;font-weight:bold;">Rental Properties</a>
+          <a href="/properties-in-dehradun" style="padding:10px 18px;border:1px solid #cbd5e1;color:#064e3b;border-radius:20px;text-decoration:none;font-weight:bold;">Dehradun Hub</a>
+          <a href="/guides" style="padding:10px 18px;border:1px solid #cbd5e1;color:#064e3b;border-radius:20px;text-decoration:none;font-weight:bold;">Property Guides</a>
+        </div>
+      </main></div>`
+    );
+    return res.send(html);
+  };
+
+  const normalizedPath = urlPath.replace(/\/+$/, '') || '/';
+  const pageParam = String(req.query.page || '').toLowerCase();
+
+  // 3. Property Detail Dynamic SSR (/property/:slugOrId or ?property=:id)
   let propertyId: string | null = null;
-  if (urlPath.startsWith('/property/')) {
-    propertyId = decodeURIComponent(req.path.slice('/property/'.length).trim());
+  if (normalizedPath.startsWith('/property/')) {
+    propertyId = decodeURIComponent(rawPath.slice('/property/'.length).replace(/\/+$/, '').trim());
   } else if (req.query.property && typeof req.query.property === 'string') {
     propertyId = req.query.property.trim();
   }
 
   if (propertyId) {
     try {
-      const prop = await db.getPropertyById(propertyId);
-      if (!prop || prop.isDeleted || prop.status === 'deleted') {
-        res.status(404);
-        html = html.replace(/<title>.*?<\/title>/i, `<title>Property Not Found (404) | Uttarakhand Gateways</title>`);
-        html = html.replace(/<meta name="description".*?>/i, `<meta name="description" content="This property listing is no longer available on Uttarakhand Gateways." />`);
-        html = html.replace(/<link rel="canonical".*?>/i, `<link rel="canonical" href="${DOMAIN}/" />`);
-        html = html.replace(/<meta name="robots".*?>/i, `<meta name="robots" content="noindex, nofollow" />`);
-        html = html.replace(/<div id="root"><\/div>/i, `<div id="root"><main style="font-family:sans-serif;max-width:600px;margin:80px auto;text-align:center;padding:24px;"><h1>Property Listing Not Found (404)</h1><p>The requested Uttarakhand property listing is no longer active or has been removed.</p><p><a href="/" style="display:inline-block;padding:10px 20px;background:#059669;color:#fff;border-radius:24px;text-decoration:none;font-weight:bold;">Explore 1,000+ Verified Properties</a></p></main></div>`);
-        return res.send(html);
+      const allProps = await db.getAllProperties();
+      let prop = await db.getPropertyById(propertyId);
+      if (!prop) {
+        prop = findPropertyBySlugOrId(propertyId, allProps);
       }
 
-      const cleanTitle = escapeHtml(prop.title || 'Verified Mountain Property');
-      const city = escapeHtml(prop.city || 'Uttarakhand');
-      const location = escapeHtml(prop.location || prop.city || 'Uttarakhand');
-      const category = escapeHtml(prop.category || 'Real Estate');
+      if (!prop || prop.isDeleted || prop.status === 'deleted') {
+        return renderNotFound(
+          'Property Listing Not Found (404)',
+          'This Uttarakhand property listing may have been sold, expired, or removed.'
+        );
+      }
+
+      const rawTitle = stripHtmlTags(prop.title || 'Verified Uttarakhand Property');
+      const rawCity = stripHtmlTags(prop.city || 'Uttarakhand');
+      const rawLocation = stripHtmlTags(prop.location || rawCity);
+      const rawCategory = stripHtmlTags(prop.category || 'Real Estate');
+      const citySlug = getCitySlug(rawCity);
       const isRent = prop.purpose === 'rent' || prop.type === 'Rent/Lease' || prop.isAvailableForRent;
       const priceText = prop.priceDisplay || (prop.price ? `₹${Number(prop.price).toLocaleString('en-IN')}` : 'Price on Request');
-      const cleanDesc = escapeHtml((prop.description || '').replace(/\s+/g, ' ').slice(0, 160).trim());
-      const metaDescription = `${cleanTitle} - ${category} for ${isRent ? 'rent' : 'sale'} in ${location}, Uttarakhand. Price: ${priceText}. ${cleanDesc || 'Direct deal with 0% brokerage.'}`;
-      const canonicalUrl = `${DOMAIN}/property/${encodeURIComponent(prop.id)}`;
-      const firstImage = Array.isArray(prop.images) && prop.images[0] ? prop.images[0] : `${DOMAIN}/logo.png`;
+      const cleanDescRaw = stripHtmlTags(prop.description || '').replace(/\s+/g, ' ').slice(0, 160).trim();
+      const metaDescription = `${rawTitle} - ${rawCategory} for ${isRent ? 'rent' : 'sale'} in ${rawLocation}, ${rawCity}, Uttarakhand. Price: ${priceText}. ${cleanDescRaw || 'Direct owner listing on Uttarakhand Gateways.'}`;
+      const canonicalUrl = `${DOMAIN}${getPropertySlugPath(prop)}`;
+      const firstImage = toAbsoluteSafeImage(Array.isArray(prop.images) ? prop.images[0] : '', DOMAIN);
+      const safeImgs = (Array.isArray(prop.images) ? prop.images : [])
+        .filter((img: unknown) => isSafeMediaUrl(img) && !String(img).startsWith('data:'))
+        .slice(0, 6)
+        .map((img: string) => toAbsoluteSafeImage(img, DOMAIN));
 
-      html = html.replace(/<title>.*?<\/title>/i, `<title>${cleanTitle} | ${city} Real Estate | Uttarakhand Gateways</title>`);
-      html = html.replace(/<meta name="description".*?>/i, `<meta name="description" content="${metaDescription}" />`);
-      html = html.replace(/<link rel="canonical".*?>/i, `<link rel="canonical" href="${canonicalUrl}" />`);
-      html = html.replace(/<meta property="og:title".*?>/i, `<meta property="og:title" content="${cleanTitle} | Uttarakhand Gateways" />`);
-      html = html.replace(/<meta property="og:description".*?>/i, `<meta property="og:description" content="${metaDescription}" />`);
-      html = html.replace(/<meta property="og:url".*?>/i, `<meta property="og:url" content="${canonicalUrl}" />`);
-      html = html.replace(/<meta property="og:image".*?>/i, `<meta property="og:image" content="${firstImage}" />`);
-      html = html.replace(/<meta name="twitter:title".*?>/i, `<meta name="twitter:title" content="${cleanTitle}" />`);
-      html = html.replace(/<meta name="twitter:description".*?>/i, `<meta name="twitter:description" content="${metaDescription}" />`);
-      html = html.replace(/<meta name="twitter:image".*?>/i, `<meta name="twitter:image" content="${firstImage}" />`);
+      const relatedProps = allProps
+        .filter((p) => p && p.id !== prop.id && !p.isDeleted && p.status !== 'deleted' && slugify(p.city || '') === citySlug)
+        .slice(0, 4);
 
       const propertyLdJson = {
         '@context': 'https://schema.org',
         '@graph': [
           {
             '@type': 'BreadcrumbList',
-            'itemListElement': [
-              { '@type': 'ListItem', 'position': 1, 'name': 'Home', 'item': `${DOMAIN}/` },
-              { '@type': 'ListItem', 'position': 2, 'name': `${city} Properties`, 'item': `${DOMAIN}/buy?city=${encodeURIComponent(prop.city || '')}` },
-              { '@type': 'ListItem', 'position': 3, 'name': prop.title, 'item': canonicalUrl }
-            ]
+            itemListElement: [
+              { '@type': 'ListItem', position: 1, name: 'Home', item: `${DOMAIN}/` },
+              { '@type': 'ListItem', position: 2, name: `${rawCity} Properties`, item: `${DOMAIN}/properties-in-${citySlug}` },
+              { '@type': 'ListItem', position: 3, name: rawTitle, item: canonicalUrl },
+            ],
           },
           {
-            '@type': ['RealEstateListing', 'SingleFamilyResidence'],
+            '@type': getSchemaTypeForProperty(prop),
             '@id': `${canonicalUrl}#listing`,
-            'name': prop.title,
-            'description': metaDescription,
-            'url': canonicalUrl,
-            'image': Array.isArray(prop.images) ? prop.images : [firstImage],
-            'offers': {
+            name: rawTitle,
+            description: metaDescription,
+            url: canonicalUrl,
+            image: safeImgs.length > 0 ? safeImgs : [firstImage],
+            offers: {
               '@type': 'Offer',
-              'price': prop.price || 0,
-              'priceCurrency': 'INR',
-              'availability': 'https://schema.org/InStock',
-              'seller': {
-                '@type': 'Person',
-                'name': prop.sellerType === 'Owner' ? 'Direct Verified Owner' : 'Verified Builder'
-              }
+              price: Number(prop.price) || 0,
+              priceCurrency: 'INR',
+              availability: prop.isSold ? 'https://schema.org/SoldOut' : 'https://schema.org/InStock',
+              url: canonicalUrl,
             },
-            'address': {
+            address: {
               '@type': 'PostalAddress',
-              'addressLocality': prop.city || 'Uttarakhand',
-              'addressRegion': 'Uttarakhand',
-              'addressCountry': 'IN'
-            }
-          }
-        ]
+              streetAddress: rawLocation,
+              addressLocality: rawCity,
+              addressRegion: 'Uttarakhand',
+              addressCountry: 'IN',
+            },
+          },
+        ],
       };
 
-      const schemaTag = `<script type="application/ld+json" id="ssr-property-schema">${JSON.stringify(propertyLdJson)}</script>`;
-      html = html.replace('</head>', `${schemaTag}\n</head>`);
+      applyHeadMeta({
+        title: `${rawTitle} | ${rawCity} Real Estate | Uttarakhand Gateways`,
+        description: metaDescription,
+        canonicalUrl,
+        ogImage: firstImage,
+        schemaId: 'ssr-property-schema',
+        schemaObj: propertyLdJson,
+      });
 
       const preRendered = `
 <div id="root">
   <article style="max-width:1100px;margin:40px auto;padding:20px;font-family:sans-serif;color:#1e293b;">
-    <nav style="font-size:12px;margin-bottom:16px;"><a href="/">Home</a> &gt; <a href="/buy?city=${encodeURIComponent(prop.city || '')}">${city} Real Estate</a> &gt; <span>${cleanTitle}</span></nav>
-    <h1 style="font-size:28px;font-weight:800;color:#064e3b;margin-bottom:8px;">${cleanTitle}</h1>
-    <p style="font-size:16px;color:#047857;font-weight:700;">Location: ${location}, Uttarakhand | Price: ${priceText} | Category: ${category} (0% Brokerage)</p>
-    <div style="margin:20px 0;"><img src="${firstImage}" alt="${cleanTitle} in ${location}" style="max-width:100%;height:auto;border-radius:16px;max-height:480px;object-fit:cover;" /></div>
-    <div style="font-size:15px;line-height:1.7;color:#334155;">${cleanDesc}</div>
+    <nav style="font-size:12px;margin-bottom:16px;"><a href="/">Home</a> &gt; <a href="/properties-in-${escapeHtml(citySlug)}">${escapeHtml(rawCity)} Real Estate</a> &gt; <span>${escapeHtml(rawTitle)}</span></nav>
+    <h1 style="font-size:28px;font-weight:800;color:#064e3b;margin-bottom:8px;">${escapeHtml(rawTitle)}</h1>
+    <p style="font-size:16px;color:#047857;font-weight:700;">Location: ${escapeHtml(rawLocation)}, ${escapeHtml(rawCity)}, Uttarakhand | Price: ${escapeHtml(priceText)} | Category: ${escapeHtml(rawCategory)}${prop.area ? ` | Area: ${escapeHtml(prop.area)}` : ''}</p>
+    <div style="margin:20px 0;"><img src="${escapeHtml(firstImage)}" alt="${escapeHtml(rawTitle)} in ${escapeHtml(rawLocation)}, ${escapeHtml(rawCity)}" width="800" height="450" style="max-width:100%;height:auto;border-radius:16px;max-height:480px;object-fit:cover;" /></div>
+    <div style="font-size:15px;line-height:1.7;color:#334155;margin-bottom:24px;">${escapeHtml(cleanDescRaw)}</div>
+    ${relatedProps.length > 0 ? `<section style="margin-top:28px;"><h2 style="font-size:20px;color:#064e3b;">Related Properties in ${escapeHtml(rawCity)}</h2><ul>${relatedProps.map((rp) => `<li><a href="${escapeHtml(getPropertySlugPath(rp))}">${escapeHtml(rp.title)}</a> — ${escapeHtml(rp.priceDisplay || `₹${Number(rp.price || 0).toLocaleString('en-IN')}`)}</li>`).join('')}</ul></section>` : ''}
   </article>
 </div>`;
       html = html.replace(/<div id="root"><\/div>/i, preRendered);
-
       return res.send(html);
     } catch (err) {
       console.error('[UKG Server] Error rendering property detail with SEO:', err);
     }
   }
 
-  // 3b. City Landing Page Hubs (/properties-in-:city)
-  if (urlPath.startsWith('/properties-in-')) {
-    const rawCity = urlPath.replace('/properties-in-', '').trim().toLowerCase();
-    const cityKey = Object.keys(CITY_MARKET_DATA).find(k => k.toLowerCase() === rawCity);
-    if (cityKey) {
-      const cityData = CITY_MARKET_DATA[cityKey];
-      const canonicalUrl = `${DOMAIN}/properties-in-${rawCity}`;
-      const title = `${cityData.metaTitle} | Uttarakhand Gateways`;
-      const description = cityData.metaDescription;
-
-      html = html.replace(/<title>.*?<\/title>/i, `<title>${escapeHtml(title)}<\/title>`);
-      html = html.replace(/<meta name="description".*?>/i, `<meta name="description" content="${escapeHtml(description)}" />`);
-      html = html.replace(/<link rel="canonical".*?>/i, `<link rel="canonical" href="${canonicalUrl}" />`);
-      html = html.replace(/<meta property="og:title".*?>/i, `<meta property="og:title" content="${escapeHtml(title)}" />`);
-      html = html.replace(/<meta property="og:description".*?>/i, `<meta property="og:description" content="${escapeHtml(description)}" />`);
-      html = html.replace(/<meta property="og:url".*?>/i, `<meta property="og:url" content="${canonicalUrl}" />`);
-      html = html.replace(/<meta name="twitter:title".*?>/i, `<meta name="twitter:title" content="${escapeHtml(title)}" />`);
-      html = html.replace(/<meta name="twitter:description".*?>/i, `<meta name="twitter:description" content="${escapeHtml(description)}" />`);
-
-      const schemaObj = {
-        '@context': 'https://schema.org',
-        '@graph': [
-          {
-            '@type': 'BreadcrumbList',
-            'itemListElement': [
-              { '@type': 'ListItem', 'position': 1, 'name': 'Home', 'item': `${DOMAIN}/` },
-              { '@type': 'ListItem', 'position': 2, 'name': 'Uttarakhand Properties', 'item': `${DOMAIN}/buy` },
-              { '@type': 'ListItem', 'position': 3, 'name': `Properties in ${cityData.city}`, 'item': canonicalUrl }
-            ]
-          },
-          {
-            '@type': 'FAQPage',
-            'mainEntity': (cityData.faqs || []).map(f => ({
-              '@type': 'Question',
-              'name': f.q,
-              'acceptedAnswer': {
-                '@type': 'Answer',
-                'text': f.a
-              }
-            }))
-          }
-        ]
-      };
-      html = html.replace('</head>', `<script type="application/ld+json" id="ssr-city-schema">${JSON.stringify(schemaObj)}<\/script>\n</head>`);
-
-      const preRendered = `
-<div id="root">
-  <main style="max-width:1100px;margin:40px auto;padding:20px;font-family:sans-serif;color:#1e293b;">
-    <nav style="font-size:12px;margin-bottom:16px;"><a href="/">Home</a> &gt; <a href="/buy">Uttarakhand Properties</a> &gt; <span>${cityData.city}</span></nav>
-    <h1 style="font-size:30px;font-weight:800;color:#064e3b;margin-bottom:10px;">${escapeHtml(cityData.h1)}</h1>
-    <p style="font-size:16px;color:#047857;margin-bottom:20px;">${escapeHtml(cityData.tagline)}</p>
-    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px;margin-bottom:24px;">
-      <h2 style="font-size:18px;color:#166534;margin-top:0;">${cityData.city} Real Estate Snapshot</h2>
-      <p><strong>Price Range:</strong> ${cityData.priceRange} | <strong>Land Rates:</strong> ${cityData.landPriceRange} | <strong>Average Flat Rate:</strong> ${cityData.avgFlatRate}</p>
-      <p><strong>Top Localities:</strong> ${cityData.popularLocalities.join(', ')}</p>
-      <p><strong>Legal Framework:</strong> ${escapeHtml(cityData.legalNotes)}</p>
-    </div>
-    <div style="font-size:15px;line-height:1.7;margin-bottom:30px;">
-      <p>${escapeHtml(cityData.description)}</p>
-    </div>
-    <section style="margin-top:30px;">
-      <h2 style="font-size:22px;color:#064e3b;">Frequently Asked Questions about ${cityData.city} Property</h2>
-      ${(cityData.faqs || []).map(f => `<div style="margin-bottom:16px;"><h3 style="font-size:16px;color:#166534;margin-bottom:4px;">${escapeHtml(f.q)}</h3><p style="font-size:14px;color:#475569;">${escapeHtml(f.a)}</p></div>`).join('')}
-    </section>
-  </main>
-</div>`;
-      html = html.replace(/<div id="root"><\/div>/i, preRendered);
-      return res.send(html);
-    }
-  }
-
-  // 3c. Guides Hub Page (/guides)
-  if (urlPath === '/guides') {
+  // 4. Guides Hub Page (/guides)
+  if (normalizedPath === '/guides' || pageParam === 'guides') {
     const canonicalUrl = `${DOMAIN}/guides`;
-    const title = 'Uttarakhand Real Estate Guides, Land Laws & Buying Rules | Uttarakhand Gateways';
-    const description = 'Comprehensive legal guides for buying, renting, and investing in Uttarakhand real estate. Understand Section 154 land ceiling, Section 143 conversion, Nali to sq.ft, and RERA verification.';
-
-    html = html.replace(/<title>.*?<\/title>/i, `<title>${title}<\/title>`);
-    html = html.replace(/<meta name="description".*?>/i, `<meta name="description" content="${description}" />`);
-    html = html.replace(/<link rel="canonical".*?>/i, `<link rel="canonical" href="${canonicalUrl}" />`);
-    html = html.replace(/<meta property="og:title".*?>/i, `<meta property="og:title" content="${title}" />`);
-    html = html.replace(/<meta property="og:description".*?>/i, `<meta property="og:description" content="${description}" />`);
-    html = html.replace(/<meta property="og:url".*?>/i, `<meta property="og:url" content="${canonicalUrl}" />`);
-
     const schemaObj = {
       '@context': 'https://schema.org',
       '@type': 'BreadcrumbList',
-      'itemListElement': [
-        { '@type': 'ListItem', 'position': 1, 'name': 'Home', 'item': `${DOMAIN}/` },
-        { '@type': 'ListItem', 'position': 2, 'name': 'Uttarakhand Real Estate Guides', 'item': canonicalUrl }
-      ]
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: `${DOMAIN}/` },
+        { '@type': 'ListItem', position: 2, name: 'Uttarakhand Real Estate Guides', item: canonicalUrl },
+      ],
     };
-    html = html.replace('</head>', `<script type="application/ld+json" id="ssr-guides-schema">${JSON.stringify(schemaObj)}<\/script>\n</head>`);
+    applyHeadMeta({
+      title: 'Uttarakhand Real Estate Guides, Land Laws & Buying Rules | Uttarakhand Gateways',
+      description: 'Practical guides for buying, renting, and investing in Uttarakhand real estate. Explore Section 154 land rules, Section 143 conversion, Nali to sq.ft, and document checklists.',
+      canonicalUrl,
+      schemaId: 'ssr-guides-schema',
+      schemaObj,
+    });
 
     const preRendered = `
 <div id="root">
   <main style="max-width:1000px;margin:40px auto;padding:20px;font-family:sans-serif;color:#1e293b;">
-    <h1 style="font-size:32px;font-weight:800;color:#064e3b;margin-bottom:12px;">Uttarakhand Real Estate Knowledge & Legal Hub</h1>
-    <p style="font-size:16px;color:#475569;margin-bottom:30px;">Essential legal rules, land law explanations, and verification checklists for property buyers, sellers, and investors in Uttarakhand.</p>
+    <h1 style="font-size:32px;font-weight:800;color:#064e3b;margin-bottom:12px;">Uttarakhand Real Estate Knowledge &amp; Buying Guides</h1>
+    <p style="font-size:16px;color:#475569;margin-bottom:30px;">In-depth buyer checklists, land-law overviews, and city investment insights for Uttarakhand.</p>
     <div style="display:grid;gap:20px;">
-      ${REAL_ESTATE_GUIDES.map(g => `
+      ${REAL_ESTATE_GUIDES.map((g) => `
         <div style="border:1px solid #e2e8f0;border-radius:12px;padding:20px;background:#f8fafc;">
-          <h2 style="font-size:20px;margin:0 0 8px 0;"><a href="/guides/${g.slug}" style="color:#047857;text-decoration:none;">${escapeHtml(g.titleEn)}</a></h2>
-          <p style="font-size:14px;color:#64748b;margin:0 0 10px 0;">${g.readTime} • ${g.category}</p>
+          <h2 style="font-size:20px;margin:0 0 8px 0;"><a href="/guides/${escapeHtml(g.slug)}" style="color:#047857;text-decoration:none;">${escapeHtml(g.titleEn)}</a></h2>
+          <p style="font-size:14px;color:#64748b;margin:0 0 10px 0;">${escapeHtml(g.readTime)} • ${escapeHtml(g.category)}</p>
           <p style="font-size:15px;color:#334155;margin:0 0 12px 0;">${escapeHtml(g.summaryEn)}</p>
-          <a href="/guides/${g.slug}" style="color:#059669;font-weight:bold;text-decoration:none;">Read Complete Guide &rarr;</a>
+          <a href="/guides/${escapeHtml(g.slug)}" style="color:#059669;font-weight:bold;text-decoration:none;">Read Complete Guide &rarr;</a>
         </div>
       `).join('')}
     </div>
@@ -2346,112 +2491,210 @@ async function handleSeoPageRender(req: express.Request, res: express.Response, 
     return res.send(html);
   }
 
-  // 3d. Single Guide Article Page (/guides/:slug)
-  if (urlPath.startsWith('/guides/')) {
-    const slug = urlPath.replace('/guides/', '').trim();
-    const guide = REAL_ESTATE_GUIDES.find(g => g.slug === slug);
-    if (guide) {
-      const canonicalUrl = `${DOMAIN}/guides/${guide.slug}`;
-      const title = `${guide.metaTitle} | Uttarakhand Gateways`;
-      const description = guide.metaDescription;
+  // 5. Single Guide Article Page (/guides/:slug)
+  if (normalizedPath.startsWith('/guides/')) {
+    const slug = normalizedPath.replace('/guides/', '').trim();
+    const guide = REAL_ESTATE_GUIDES.find((g) => g.slug === slug);
+    if (!guide) {
+      return renderNotFound('Guide Not Found (404)', 'The requested Uttarakhand real estate guide was not found.');
+    }
 
-      html = html.replace(/<title>.*?<\/title>/i, `<title>${escapeHtml(title)}<\/title>`);
-      html = html.replace(/<meta name="description".*?>/i, `<meta name="description" content="${escapeHtml(description)}" />`);
-      html = html.replace(/<link rel="canonical".*?>/i, `<link rel="canonical" href="${canonicalUrl}" />`);
-      html = html.replace(/<meta property="og:title".*?>/i, `<meta property="og:title" content="${escapeHtml(title)}" />`);
-      html = html.replace(/<meta property="og:description".*?>/i, `<meta property="og:description" content="${escapeHtml(description)}" />`);
-      html = html.replace(/<meta property="og:url".*?>/i, `<meta property="og:url" content="${canonicalUrl}" />`);
-
-      const schemaObj = {
-        '@context': 'https://schema.org',
-        '@graph': [
-          {
-            '@type': 'BreadcrumbList',
-            'itemListElement': [
-              { '@type': 'ListItem', 'position': 1, 'name': 'Home', 'item': `${DOMAIN}/` },
-              { '@type': 'ListItem', 'position': 2, 'name': 'Guides & Laws', 'item': `${DOMAIN}/guides` },
-              { '@type': 'ListItem', 'position': 3, 'name': guide.titleEn, 'item': canonicalUrl }
-            ]
+    const canonicalUrl = `${DOMAIN}/guides/${guide.slug}`;
+    const authorName = guide.authorName || 'Uttarakhand Gateways Research Desk';
+    const schemaObj = {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: `${DOMAIN}/` },
+            { '@type': 'ListItem', position: 2, name: 'Guides & Laws', item: `${DOMAIN}/guides` },
+            { '@type': 'ListItem', position: 3, name: guide.titleEn, item: canonicalUrl },
+          ],
+        },
+        {
+          '@type': 'Article',
+          '@id': `${canonicalUrl}#article`,
+          headline: guide.titleEn,
+          description: guide.summaryEn,
+          url: canonicalUrl,
+          inLanguage: 'en-IN',
+          author: { '@type': 'Person', name: authorName },
+          publisher: {
+            '@type': 'Organization',
+            name: 'Uttarakhand Gateways',
+            logo: { '@type': 'ImageObject', url: `${DOMAIN}/logo.png` },
           },
-          {
-            '@type': 'Article',
-            '@id': `${canonicalUrl}#article`,
-            'headline': guide.titleEn,
-            'description': guide.summaryEn,
-            'url': canonicalUrl,
-            'inLanguage': 'en-IN',
-            'author': {
-              '@type': 'Organization',
-              'name': 'Uttarakhand Gateways Legal Desk',
-              'url': DOMAIN
-            },
-            'publisher': {
-              '@type': 'Organization',
-              'name': 'Uttarakhand Gateways',
-              'logo': {
-                '@type': 'ImageObject',
-                'url': `${DOMAIN}/logo.png`
-              }
-            },
-            'datePublished': '2026-01-15T08:00:00+05:30',
-            'dateModified': '2026-03-01T10:00:00+05:30'
-          }
-        ]
-      };
-      html = html.replace('</head>', `<script type="application/ld+json" id="ssr-article-schema">${JSON.stringify(schemaObj)}<\/script>\n</head>`);
+          datePublished: guide.publishedDate || '2026-02-01',
+          dateModified: guide.updatedDate || '2026-11-01',
+        },
+      ],
+    };
 
-      const preRendered = `
+    applyHeadMeta({
+      title: `${guide.metaTitle} | Uttarakhand Gateways`,
+      description: guide.metaDescription,
+      keywords: `${guide.titleEn}, ${guide.category}, uttarakhand real estate`,
+      canonicalUrl,
+      schemaId: 'ssr-article-schema',
+      schemaObj,
+    });
+
+    const preRendered = `
 <div id="root">
   <article style="max-width:900px;margin:40px auto;padding:24px;font-family:sans-serif;color:#1e293b;line-height:1.7;">
     <nav style="font-size:12px;margin-bottom:16px;"><a href="/">Home</a> &gt; <a href="/guides">Real Estate Guides</a> &gt; <span>${escapeHtml(guide.titleEn)}</span></nav>
     <h1 style="font-size:32px;font-weight:800;color:#064e3b;margin-bottom:10px;">${escapeHtml(guide.titleEn)}</h1>
-    <div style="font-size:14px;color:#64748b;margin-bottom:24px;">${guide.category} • ${guide.readTime} • Verified by UKG Legal Desk</div>
+    <div style="font-size:14px;color:#64748b;margin-bottom:24px;">${escapeHtml(guide.category)} • ${escapeHtml(guide.readTime)} • By ${escapeHtml(authorName)}</div>
     <p style="font-size:17px;font-weight:600;color:#047857;margin-bottom:28px;">${escapeHtml(guide.summaryEn)}</p>
-    ${guide.sections.map(s => `
+    ${guide.sections.map((s) => `
       <section style="margin-bottom:28px;">
         <h2 style="font-size:22px;color:#064e3b;margin-bottom:8px;">${escapeHtml(s.headingEn)}</h2>
         <p style="font-size:15px;color:#334155;">${escapeHtml(s.contentEn)}</p>
       </section>
     `).join('')}
-    <div style="margin-top:40px;padding:20px;background:#f0fdf4;border-radius:12px;border:1px solid #bbf7d0;">
-      <h3 style="margin-top:0;color:#166534;">Looking to buy property in Uttarakhand?</h3>
-      <p style="margin-bottom:12px;">Discover 1,000+ verified residential plots, apartments, and cottages with 0% brokerage.</p>
-      <a href="/buy" style="display:inline-block;padding:10px 20px;background:#059669;color:#fff;border-radius:24px;text-decoration:none;font-weight:bold;">Explore Verified Listings</a>
+    <div style="margin-top:32px;padding:16px;background:#fffbeb;border-radius:10px;border:1px solid #fde68a;font-size:13px;color:#78350f;">
+      Informational Resource Only: Consult a licensed Uttarakhand advocate and inspect official Bhulekh / Sub-Registrar / UK-RERA records before completing any property transaction.
     </div>
   </article>
 </div>`;
-      html = html.replace(/<div id="root"><\/div>/i, preRendered);
-      return res.send(html);
-    }
+    html = html.replace(/<div id="root"><\/div>/i, preRendered);
+    return res.send(html);
   }
 
+  // 6. City & Programmatic Landing Pages (/properties-in-:loc, /flats-for-sale-in-:loc, etc.)
+  const isCityQuery = pageParam === 'city' && typeof req.query.city === 'string';
+  const programmaticTargetPath = isCityQuery
+    ? `/properties-in-${getCitySlug(String(req.query.city))}`
+    : normalizedPath;
+
+  const allPropsForSsr = await db.getAllProperties().catch(() => []);
+  const progRoute = resolveProgrammaticSeoRoute(programmaticTargetPath, allPropsForSsr);
+  if (progRoute) {
+    const canonicalUrl = `${DOMAIN}${progRoute.canonicalPath}`;
+    const citySnapshot = getCityMarketData(progRoute.location.slug, allPropsForSsr);
+    const schemaObj = {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': 'CollectionPage',
+          '@id': `${canonicalUrl}#collection`,
+          name: progRoute.h1,
+          description: progRoute.description,
+          url: canonicalUrl,
+          isPartOf: { '@id': `${DOMAIN}/#website` },
+        },
+        {
+          '@type': 'BreadcrumbList',
+          itemListElement: progRoute.breadcrumbs.map((b, i) => ({
+            '@type': 'ListItem',
+            position: i + 1,
+            name: b.label,
+            item: `${DOMAIN}${b.path}`,
+          })),
+        },
+        ...(progRoute.matchedProperties.length > 0
+          ? [
+              {
+                '@type': 'ItemList',
+                numberOfItems: progRoute.matchedProperties.length,
+                itemListElement: progRoute.matchedProperties.slice(0, 12).map((p, idx) => ({
+                  '@type': 'ListItem',
+                  position: idx + 1,
+                  name: p.title,
+                  url: `${DOMAIN}${getPropertySlugPath(p)}`,
+                })),
+              },
+            ]
+          : []),
+        {
+          '@type': 'FAQPage',
+          mainEntity: progRoute.faqs.map((f) => ({
+            '@type': 'Question',
+            name: f.q,
+            acceptedAnswer: { '@type': 'Answer', text: f.a },
+          })),
+        },
+      ],
+    };
+
+    applyHeadMeta({
+      title: progRoute.title,
+      description: progRoute.description,
+      keywords: progRoute.keywords,
+      canonicalUrl,
+      robots: progRoute.robotsMeta,
+      schemaId: 'ssr-programmatic-schema',
+      schemaObj,
+    });
+
+    const listingsToShow = (progRoute.matchedProperties.length > 0 ? progRoute.matchedProperties : progRoute.fallbackProperties).slice(0, 18);
+    const preRendered = `
+<div id="root">
+  <main style="max-width:1100px;margin:40px auto;padding:20px;font-family:sans-serif;color:#1e293b;">
+    <nav style="font-size:12px;margin-bottom:16px;">${progRoute.breadcrumbs.map((b, idx) => idx === progRoute.breadcrumbs.length - 1 ? `<span>${escapeHtml(b.label)}</span>` : `<a href="${escapeHtml(b.path)}">${escapeHtml(b.label)}</a> &gt; `).join('')}</nav>
+    <h1 style="font-size:30px;font-weight:800;color:#064e3b;margin-bottom:10px;">${escapeHtml(progRoute.h1)}</h1>
+    <p style="font-size:16px;color:#334155;line-height:1.65;margin-bottom:18px;">${escapeHtml(progRoute.introParagraph)}</p>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px;margin-bottom:24px;">
+      <p style="margin:0 0 6px 0;"><strong>Active Listings Matched:</strong> ${progRoute.activeCount} | <strong>Observed Price Range:</strong> ${escapeHtml(progRoute.priceRangeDisplay)}</p>
+      <p style="margin:0;"><strong>Popular Localities:</strong> ${escapeHtml(progRoute.location.popularLocalities.join(', '))}</p>
+      ${citySnapshot ? `<p style="margin:6px 0 0 0;"><strong>Elevation:</strong> ${escapeHtml(citySnapshot.elevation)} | <strong>Legal Note:</strong> ${escapeHtml(citySnapshot.legalNotes)}</p>` : ''}
+    </div>
+    ${listingsToShow.length > 0 ? `<section style="margin-bottom:28px;"><h2 style="font-size:22px;color:#064e3b;">Available ${escapeHtml(progRoute.location.name)} Listings</h2><ul>${listingsToShow.map((p) => `<li><a href="${escapeHtml(getPropertySlugPath(p))}">${escapeHtml(p.title)}</a> — ${escapeHtml(p.location || p.city)} (${escapeHtml(p.priceDisplay || `₹${Number(p.price || 0).toLocaleString('en-IN')}`)})</li>`).join('')}</ul></section>` : ''}
+    <section style="margin-bottom:24px;"><h2 style="font-size:20px;color:#064e3b;">Explore Related Categories &amp; Nearby Locations</h2><p>${[...progRoute.relatedCategoryLinks, ...progRoute.relatedLocationLinks].slice(0, 10).map((l) => `<a href="${escapeHtml(l.path)}" style="margin-right:12px;">${escapeHtml(l.label)}</a>`).join('')}</p></section>
+    <section><h2 style="font-size:20px;color:#064e3b;">Frequently Asked Questions</h2>${progRoute.faqs.map((f) => `<div style="margin-bottom:14px;"><h3 style="font-size:16px;color:#166534;margin:0 0 4px 0;">${escapeHtml(f.q)}</h3><p style="font-size:14px;color:#475569;margin:0;">${escapeHtml(f.a)}</p></div>`).join('')}</section>
+  </main>
+</div>`;
+    html = html.replace(/<div id="root"><\/div>/i, preRendered);
+    return res.send(html);
+  }
+
+  // Helper for standard route metadata
   const applyRouteSeoMeta = (pageKey: AppPageRouteKey, noindex = false) => {
     const seo = getPageSeoMeta(pageKey);
     const canonicalUrl = `${DOMAIN}${seo.canonicalPath}`;
-    html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(seo.title)}</title>`);
-    if (/<meta\s+name="description"[\s\S]*?>/i.test(html)) {
-      html = html.replace(/<meta\s+name="description"[\s\S]*?>/i, `<meta name="description" content="${escapeHtml(seo.description)}" />`);
-    } else {
-      html = html.replace('</head>', `  <meta name="description" content="${escapeHtml(seo.description)}" />\n</head>`);
-    }
-    if (/<meta\s+name="keywords"[\s\S]*?>/i.test(html)) {
-      html = html.replace(/<meta\s+name="keywords"[\s\S]*?>/i, `<meta name="keywords" content="${escapeHtml(seo.keywords)}" />`);
-    } else {
-      html = html.replace('</head>', `  <meta name="keywords" content="${escapeHtml(seo.keywords)}" />\n</head>`);
-    }
-    html = html.replace(/<meta\s+property="og:title"[\s\S]*?>/i, `<meta property="og:title" content="${escapeHtml(seo.title)}" />`);
-    html = html.replace(/<meta\s+property="og:description"[\s\S]*?>/i, `<meta property="og:description" content="${escapeHtml(seo.description)}" />`);
-    html = html.replace(/<meta\s+property="og:url"[\s\S]*?>/i, `<meta property="og:url" content="${canonicalUrl}" />`);
-    html = html.replace(/<link\s+rel="canonical"[\s\S]*?>/i, `<link rel="canonical" href="${canonicalUrl}" />`);
-    if (noindex) {
-      html = html.replace(/<meta\s+name="robots"[\s\S]*?>/i, `<meta name="robots" content="noindex, nofollow" />`);
-    }
+    applyHeadMeta({
+      title: seo.title,
+      description: seo.description,
+      keywords: seo.keywords,
+      canonicalUrl,
+      robots: noindex ? 'noindex, nofollow' : 'index, follow',
+    });
   };
 
-  const normalizedPath = urlPath.replace(/\/+$/, '') || '/';
-  const pageParam = String(req.query.page || '').toLowerCase();
+  // 7. Trust & Policy Pages (/about, /contact, /privacy, /terms, /listing-guidelines)
+  const trustRouteMap: Record<string, AppPageRouteKey> = {
+    '/about': 'about',
+    '/contact': 'contact',
+    '/privacy': 'privacy',
+    '/terms': 'terms',
+    '/listing-guidelines': 'listing-guidelines',
+  };
+  const trustKey = trustRouteMap[normalizedPath] || (trustRouteMap[`/${pageParam}`]);
+  if (trustKey) {
+    const seo = getPageSeoMeta(trustKey);
+    applyHeadMeta({
+      title: seo.title,
+      description: seo.description,
+      keywords: seo.keywords,
+      canonicalUrl: `${DOMAIN}${seo.canonicalPath}`,
+      schemaId: 'ssr-trust-schema',
+      schemaObj: {
+        '@context': 'https://schema.org',
+        '@type': 'WebPage',
+        name: seo.title,
+        description: seo.description,
+        url: `${DOMAIN}${seo.canonicalPath}`,
+      },
+    });
+    html = html.replace(
+      /<div id="root"><\/div>/i,
+      `<div id="root"><main style="max-width:900px;margin:40px auto;padding:24px;font-family:sans-serif;color:#1e293b;"><h1>${escapeHtml(seo.title.replace(' | Uttarakhand Gateways', ''))}</h1><p>${escapeHtml(seo.description)}</p><p><a href="/">Home</a> | <a href="/buy">Buy</a> | <a href="/rent">Rent</a> | <a href="/guides">Guides</a></p></main></div>`
+    );
+    return res.send(html);
+  }
 
-  // 4. List & Listing GUI Pages (/list, /list/buy, /list/sell, /list/rent)
+  // 8. Core Marketplace Routes (/list, /list/buy, /list/rent, /buy, /rent, /home-loan)
   if (normalizedPath === '/list' || pageParam === 'list') {
     applyRouteSeoMeta('list');
     return res.send(html);
@@ -2464,32 +2707,36 @@ async function handleSeoPageRender(req: express.Request, res: express.Response, 
     applyRouteSeoMeta('rent-gui');
     return res.send(html);
   }
-
-  // 5. Buy Page (/buy, /lbuy, /buy-property)
   if (normalizedPath === '/buy' || normalizedPath === '/lbuy' || normalizedPath === '/buy-property' || pageParam === 'buy') {
     applyRouteSeoMeta('buy');
+    const buyProps = allPropsForSsr.filter((p) => !p.isDeleted && p.status !== 'deleted' && p.purpose !== 'rent').slice(0, 15);
+    html = html.replace(
+      /<div id="root"><\/div>/i,
+      `<div id="root"><main style="max-width:1100px;margin:40px auto;padding:20px;font-family:sans-serif;color:#1e293b;"><h1>Buy Properties in Uttarakhand</h1><p>Explore verified flats, plots, land, houses, villas, and commercial properties across Dehradun, Rishikesh, Haridwar, Nainital, Mussoorie, and Haldwani.</p><ul>${buyProps.map((p) => `<li><a href="${escapeHtml(getPropertySlugPath(p))}">${escapeHtml(p.title)}</a> — ${escapeHtml(p.city)}</li>`).join('')}</ul></main></div>`
+    );
     return res.send(html);
   }
-
-  // 6. Rent Page (/rent, /rent-property)
   if (normalizedPath === '/rent' || normalizedPath === '/rent-property' || ['rent', 'rent-property'].includes(pageParam)) {
     applyRouteSeoMeta('rent');
+    const rentProps = allPropsForSsr.filter((p) => !p.isDeleted && p.status !== 'deleted' && (p.purpose === 'rent' || p.type === 'Rent/Lease')).slice(0, 15);
+    html = html.replace(
+      /<div id="root"><\/div>/i,
+      `<div id="root"><main style="max-width:1100px;margin:40px auto;padding:20px;font-family:sans-serif;color:#1e293b;"><h1>Rental Properties, Flats &amp; PG in Uttarakhand</h1><p>Browse direct owner flats, houses, rooms, homestays, and commercial rentals across Uttarakhand.</p><ul>${rentProps.map((p) => `<li><a href="${escapeHtml(getPropertySlugPath(p))}">${escapeHtml(p.title)}</a> — ${escapeHtml(p.city)}</li>`).join('')}</ul></main></div>`
+    );
     return res.send(html);
   }
-
-  // 7. Home Loan Page
   if (normalizedPath === '/home-loan' || normalizedPath === '/emi-calculator' || normalizedPath === '/homeloan' || ['home-loan', 'emi-calculator'].includes(pageParam)) {
     applyRouteSeoMeta('home-loan');
     return res.send(html);
   }
 
-  // 8. Account / Auth / Private Pages
+  // 9. Auth & Private Routes (explicitly noindex, nofollow)
   if (normalizedPath === '/login' || normalizedPath === '/reset-password' || ['login', 'reset-password', 'forgot-password'].includes(pageParam)) {
-    applyRouteSeoMeta('login');
+    applyRouteSeoMeta('login', true);
     return res.send(html);
   }
   if (normalizedPath === '/register' || pageParam === 'register') {
-    applyRouteSeoMeta('register');
+    applyRouteSeoMeta('register', true);
     return res.send(html);
   }
   if (normalizedPath === '/inbox' || pageParam === 'inbox') {
@@ -2501,9 +2748,19 @@ async function handleSeoPageRender(req: express.Request, res: express.Response, 
     return res.send(html);
   }
 
-  // Default Home Route SEO
-  applyRouteSeoMeta('home');
-  return res.send(html);
+  // 10. Home Route (with crawlable category, city & featured listing links for bots)
+  if (normalizedPath === '/') {
+    applyRouteSeoMeta('home');
+    const topHomeProps = allPropsForSsr.filter((p) => p && !p.isDeleted && p.status !== 'deleted' && !p.isSold).slice(0, 12);
+    html = html.replace(
+      /<div id="root"><\/div>/i,
+      `<div id="root"><main style="max-width:1100px;margin:40px auto;padding:20px;font-family:sans-serif;color:#1e293b;"><h1>Uttarakhand Gateways — Verified Real Estate Marketplace Across Uttarakhand</h1><p>Buy, sell, or rent verified properties across Dehradun, Rishikesh, Haridwar, Nainital, Mussoorie, Haldwani, Almora, Bhimtal, Mukteshwar, and Roorkee/Kotdwar corridors with 0% brokerage.</p><nav><a href="/buy">Buy Properties</a> | <a href="/rent">Rent Properties</a> | <a href="/list">Post Property</a> | <a href="/properties-in-dehradun">Properties in Dehradun</a> | <a href="/properties-in-rishikesh">Properties in Rishikesh</a> | <a href="/properties-in-haridwar">Properties in Haridwar</a> | <a href="/properties-in-nainital">Properties in Nainital</a> | <a href="/guides">Uttarakhand Property Guides</a></nav><ul>${topHomeProps.map((p) => `<li><a href="${escapeHtml(getPropertySlugPath(p))}">${escapeHtml(p.title)}</a> — ${escapeHtml(p.city)}</li>`).join('')}</ul></main></div>`
+    );
+    return res.send(html);
+  }
+
+  // 11. Unrecognized path -> Genuine HTTP 404 (noindex, nofollow)
+  return renderNotFound();
 }
 
 async function startServer() {

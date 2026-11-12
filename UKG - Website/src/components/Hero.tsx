@@ -64,7 +64,7 @@ export const Hero: React.FC<HeroProps> = ({
           </h2>
           <p className="text-xs sm:text-sm text-[#495A50] dark:text-[#C7D3CC] max-w-xl mx-auto font-normal">
             {isHindi 
-              ? '0% ब्रोकरेज के साथ सीधे संपत्ति मालिकों और सत्यापित बिल्डरों से आवासीय प्लॉट, फ्लैट और विला खोजें।' 
+              ? '0% ब्रोकरेज के साथ सीधे संपत्ति मालिकों और सत्यापित ब्रोकरों से आवासीय प्लॉट, फ्लैट और विला खोजें।' 
               : 'Discover verified residential plots, luxury flats, and villas directly with 0% brokerage.'
             }
           </p>
@@ -73,29 +73,48 @@ export const Hero: React.FC<HeroProps> = ({
         {/* CTA Buttons Sequence: Buy, Rent, Post Ad (with FREE mark) */}
         <div className="flex flex-row items-center justify-center gap-2.5 sm:gap-3 w-full max-w-md mb-5 sm:mb-6 relative z-30">
           {/* 1. Buy */}
-          <button
+          <a
             id="hero-buy-btn"
-            onClick={onBuyClick || onExploreClick || onContactClick}
+            href="/buy"
+            onClick={(e) => {
+              if (!e.ctrlKey && !e.metaKey && e.button === 0) {
+                e.preventDefault();
+                const action = onBuyClick || onExploreClick || onContactClick;
+                if (action) action();
+              }
+            }}
             className="flex-1 px-4 sm:px-6 py-3 sm:py-3.5 rounded-full bg-gradient-to-r from-[#0E3A2B] via-[#134232] to-[#0C3628] hover:from-[#0C3628] hover:to-[#032D1F] text-[#F4F3EF] font-extrabold text-sm sm:text-base shadow-lg shadow-[#032D1F]/30 border border-[#AA8F7C]/40 hover:scale-[1.03] active:scale-95 transition-all duration-300 cursor-pointer flex items-center justify-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-[#AA8F7C] whitespace-nowrap"
           >
             <span>{isHindi ? 'खरीदें' : 'Buy'}</span>
             <span className="hidden md:inline">{isHindi ? ' प्रॉपर्टी' : ' Property'}</span>
-          </button>
+          </a>
 
           {/* 2. Rent */}
-          <button
+          <a
             id="hero-rent-btn"
-            onClick={onRentClick}
+            href="/rent"
+            onClick={(e) => {
+              if (!e.ctrlKey && !e.metaKey && e.button === 0 && onRentClick) {
+                e.preventDefault();
+                onRentClick();
+              }
+            }}
             className="flex-1 px-4 sm:px-6 py-3 sm:py-3.5 rounded-full bg-gradient-to-r from-[#32463D] via-[#2A382B] to-[#1D2C22] hover:from-[#2A382B] hover:to-[#122018] text-[#F4F3EF] font-extrabold text-sm sm:text-base border border-[#AA8F7C]/35 hover:border-[#C2A691]/60 shadow-md hover:scale-[1.02] active:scale-95 transition-all duration-300 cursor-pointer flex items-center justify-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-[#AA8F7C] whitespace-nowrap"
           >
             <span>{isHindi ? 'किराया' : 'Rent'}</span>
             <span className="hidden md:inline">{isHindi ? ' प्रॉपर्टी' : ' Property'}</span>
-          </button>
+          </a>
 
           {/* 3. Post Ad (with small FREE mark) */}
-          <button
+          <a
             id="hero-post-ad-btn"
-            onClick={onSellClick}
+            href="/list"
+            onClick={(e) => {
+              if (!e.ctrlKey && !e.metaKey && e.button === 0 && onSellClick) {
+                e.preventDefault();
+                onSellClick();
+              }
+            }}
             className="flex-1 px-4 sm:px-6 py-3 sm:py-3.5 rounded-full font-extrabold text-sm sm:text-base border shadow-md backdrop-blur-md hover:scale-[1.02] active:scale-95 transition-all duration-300 cursor-pointer flex items-center justify-center gap-1.5 focus:outline-none focus:ring-2 bg-[#F4F4F1]/95 dark:bg-[#0C3628] hover:bg-white dark:hover:bg-[#134433] text-[#0E3A2B] dark:text-[#F4F3EF] border-[#CDD6D0] dark:border-[#AA8F7C]/40 hover:border-[#AA8F7C] focus:ring-[#AA8F7C] whitespace-nowrap"
             title={isHindi ? 'मुफ्त विज्ञापन पोस्ट करें / प्रॉपर्टी लिस्ट करें' : 'Post Ad / List Property (Free)'}
           >
@@ -104,7 +123,7 @@ export const Hero: React.FC<HeroProps> = ({
             <span className="bg-[#C2A691] text-[#032D1F] text-[10px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
               FREE
             </span>
-          </button>
+          </a>
         </div>
 
         {/* Small Menu (Locations & Property Type dropboxes) & Search Bar below */}

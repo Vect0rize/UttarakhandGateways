@@ -24,6 +24,7 @@ interface GuidesHubPageProps {
   onBackToMain: () => void;
   onNavigatePage?: (page: string) => void;
   onNavigateCity?: (city: string) => void;
+  onNavigatePath?: (path: string) => void;
   onOpenUnitConverter?: () => void;
   initialGuideSlug?: string;
 }
@@ -32,12 +33,27 @@ export const GuidesHubPage: React.FC<GuidesHubPageProps> = ({
   onBackToMain,
   onNavigatePage,
   onNavigateCity,
+  onNavigatePath,
   onOpenUnitConverter,
   initialGuideSlug,
 }) => {
   const { isHindi } = useLanguage();
   const [selectedSlug, setSelectedSlug] = useState<string | null>(initialGuideSlug || null);
   const [activeCategory, setActiveCategory] = useState<string>('All');
+
+  useEffect(() => {
+    setSelectedSlug(initialGuideSlug || null);
+  }, [initialGuideSlug]);
+
+  const openGuide = (slug: string | null) => {
+    setSelectedSlug(slug);
+    if (typeof window !== 'undefined') {
+      const targetUrl = slug ? `/guides/${slug}` : '/guides';
+      if (window.location.pathname !== targetUrl) {
+        window.history.pushState({}, '', targetUrl);
+      }
+    }
+  };
 
   const selectedGuide: RealEstateGuide | undefined = REAL_ESTATE_GUIDES.find(
     (g) => g.slug === selectedSlug
@@ -131,7 +147,7 @@ export const GuidesHubPage: React.FC<GuidesHubPageProps> = ({
             <button
               onClick={() => {
                 if (selectedSlug) {
-                  setSelectedSlug(null);
+                  openGuide(null);
                 } else {
                   onBackToMain();
                 }
@@ -148,7 +164,7 @@ export const GuidesHubPage: React.FC<GuidesHubPageProps> = ({
                 <span>Home</span>
               </a>
               <span>&gt;</span>
-              <a href="/guides" onClick={(e) => { e.preventDefault(); setSelectedSlug(null); }} className="hover:underline">
+              <a href="/guides" onClick={(e) => { e.preventDefault(); openGuide(null); }} className="hover:underline">
                 Guides & Land Laws
               </a>
               {selectedGuide && (
@@ -171,7 +187,7 @@ export const GuidesHubPage: React.FC<GuidesHubPageProps> = ({
           <article className="bg-white dark:bg-[#071f17] rounded-3xl p-6 sm:p-10 border border-emerald-200 dark:border-emerald-800/80 shadow-md space-y-6">
             
             <div className="space-y-3 pb-6 border-b border-emerald-100 dark:border-emerald-800/60">
-              <div className="flex items-center gap-2 text-xs font-bold">
+              <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
                 <span className="px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/90 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                   {selectedGuide.category}
                 </span>
@@ -180,6 +196,18 @@ export const GuidesHubPage: React.FC<GuidesHubPageProps> = ({
                   <Clock className="w-3.5 h-3.5" />
                   <span>{selectedGuide.readTime}</span>
                 </span>
+                <span className="text-slate-400">•</span>
+                <span className="text-slate-600 dark:text-emerald-200/80">
+                  By {selectedGuide.authorName || 'Uttarakhand Gateways Research Desk'}
+                </span>
+                {selectedGuide.updatedDate && (
+                  <>
+                    <span className="text-slate-400">•</span>
+                    <span className="text-slate-500 dark:text-slate-400">
+                      Updated {selectedGuide.updatedDate}
+                    </span>
+                  </>
+                )}
               </div>
 
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold font-serif-luxury text-slate-900 dark:text-white tracking-tight leading-tight">
@@ -206,14 +234,49 @@ export const GuidesHubPage: React.FC<GuidesHubPageProps> = ({
             </div>
 
             {/* Quick Action Footer inside Guide */}
+            {/* Contextual Related Locations & Property Links */}
+            {selectedGuide.relatedLinks && selectedGuide.relatedLinks.length > 0 && (
+              <div className="p-5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/50 border border-emerald-200/80 dark:border-emerald-800/50 space-y-2.5">
+                <div className="text-xs font-extrabold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                  Explore Related Property Markets
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {selectedGuide.relatedLinks.map((lnk) => (
+                    <a
+                      key={lnk.path}
+                      href={lnk.path}
+                      onClick={(e) => {
+                        if (onNavigatePath) {
+                          e.preventDefault();
+                          onNavigatePath(lnk.path);
+                        }
+                      }}
+                      className="px-3.5 py-1.5 rounded-xl bg-white dark:bg-[#071f17] border border-emerald-300 dark:border-emerald-700 text-xs font-bold text-slate-800 dark:text-emerald-100 hover:bg-emerald-600 hover:text-white transition"
+                    >
+                      {lnk.label}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <p className="text-xs text-slate-500 dark:text-slate-400 italic bg-slate-50 dark:bg-[#06241a]/40 p-3.5 rounded-xl border border-slate-200 dark:border-emerald-900/40">
+              Disclaimer: This guide provides general informational overview and does not constitute formal legal or financial advice. Always verify official Bhulekh Uttarakhand / Tehsil records and consult a licensed local advocate before executing property agreements.
+            </p>
+
+            {/* Navigation Footer inside Article */}
             <div className="pt-6 border-t border-emerald-100 dark:border-emerald-800/60 flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setSelectedSlug(null)}
+                <a
+                  href="/guides"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    openGuide(null);
+                  }}
                   className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer"
                 >
                   ← {isHindi ? 'अन्य गाइड्स देखें' : 'Back to All Guides'}
-                </button>
+                </a>
               </div>
 
               <div className="flex items-center gap-2">
@@ -273,10 +336,14 @@ export const GuidesHubPage: React.FC<GuidesHubPageProps> = ({
           {/* Guides Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredGuides.map((guide) => (
-              <article
+              <a
                 key={guide.slug}
-                onClick={() => setSelectedSlug(guide.slug)}
-                className="bg-white dark:bg-[#071f17] rounded-3xl p-6 border border-emerald-200/90 dark:border-emerald-800/80 shadow-xs hover:shadow-xl hover:border-emerald-400 dark:hover:border-emerald-500 transition-all duration-300 flex flex-col justify-between cursor-pointer group"
+                href={`/guides/${guide.slug}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  openGuide(guide.slug);
+                }}
+                className="bg-white dark:bg-[#071f17] rounded-3xl p-6 border border-emerald-200/90 dark:border-emerald-800/80 shadow-xs hover:shadow-xl hover:border-emerald-400 dark:hover:border-emerald-500 transition-all duration-300 flex flex-col justify-between cursor-pointer group no-underline"
               >
                 <div className="space-y-3">
                   <div className="flex items-center justify-between text-xs font-bold">
@@ -302,7 +369,7 @@ export const GuidesHubPage: React.FC<GuidesHubPageProps> = ({
                   <span>Read Guide</span>
                   <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </div>
-              </article>
+              </a>
             ))}
           </div>
 
@@ -313,6 +380,7 @@ export const GuidesHubPage: React.FC<GuidesHubPageProps> = ({
       <SeoKeywordsSection
         onNavigatePage={onNavigatePage ? (p: AppPageRouteKey) => onNavigatePage(p) : undefined}
         onNavigateCity={onNavigateCity}
+        onNavigatePath={onNavigatePath}
       />
       <footer className="py-6 border-t border-emerald-200 dark:border-emerald-800 bg-white dark:bg-[#071f17] text-center text-xs text-slate-500">
         <p>© {new Date().getFullYear()} Uttarakhand Gateways. Authentic Mountain Real Estate Legal Insights.</p>

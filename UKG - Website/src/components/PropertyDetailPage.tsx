@@ -53,6 +53,7 @@ import { formatLocalizedPrice } from '../utils/language';
 import { formatPostTime } from '../utils/timeAgo';
 import { LegalPolicyId } from '../data/legalPolicies';
 import { formatPropertyArea, formatPropertyRate, isLandOrPlotProperty } from '../utils/areaUnits';
+import { getCitySlug, getPropertySlugPath } from '../data/programmaticSeo';
 
 interface PropertyDetailPageProps {
   property: Property;
@@ -72,6 +73,7 @@ interface PropertyDetailPageProps {
   onReportListing?: (property: Property) => void;
   onNavigatePage?: (page: AppPageRouteKey) => void;
   onNavigateCity?: (city: string) => void;
+  onNavigatePath?: (path: string) => void;
 }
 
 export const WhatsAppIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
@@ -107,6 +109,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
   onReportListing,
   onNavigatePage,
   onNavigateCity,
+  onNavigatePath,
 }) => {
   // Safe Image & Amenities Guards to guarantee zero runtime crashes
   const safeImages = useMemo(() => {
@@ -187,13 +190,26 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
       descTag.setAttribute('content', metaDescText);
 
       // Dynamic Canonical URL
+      const canonicalSlugPath = getPropertySlugPath(property);
+      const fullCanonicalUrl = `https://uttarakhandgateways.com${canonicalSlugPath}`;
+      const citySlugPath = `/properties-in-${getCitySlug(property.city || 'Uttarakhand')}`;
+
+      const tLower = (property.type || '').toLowerCase();
+      const cLower = (property.category || '').toLowerCase();
+      const listingSchemaType: string | string[] =
+        tLower === 'plot' || tLower === 'land' || cLower === 'commercial' || cLower === 'agricultural'
+          ? 'RealEstateListing'
+          : ['flat', 'apartment', 'studio', 'penthouse', 'duplex'].includes(tLower)
+          ? ['RealEstateListing', 'Apartment']
+          : ['RealEstateListing', 'SingleFamilyResidence'];
+
       let canonicalTag = document.querySelector('link[rel="canonical"]');
       if (!canonicalTag) {
         canonicalTag = document.createElement('link');
         canonicalTag.setAttribute('rel', 'canonical');
         document.head.appendChild(canonicalTag);
       }
-      canonicalTag.setAttribute('href', `https://uttarakhandgateways.com/property/${property.id}`);
+      canonicalTag.setAttribute('href', fullCanonicalUrl);
 
       // Dynamic JSON-LD Structured Data
       const schemaScriptId = `schema-property-${property.id}`;
@@ -220,32 +236,32 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
               {
                 '@type': 'ListItem',
                 'position': 2,
-                'name': `${property.city || 'Uttarakhand'} Properties`,
-                'item': `https://uttarakhandgateways.com/buy?city=${encodeURIComponent(property.city || '')}`
+                'name': `Properties in ${property.city || 'Uttarakhand'}`,
+                'item': `https://uttarakhandgateways.com${citySlugPath}`
               },
               {
                 '@type': 'ListItem',
                 'position': 3,
                 'name': property.title,
-                'item': `https://uttarakhandgateways.com/property/${property.id}`
+                'item': fullCanonicalUrl
               }
             ]
           },
           {
-            '@type': ['RealEstateListing', 'SingleFamilyResidence'],
-            '@id': `https://uttarakhandgateways.com/property/${property.id}#listing`,
+            '@type': listingSchemaType,
+            '@id': `${fullCanonicalUrl}#listing`,
             'name': property.title,
             'description': metaDescText,
-            'url': `https://uttarakhandgateways.com/property/${property.id}`,
+            'url': fullCanonicalUrl,
             'image': safeImages,
             'offers': {
               '@type': 'Offer',
               'price': property.price || 0,
               'priceCurrency': 'INR',
-              'availability': 'https://schema.org/InStock',
+              'availability': isSoldLocal ? 'https://schema.org/SoldOut' : 'https://schema.org/InStock',
               'seller': {
                 '@type': 'Person',
-                'name': property.sellerType === 'Owner' ? 'Direct Verified Owner' : 'Verified Builder'
+                'name': property.sellerType === 'Owner' ? 'Direct Property Owner' : 'Verified Broker'
               }
             },
             'address': {
@@ -284,9 +300,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
   const getPropertyDeepLink = () => {
     if (!property) return window.location.href;
     const origin = window.location.origin;
-    const rawPath = window.location.pathname.startsWith('/?') ? '/' : window.location.pathname;
-    const cleanPath = rawPath === '' ? '/' : rawPath;
-    return `${origin}${cleanPath}?property=${encodeURIComponent(property.id)}`;
+    return `${origin}${getPropertySlugPath(property)}`;
   };
 
   const handleCopyDeepLink = async () => {
@@ -674,6 +688,11 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
               <img
                 src={safeImages[activeImgIdx] || safeImages[0]}
                 alt={`${property.title} - ${property.category || 'Property'} in ${property.location || property.city || 'Uttarakhand'}`}
+                width={900}
+                height={520}
+                loading="eager"
+                fetchPriority="high"
+                decoding="async"
                 className="w-full h-full object-cover cursor-pointer transition-transform duration-700 group-hover:scale-105"
                 onClick={() => setIsLightboxOpen(true)}
               />
@@ -744,7 +763,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
                         : 'border-transparent opacity-75 hover:opacity-100 hover:border-emerald-300'
                     }`}
                   >
-                    <img src={img} alt={`${property.title} - photo thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
+                    <img src={img} alt={`${property.title} - photo thumbnail ${idx + 1}`} width={220} height={140} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                     {idx === 3 && safeImages.length > 4 && (
                       <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-xs font-black">
                         +{safeImages.length - 4} more
@@ -1332,9 +1351,130 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
       />
 
       {/* Uttarakhand Real Estate SEO Keyword Links */}
+      {/* Related Properties & Buyer Verification Notice */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8 space-y-6">
+        <div className="p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 text-xs text-slate-700 dark:text-emerald-100/85 leading-relaxed">
+          <strong>Buyer Due Diligence Notice:</strong> This listing is submitted directly by the stated advertiser ({property.sellerType === 'Owner' ? 'Property Owner' : 'Verified Broker'}). Prospective buyers and tenants must independently verify original title deeds, Bhulekh Uttarakhand Khatauni mutation entries, authority map approvals, and Section 154 land limits prior to token payment.
+        </div>
+
+        {(() => {
+          const related = allProperties
+            .filter((p) => p && p.id !== property.id && !p.isSold)
+            .sort((a, b) => {
+              const aSameCity = a.city === property.city ? 1 : 0;
+              const bSameCity = b.city === property.city ? 1 : 0;
+              const aSamePurpose = a.purpose === property.purpose ? 1 : 0;
+              const bSamePurpose = b.purpose === property.purpose ? 1 : 0;
+              return bSameCity + bSamePurpose - (aSameCity + aSamePurpose);
+            })
+            .slice(0, 3);
+
+          const citySlug = getCitySlug(property.city || 'Uttarakhand');
+          return (
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">
+                  Similar Properties in {property.city || 'Uttarakhand'}
+                </h2>
+                <div className="flex flex-wrap gap-2 text-xs font-bold">
+                  <a
+                    href={`/properties-in-${citySlug}`}
+                    onClick={(e) => {
+                      if (onNavigatePath) {
+                        e.preventDefault();
+                        onNavigatePath(`/properties-in-${citySlug}`);
+                      } else if (onNavigateCity && property.city) {
+                        e.preventDefault();
+                        onNavigateCity(property.city);
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-600 hover:text-white transition"
+                  >
+                    All in {property.city || 'Uttarakhand'}
+                  </a>
+                  <a
+                    href={`/buy-property-in-${citySlug}`}
+                    onClick={(e) => {
+                      if (onNavigatePath) {
+                        e.preventDefault();
+                        onNavigatePath(`/buy-property-in-${citySlug}`);
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-white dark:bg-[#0c241c] text-slate-700 dark:text-emerald-200 border border-slate-200 dark:border-emerald-800 hover:border-emerald-500 transition"
+                  >
+                    Buy in {property.city || 'Uttarakhand'}
+                  </a>
+                  <a
+                    href={`/rental-properties-in-${citySlug}`}
+                    onClick={(e) => {
+                      if (onNavigatePath) {
+                        e.preventDefault();
+                        onNavigatePath(`/rental-properties-in-${citySlug}`);
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-white dark:bg-[#0c241c] text-slate-700 dark:text-emerald-200 border border-slate-200 dark:border-emerald-800 hover:border-emerald-500 transition"
+                  >
+                    Rent in {property.city || 'Uttarakhand'}
+                  </a>
+                </div>
+              </div>
+
+              {related.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  {related.map((rel) => {
+                    const relImg =
+                      Array.isArray(rel.images) && rel.images.length > 0
+                        ? rel.images[0]
+                        : 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80';
+                    const relHref = getPropertySlugPath(rel);
+                    return (
+                      <a
+                        key={rel.id}
+                        href={relHref}
+                        onClick={(e) => {
+                          if (onSelectProperty && !e.ctrlKey && !e.metaKey) {
+                            e.preventDefault();
+                            onSelectProperty(rel);
+                          }
+                        }}
+                        className="group rounded-2xl bg-white dark:bg-[#0c241c] border border-slate-200 dark:border-emerald-800/60 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col"
+                      >
+                        <div className="h-40 overflow-hidden bg-slate-200 dark:bg-emerald-950">
+                          <img
+                            src={relImg}
+                            alt={`${rel.title} - ${rel.type} in ${rel.city}`}
+                            width={400}
+                            height={160}
+                            loading="lazy"
+                            decoding="async"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        </div>
+                        <div className="p-4 space-y-1">
+                          <div className="text-xs font-extrabold text-emerald-700 dark:text-emerald-400">
+                            {formatLocalizedPrice(rel.priceDisplay || '', isHindi ? 'hi' : 'en')}
+                          </div>
+                          <div className="text-sm font-bold text-slate-900 dark:text-white line-clamp-1 group-hover:text-emerald-600 transition">
+                            {rel.title}
+                          </div>
+                          <div className="text-xs text-slate-500 dark:text-emerald-200/75 truncate">
+                            {rel.location || rel.city} • {formatPropertyArea(rel, isHindi)}
+                          </div>
+                        </div>
+                      </a>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+      </section>
+
       <SeoKeywordsSection
         onNavigatePage={onNavigatePage}
         onNavigateCity={onNavigateCity}
+        onNavigatePath={onNavigatePath}
       />
 
     </div>

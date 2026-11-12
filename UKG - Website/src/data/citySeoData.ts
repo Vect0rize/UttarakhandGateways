@@ -1,3 +1,6 @@
+import { Property } from '../types';
+import { LOCATION_SEO_PROFILES, slugify, formatInrShort } from './programmaticSeo';
+
 export interface CityMarketData {
   city: string;
   hindiName: string;
@@ -16,7 +19,108 @@ export interface CityMarketData {
   faqs: { q: string; a: string }[];
 }
 
+const HINDI_CITY_MAP: Record<string, string> = {
+  uttarakhand: 'उत्तराखंड',
+  dehradun: 'देहरादून',
+  rishikesh: 'ऋषिकेश',
+  haridwar: 'हरिद्वार',
+  nainital: 'नैनीताल',
+  mussoorie: 'मसूरी',
+  haldwani: 'हल्द्वानी',
+  mukteshwar: 'मुक्तेश्वर',
+  bhimtal: 'भीमताल',
+  almora: 'अल्मोड़ा',
+  ranikhet: 'रानीखेत',
+  lansdowne: 'लैंसडाउन',
+  dhanaulti: 'धनोल्टी',
+  kanatal: 'कनाताल',
+  kausani: 'कौसानी',
+  chakrata: 'चकराता',
+  devprayag: 'देवप्रयाग',
+  rudraprayag: 'रुद्रप्रयाग',
+  uttarkashi: 'उत्तरकाशी',
+  kotdwar: 'कोटद्वार',
+  bhowali: 'भवाली',
+  'tehri-garhwal': 'टिहरी गढ़वाल',
+  auli: 'औली',
+};
+
+function buildGeneratedCities(): Record<string, CityMarketData> {
+  const result: Record<string, CityMarketData> = {};
+  for (const profile of Object.values(LOCATION_SEO_PROFILES)) {
+    result[profile.name] = {
+      city: profile.name,
+      hindiName: HINDI_CITY_MAP[profile.slug] || profile.name,
+      metaTitle: `Properties in ${profile.name} | Buy & Rent Houses, Flats, Plots & Land | Uttarakhand Gateways`,
+      metaDescription: `Explore verified properties in ${profile.name} (${profile.district}), Uttarakhand. Compare houses, flats, cottages & plots directly with owners and verified local dealers.`,
+      h1: `Verified Properties in ${profile.name}`,
+      tagline: profile.tagline,
+      elevation: profile.elevation,
+      priceRange: 'Computed from live active listings',
+      landPriceRange: 'Varies by road approach & municipal/rural limits',
+      avgFlatRate: 'See individual active property listings below',
+      popularLocalities: profile.popularLocalities,
+      connectivityHighlights: [profile.connectivity],
+      legalNotes: profile.buyerChecklist.join(' '),
+      description: `${profile.overview} ${profile.connectivity}`,
+      faqs: [
+        {
+          q: `Can buyers explore direct-owner properties in ${profile.name}?`,
+          a: `Yes. Uttarakhand Gateways displays direct owner and disclosed local broker listings across ${profile.name} (${profile.district}) with transparent contact options and zero platform commission.`,
+        },
+        {
+          q: `What should I check before buying land or homes in ${profile.name}?`,
+          a: profile.buyerChecklist.join(' '),
+        },
+      ],
+    };
+  }
+  return result;
+}
+
+export function getCityMarketData(
+  cityOrSlug: string,
+  allProperties?: Property[]
+): CityMarketData | null {
+  const targetSlug = slugify(cityOrSlug);
+  if (!targetSlug) return null;
+  const matchedKey = Object.keys(CITY_MARKET_DATA).find(
+    (k) => slugify(k) === targetSlug
+  );
+  if (!matchedKey) return null;
+  const base = CITY_MARKET_DATA[matchedKey];
+  if (!allProperties || allProperties.length === 0) return base;
+
+  const matching =
+    targetSlug === 'uttarakhand'
+      ? allProperties.filter((p) => !p.isSold)
+      : allProperties.filter(
+          (p) => !p.isSold && slugify(p.city || '') === targetSlug
+        );
+  const salePrices = matching
+    .filter((p) => p.purpose !== 'rent')
+    .map((p) => Number(p.price))
+    .filter((n) => Number.isFinite(n) && n > 0);
+  const rentPrices = matching
+    .filter((p) => p.purpose === 'rent')
+    .map((p) => Number(p.price))
+    .filter((n) => Number.isFinite(n) && n > 0);
+
+  if (salePrices.length === 0 && rentPrices.length === 0) return base;
+
+  const livePriceRange =
+    salePrices.length > 0
+      ? `${formatInrShort(Math.min(...salePrices))} – ${formatInrShort(Math.max(...salePrices))}`
+      : `Rent ${formatInrShort(Math.min(...rentPrices))} – ${formatInrShort(Math.max(...rentPrices))}/mo`;
+
+  return {
+    ...base,
+    priceRange: livePriceRange,
+  };
+}
+
 export const CITY_MARKET_DATA: Record<string, CityMarketData> = {
+  ...buildGeneratedCities(),
   Dehradun: {
     city: 'Dehradun',
     hindiName: 'देहरादून',
@@ -43,7 +147,7 @@ export const CITY_MARKET_DATA: Record<string, CityMarketData> = {
       },
       {
         q: 'Does Uttarakhand Gateways charge any brokerage on Dehradun properties?',
-        a: 'No. Uttarakhand Gateways operates on a strict 0% brokerage model. Buyers connect directly with verified property owners and builders without agent commissions.'
+        a: 'No. Uttarakhand Gateways operates on a strict 0% brokerage model. Buyers connect directly with verified property owners and brokers without middleman commissions.'
       }
     ]
   },
@@ -155,7 +259,7 @@ export const CITY_MARKET_DATA: Record<string, CityMarketData> = {
     city: 'Haldwani',
     hindiName: 'हल्द्वानी',
     metaTitle: 'Properties in Haldwani | Commercial & Residential Plots for Sale',
-    metaDescription: 'Find verified properties in Haldwani with 0% brokerage. Residential plots, builder floors, and houses in Kaladhungi Road, Kusumkhera, and Kathgodam.',
+    metaDescription: 'Find verified properties in Haldwani with 0% brokerage. Residential plots, independent floors, and houses in Kaladhungi Road, Kusumkhera, and Kathgodam.',
     h1: 'Properties in Haldwani | The Economic Gateway to Kumaon',
     tagline: 'The vibrant commercial, commercial-transit, and educational capital of Kumaon in the Shivalik foothills.',
     elevation: '424 m (1,391 ft)',
@@ -165,7 +269,7 @@ export const CITY_MARKET_DATA: Record<string, CityMarketData> = {
     popularLocalities: ['Kaladhungi Road', 'Kusumkhera', 'Kathgodam', 'Rampur Road', 'Nawabi Road', 'Bareilly Road'],
     connectivityHighlights: ['Kathgodam Railway Station with Shatabdi & Ranikhet Express', 'Gateway junction to Nainital, Almora, Ranikhet & Jim Corbett', 'Pantnagar Airport only 26 km away'],
     legalNotes: 'Haldwani properties fall under District Development Authority regulations with clear freehold registry and municipal conversion records.',
-    description: 'Haldwani is the commercial powerhouse of the Kumaon region. Located at the foothills of Nainital, it offers all metropolitan facilities, top medical colleges, shopping centers, and seamless railway and road transit to Delhi and Lucknow. Explore genuine residential plots, builder floors, and commercial shops directly from owners on Uttarakhand Gateways.',
+    description: 'Haldwani is the commercial powerhouse of the Kumaon region. Located at the foothills of Nainital, it offers all metropolitan facilities, top medical colleges, shopping centers, and seamless railway and road transit to Delhi and Lucknow. Explore genuine residential plots, independent floors, and commercial shops directly from owners on Uttarakhand Gateways.',
     faqs: [
       {
         q: 'Why is Haldwani considered a top property investment in Uttarakhand?',

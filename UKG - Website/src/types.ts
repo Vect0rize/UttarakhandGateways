@@ -112,7 +112,7 @@ export interface Property {
   sellerName?: string;
   sellerPhone?: string;
   sellerEmail?: string;
-  sellerType?: 'Owner' | 'Broker' | 'Verified Builder' | 'Agent';
+  sellerType?: 'Owner' | 'Broker';
   ownerId?: string;
   ownerContact?: string;
   ownerUsername?: string;

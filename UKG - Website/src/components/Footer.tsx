@@ -6,6 +6,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { LegalPolicyId } from '../data/legalPolicies';
 import { SeoKeywordsSection } from './SeoKeywordsSection';
 import type { AppPageRouteKey } from '../data/seoMetadata';
+import { getCitySlug } from '../data/programmaticSeo';
 
 interface FooterProps {
   onCityClick: (city: string) => void;
@@ -15,6 +16,7 @@ interface FooterProps {
   onNavigateCity?: (city: string) => void;
   onNavigateGuides?: (slug?: string) => void;
   onNavigatePage?: (page: AppPageRouteKey) => void;
+  onNavigatePath?: (path: string) => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
@@ -24,6 +26,7 @@ export const Footer: React.FC<FooterProps> = ({
   onNavigateCity,
   onNavigateGuides,
   onNavigatePage,
+  onNavigatePath,
 }) => {
   const { isHindi } = useLanguage();
 
@@ -77,7 +80,7 @@ export const Footer: React.FC<FooterProps> = ({
             <p className="text-slate-600 dark:text-emerald-200/90 text-xs sm:text-sm leading-relaxed max-w-sm">
               {isHindi
                 ? 'उत्तराखंड गेटवेज 0% ब्रोकरेज के साथ सत्यापित फ्लैट, आवासीय प्लॉट और विला खोजने का प्रमुख मंच है।'
-                : 'Discover Uttarakhand with Uttarakhand Gateways, a trusted real estate platform for buying, selling, and exploring properties across Uttarakhand. Find residential properties, houses, apartments, flats, plots, land, villas, commercial properties, shops, offices, and investment opportunities in popular locations including Dehradun, Rishikesh, Haridwar, Nainital, Mussoorie, Haldwani, Almora, Roorkee, Rudrapur, and other beautiful cities and hill stations of Uttarakhand. Whether you are looking for a house for sale in Uttarakhand, land for sale in Uttarakhand, property for sale in Dehradun, plots in Rishikesh, apartments in Haridwar, villas in Nainital, or commercial property in Uttarakhand, Uttarakhand Gateways makes property discovery simple. Browse property listings, explore locations, view property details, and connect directly with property owners. Our platform helps buyers, sellers, property owners, and real estate professionals connect in one place. Explore residential and commercial real estate, compare available properties, and discover opportunities for property investment in Uttarakhand. Find your next home, plot, land, villa, apartment, or commercial property with Uttarakhand Gateways — your online gateway to Uttarakhand real estate.'}
+                : 'Uttarakhand Gateways connects homebuyers, landowners, tenants, and verified local real estate dealers across Dehradun, Rishikesh, Haridwar, Nainital, Mussoorie, Haldwani, and all 13 districts of Uttarakhand with transparent role disclosures and 0% portal commission.'}
             </p>
 
             <div className="p-3.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-emerald-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 max-w-sm space-y-1.5 shadow-xs">
@@ -99,7 +102,7 @@ export const Footer: React.FC<FooterProps> = ({
 
             <div className="pt-1">
               <a
-                href="/UKG - App.apk?v=7"
+                href="/UKG - App.apk?v=8"
                 download="UKG - App.apk"
                 className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#0E3A2B] to-[#32463D] hover:from-[#164A37] hover:to-[#3c5348] text-[#F4F3EF] border border-[#AA8F7C]/40 font-bold text-xs shadow-xs transition-all cursor-pointer"
               >
@@ -147,7 +150,7 @@ export const Footer: React.FC<FooterProps> = ({
               {CITIES.map((city) => (
                 <a
                   key={city}
-                  href={`/properties-in-${city.toLowerCase()}`}
+                  href={`/properties-in-${getCitySlug(city)}`}
                   onClick={(e) => {
                     if (!e.ctrlKey && !e.metaKey && e.button === 0) {
                       e.preventDefault();
@@ -192,22 +195,85 @@ export const Footer: React.FC<FooterProps> = ({
             </div>
 
             <ul className="space-y-1.5">
-              {legalLinks.map((link) => (
-                <li key={link.id}>
-                  <button
-                    type="button"
-                    onClick={() => handleOpenLegal(link.id)}
-                    className="text-xs text-slate-700 dark:text-emerald-200/90 hover:text-emerald-800 dark:hover:text-white transition-colors text-left cursor-pointer flex items-center gap-1.5 py-0.5 group"
-                  >
-                    <span className="text-emerald-600 dark:text-emerald-400 group-hover:translate-x-0.5 transition-transform">
-                      {link.icon}
-                    </span>
-                    <span className="group-hover:underline">
-                      {isHindi ? link.titleHi : link.titleEn}
-                    </span>
-                  </button>
-                </li>
-              ))}
+              <li>
+                <a
+                  href="/about"
+                  onClick={(e) => {
+                    if (!e.ctrlKey && !e.metaKey && e.button === 0 && onNavigatePath) {
+                      e.preventDefault();
+                      onNavigatePath('/about');
+                    }
+                  }}
+                  className="text-xs text-slate-700 dark:text-emerald-200/90 hover:text-emerald-800 dark:hover:text-white transition-colors text-left flex items-center gap-1.5 py-0.5 group"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span className="group-hover:underline">{isHindi ? 'हमारे बारे में' : 'About Us'}</span>
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/contact"
+                  onClick={(e) => {
+                    if (!e.ctrlKey && !e.metaKey && e.button === 0 && onNavigatePath) {
+                      e.preventDefault();
+                      onNavigatePath('/contact');
+                    }
+                  }}
+                  className="text-xs text-slate-700 dark:text-emerald-200/90 hover:text-emerald-800 dark:hover:text-white transition-colors text-left flex items-center gap-1.5 py-0.5 group"
+                >
+                  <HelpCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span className="group-hover:underline">{isHindi ? 'संपर्क एवं सहायता' : 'Contact & Helpdesk'}</span>
+                </a>
+              </li>
+              {legalLinks.map((link) => {
+                const crawlPath =
+                  link.id === 'terms'
+                    ? '/terms'
+                    : link.id === 'privacy'
+                    ? '/privacy'
+                    : link.id === 'listing_policy'
+                    ? '/listing-guidelines'
+                    : null;
+                if (crawlPath) {
+                  return (
+                    <li key={link.id}>
+                      <a
+                        href={crawlPath}
+                        onClick={(e) => {
+                          if (!e.ctrlKey && !e.metaKey && e.button === 0 && onNavigatePath) {
+                            e.preventDefault();
+                            onNavigatePath(crawlPath);
+                          }
+                        }}
+                        className="text-xs text-slate-700 dark:text-emerald-200/90 hover:text-emerald-800 dark:hover:text-white transition-colors text-left flex items-center gap-1.5 py-0.5 group"
+                      >
+                        <span className="text-emerald-600 dark:text-emerald-400 group-hover:translate-x-0.5 transition-transform">
+                          {link.icon}
+                        </span>
+                        <span className="group-hover:underline">
+                          {isHindi ? link.titleHi : link.titleEn}
+                        </span>
+                      </a>
+                    </li>
+                  );
+                }
+                return (
+                  <li key={link.id}>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenLegal(link.id)}
+                      className="text-xs text-slate-700 dark:text-emerald-200/90 hover:text-emerald-800 dark:hover:text-white transition-colors text-left cursor-pointer flex items-center gap-1.5 py-0.5 group"
+                    >
+                      <span className="text-emerald-600 dark:text-emerald-400 group-hover:translate-x-0.5 transition-transform">
+                        {link.icon}
+                      </span>
+                      <span className="group-hover:underline">
+                        {isHindi ? link.titleHi : link.titleEn}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           </div>
 
@@ -249,6 +315,7 @@ export const Footer: React.FC<FooterProps> = ({
       <SeoKeywordsSection
         onNavigatePage={onNavigatePage}
         onNavigateCity={onNavigateCity || onCityClick}
+        onNavigatePath={onNavigatePath}
         compact={true}
       />
 
