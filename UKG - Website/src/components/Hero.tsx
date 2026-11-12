@@ -38,9 +38,9 @@ export const Hero: React.FC<HeroProps> = ({
         
         {/* Hero Title: Refined proportional scale */}
         <div className="relative w-full flex flex-col items-center pt-1 sm:pt-2">
-          <h1 className="font-serif-luxury text-[22px] sm:text-3xl md:text-[34px] lg:text-[40px] font-black tracking-tight text-[#0E3A2B] dark:text-[#F4F3EF] drop-shadow-md leading-tight text-center flex items-center justify-center gap-1.5 sm:gap-3 whitespace-nowrap">
+          <h1 className="font-serif-luxury text-[22px] sm:text-3xl md:text-[34px] lg:text-[40px] font-black tracking-[0.025em] text-[#0E3A2B] dark:text-[#F4F3EF] drop-shadow-md leading-tight text-center flex items-center justify-center gap-1.5 sm:gap-2.5 whitespace-nowrap">
             <span>Uttarakhand</span>
-            <span className="italic font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-[#0E3A2B] via-[#32463D] to-[#8E725E] dark:from-[#E0C8B8] dark:via-[#C2A691] dark:to-[#AA8F7C] drop-shadow-md">
+            <span className="italic text-[#AA8F7C] dark:text-[#C2A691]">
               Gateways
             </span>
           </h1>
@@ -64,7 +64,7 @@ export const Hero: React.FC<HeroProps> = ({
           </h2>
           <p className="text-xs sm:text-sm text-[#495A50] dark:text-[#C7D3CC] max-w-xl mx-auto font-normal">
             {isHindi 
-              ? '0% ब्रोकरेज के साथ सीधे संपत्ति मालिकों और सत्यापित ब्रोकरों से आवासीय प्लॉट, फ्लैट और विला खोजें।' 
+              ? '0% ब्रोकरेज के साथ सीधे संपत्ति मालिकों और ब्रोकरों से आवासीय प्लॉट, फ्लैट और विला खोजें।' 
               : 'Discover verified residential plots, luxury flats, and villas directly with 0% brokerage.'
             }
           </p>

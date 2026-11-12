@@ -1309,7 +1309,7 @@ export const UploadPropertyModal: React.FC<UploadPropertyModalProps> = ({
                       }`}
                     >
                       <Building2 className="w-3.5 h-3.5" />
-                      <span>{isHindi ? 'सत्यापित ब्रोकर (Broker)' : 'Verified Broker'}</span>
+                      <span>{isHindi ? 'ब्रोकर (Broker)' : 'Broker'}</span>
                     </button>
                   </div>
                 </div>

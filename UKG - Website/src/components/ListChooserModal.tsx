@@ -64,7 +64,7 @@ export const ListChooserModal: React.FC<ListChooserModalProps> = ({
             <div>
               <h3 className="text-lg font-black tracking-tight leading-tight">
                 {step === 'sale-role' || step === 'rent-role'
-                  ? (isHindi ? 'अपनी भूमिका चुनें: मालिक या ब्रोकर' : 'Choose Role: Owner or Verified Broker')
+                  ? (isHindi ? 'अपनी भूमिका चुनें: मालिक या ब्रोकर' : 'Choose Role: Owner or Broker')
                   : (isHindi ? 'प्रॉपर्टी लिस्टिंग प्रकार चुनें' : 'Choose Listing Type')}
               </h3>
               <p className="text-xs text-emerald-200/80">
@@ -197,7 +197,7 @@ export const ListChooserModal: React.FC<ListChooserModalProps> = ({
               </div>
             </div>
 
-            {/* Role 2: Verified Broker */}
+            {/* Role 2: Broker */}
             <div
               onClick={() => {
                 onClose();
@@ -212,7 +212,7 @@ export const ListChooserModal: React.FC<ListChooserModalProps> = ({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-base font-black text-slate-900 dark:text-white group-hover:text-teal-700 dark:group-hover:text-teal-300 transition-colors">
-                    {isHindi ? 'सत्यापित ब्रोकर' : 'Verified Broker'}
+                    {isHindi ? 'ब्रोकर' : 'Broker'}
                   </span>
                   <span className="px-2 py-0.5 rounded-full bg-teal-600 text-white font-black text-[10px] uppercase">
                     Broker

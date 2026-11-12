@@ -995,7 +995,7 @@ export function resolveProgrammaticSeoRoute(
       faqs: [
         {
           q: 'How does Uttarakhand Gateways differentiate owners and brokers?',
-          a: 'Every seller chooses their disclosure role ("Owner" or "Verified Broker") during listing submission, which is displayed transparently on the property card and detail page.',
+          a: 'Every seller chooses their disclosure role ("Owner" or "Broker") during listing submission, which is displayed transparently on the property card and detail page.',
         },
         {
           q: 'Does Uttarakhand Gateways charge commission to buyers?',

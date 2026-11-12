@@ -261,7 +261,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
               'availability': isSoldLocal ? 'https://schema.org/SoldOut' : 'https://schema.org/InStock',
               'seller': {
                 '@type': 'Person',
-                'name': property.sellerType === 'Owner' ? 'Direct Property Owner' : 'Verified Broker'
+                'name': property.sellerType === 'Owner' ? 'Direct Property Owner' : 'Broker'
               }
             },
             'address': {
@@ -1354,7 +1354,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
       {/* Related Properties & Buyer Verification Notice */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8 space-y-6">
         <div className="p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 text-xs text-slate-700 dark:text-emerald-100/85 leading-relaxed">
-          <strong>Buyer Due Diligence Notice:</strong> This listing is submitted directly by the stated advertiser ({property.sellerType === 'Owner' ? 'Property Owner' : 'Verified Broker'}). Prospective buyers and tenants must independently verify original title deeds, Bhulekh Uttarakhand Khatauni mutation entries, authority map approvals, and Section 154 land limits prior to token payment.
+          <strong>Buyer Due Diligence Notice:</strong> This listing is submitted directly by the stated advertiser ({property.sellerType === 'Owner' ? 'Property Owner' : 'Broker'}). Prospective buyers and tenants must independently verify original title deeds, Bhulekh Uttarakhand Khatauni mutation entries, authority map approvals, and Section 154 land limits prior to token payment.
         </div>
 
         {(() => {

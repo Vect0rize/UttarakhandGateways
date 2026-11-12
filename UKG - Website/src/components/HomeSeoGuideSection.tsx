@@ -12,8 +12,8 @@ export const HomeSeoGuideSection: React.FC = () => {
       icon: <Building className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />,
       titleEn: 'What is Uttarakhand Gateways and How Does 0% Brokerage Work?',
       titleHi: 'उत्तराखंड गेटवेज क्या है और 0% ब्रोकरेज मॉडल कैसे काम करता है?',
-      contentEn: 'Uttarakhand Gateways is a verified real estate marketplace dedicated exclusively to mountain properties across Uttarakhand. Unlike traditional property portals that charge hefty commissions or hide owner contact numbers behind broker desks, Uttarakhand Gateways connects buyers directly with genuine owners and verified brokers with zero brokerage. Listing properties for sale or rent is completely free, providing a transparent, commission-free experience.',
-      contentHi: 'उत्तराखंड गेटवेज उत्तराखंड की पहाड़ी संपत्तियों के लिए समर्पित एक सत्यापित रियल एस्टेट मार्केटप्लेस है। पारंपरिक ब्रोकरों के विपरीत जो भारी कमीशन लेते हैं या बिचौलियों के माध्यम से संपर्क कराते हैं, उत्तराखंड गेटवेज खरीदारों को सीधे असली संपत्ति मालिकों और सत्यापित ब्रोकरों से जोड़ता है—वो भी 0% ब्रोकरेज पर। यहां प्रॉपर्टी की बिक्री या किराए की लिस्टिंग पोस्ट करना पूरी तरह से निःशुल्क है।'
+      contentEn: 'Uttarakhand Gateways is a verified real estate marketplace dedicated exclusively to mountain properties across Uttarakhand. Unlike traditional property portals that charge hefty commissions or hide owner contact numbers behind broker desks, Uttarakhand Gateways connects buyers directly with genuine owners and brokers with zero brokerage. Listing properties for sale or rent is completely free, providing a transparent, commission-free experience.',
+      contentHi: 'उत्तराखंड गेटवेज उत्तराखंड की पहाड़ी संपत्तियों के लिए समर्पित एक सत्यापित रियल एस्टेट मार्केटप्लेस है। पारंपरिक ब्रोकरों के विपरीत जो भारी कमीशन लेते हैं या बिचौलियों के माध्यम से संपर्क कराते हैं, उत्तराखंड गेटवेज खरीदारों को सीधे असली संपत्ति मालिकों और ब्रोकरों से जोड़ता है—वो भी 0% ब्रोकरेज पर। यहां प्रॉपर्टी की बिक्री या किराए की लिस्टिंग पोस्ट करना पूरी तरह से निःशुल्क है।'
     },
     {
       id: 'outside-buyers-rules',

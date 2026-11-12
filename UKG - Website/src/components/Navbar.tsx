@@ -401,7 +401,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Download Android App (Direct Native APK) */}
             <a
-              href="/UKG - App.apk?v=8"
+              href="/UKG - App.apk?v=9"
               download="UKG - App.apk"
               className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/80 hover:bg-emerald-100 dark:hover:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800 text-xs font-bold shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap"
               title={isHindi ? 'ऑफिशियल एंड्रॉइड ऐप डाउनलोड करें' : 'Download Official Android App (APK)'}
@@ -526,7 +526,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Direct Official Android APK Download Banner */}
             <a
-              href="/UKG - App.apk?v=8"
+              href="/UKG - App.apk?v=9"
               download="UKG - App.apk"
               onClick={() => setMobileMenuOpen(false)}
               className="w-full p-2.5 bg-gradient-to-r from-[#0E3A2B] via-[#32463D] to-[#0C3628] text-[#F4F3EF] font-extrabold rounded-2xl text-xs flex items-center justify-between shadow-md shadow-[#032D1F]/25 border border-[#AA8F7C]/40 cursor-pointer active:scale-98 transition-all"
@@ -536,7 +536,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span>{isHindi ? 'ऑफिशियल एंड्रॉइड ऐप डाउनलोड करें' : 'Download Android App (APK)'}</span>
               </div>
               <span className="text-[10px] bg-[#C2A691] text-[#032D1F] px-2 py-0.5 rounded-full font-black uppercase">
-                13.7 MB
+                13.2 MB
               </span>
             </a>
 

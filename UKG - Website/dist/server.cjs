@@ -1791,7 +1791,7 @@ function resolveProgrammaticSeoRoute(pathname, allProperties) {
       faqs: [
         {
           q: "How does Uttarakhand Gateways differentiate owners and brokers?",
-          a: 'Every seller chooses their disclosure role ("Owner" or "Verified Broker") during listing submission, which is displayed transparently on the property card and detail page.'
+          a: 'Every seller chooses their disclosure role ("Owner" or "Broker") during listing submission, which is displayed transparently on the property card and detail page.'
         },
         {
           q: "Does Uttarakhand Gateways charge commission to buyers?",
@@ -2843,7 +2843,7 @@ function getPageSeoMeta(page, options) {
     case "listing-guidelines":
       return {
         title: "Listing Verification & Publishing Guidelines | Uttarakhand Gateways",
-        description: "Mandatory disclosure standards for owners and verified brokers publishing properties in Uttarakhand: authentic pricing, clear area units, and anti-duplicate rules.",
+        description: "Mandatory disclosure standards for owners and brokers publishing properties in Uttarakhand: authentic pricing, clear area units, and anti-duplicate rules.",
         keywords: "property listing guidelines uttarakhand, verified property standards",
         canonicalPath: "/listing-guidelines"
       };

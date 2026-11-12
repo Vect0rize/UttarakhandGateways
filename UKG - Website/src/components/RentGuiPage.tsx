@@ -1,7 +1,7 @@
 import React from 'react';
 import { UnifiedListingModal } from './UnifiedListingModal';
 import { Logo } from './Logo';
-import { ArrowLeft, Key } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { Property } from '../types';
 import { LegalPolicyId } from '../data/legalPolicies';
@@ -38,11 +38,6 @@ export const RentGuiPage: React.FC<RentGuiPageProps> = ({
           </div>
 
           <div className="flex items-center gap-2.5">
-            <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-teal-800 dark:text-teal-300 bg-teal-100/70 dark:bg-teal-950/80 px-3.5 py-1.5 rounded-full border border-teal-300 dark:border-teal-800">
-              <Key className="w-4 h-4 text-teal-600" />
-              <span>0% Brokerage Rental Listing GUI</span>
-            </div>
-
             <button
               type="button"
               onClick={onBackToMain}

@@ -112,7 +112,7 @@ export const TRANSLATIONS = {
   'contact.supportDesc': { en: 'For listing inquiries, partnership proposals, or legal verification queries, write to our platform desk.', hi: 'प्रॉपर्टी लिस्टिंग, साझेदारी प्रस्ताव अथवा कानूनी सत्यापन के लिए हमारे सहायता डेस्क पर लिखें।' },
   'contact.verified': { en: 'VERIFIED PLATFORM', hi: 'सत्यापित मंच' },
   'contact.verifiedTitle': { en: 'Zero Brokerage Real Estate', hi: 'शून्य ब्रोकरेज रियल एस्टेट' },
-  'contact.verifiedDesc': { en: 'Connect directly with authentic property owners and verified brokers across Uttarakhand.', hi: 'उत्तराखंड के प्रामाणिक संपत्ति मालिकों और सत्यापित ब्रोकरों से सीधे जुड़ें।' },
+  'contact.verifiedDesc': { en: 'Connect directly with authentic property owners and brokers across Uttarakhand.', hi: 'उत्तराखंड के प्रामाणिक संपत्ति मालिकों और ब्रोकरों से सीधे जुड़ें।' },
   'contact.landReg': { en: 'LAND REGULATIONS', hi: 'भूमि नियम व दिशानिर्देश' },
   'contact.rulesTitle': { en: 'Non-Agricultural Land Rules', hi: 'गैर-कृषि भूमि नियम (धारा 143)' },
   'contact.rulesDesc': { en: 'Clear guidance on the 250 sq. m ceiling for non-domiciles, Section 143 conversion, and unrestricted apartment purchases.', hi: 'गैर-मूल निवासियों के लिए 250 वर्ग मीटर सीमा, धारा 143 रूपांतरण और अपार्टमेंट खरीद पर स्पष्ट नियम।' },

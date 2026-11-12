@@ -227,7 +227,7 @@ export function getPageSeoMeta(
       return {
         title: 'Listing Verification & Publishing Guidelines | Uttarakhand Gateways',
         description:
-          'Mandatory disclosure standards for owners and verified brokers publishing properties in Uttarakhand: authentic pricing, clear area units, and anti-duplicate rules.',
+          'Mandatory disclosure standards for owners and brokers publishing properties in Uttarakhand: authentic pricing, clear area units, and anti-duplicate rules.',
         keywords: 'property listing guidelines uttarakhand, verified property standards',
         canonicalPath: '/listing-guidelines',
       };

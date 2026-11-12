@@ -44,11 +44,11 @@ export const AboutAndContact: React.FC<AboutAndContactProps> = () => {
               <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed">
                 {isHindi ? (
                   <>
-                    <strong>उत्तराखंड गेटवेज</strong> 0% ब्रोकरेज के साथ सीधे खरीदार और विक्रेता को जोड़ने वाला प्रमुख रियल एस्टेट मंच है। हम देहरादून, ऋषिकेश, हरिद्वार, मसूरी, नैनीताल, मुक्तेश्वर और अल्मोड़ा में आवासीय प्लॉट, कॉटेज, फ्लैट और विला सीधे संपत्ति मालिकों और सत्यापित ब्रोकरों से उपलब्ध कराते हैं।
+                    <strong>उत्तराखंड गेटवेज</strong> 0% ब्रोकरेज के साथ सीधे खरीदार और विक्रेता को जोड़ने वाला प्रमुख रियल एस्टेट मंच है। हम देहरादून, ऋषिकेश, हरिद्वार, मसूरी, नैनीताल, मुक्तेश्वर और अल्मोड़ा में आवासीय प्लॉट, कॉटेज, फ्लैट और विला सीधे संपत्ति मालिकों और ब्रोकरों से उपलब्ध कराते हैं।
                   </>
                 ) : (
                   <>
-                    <strong>Uttarakhand Gateways</strong> connects buyers directly with property owners and verified brokers with 0% brokerage. Discover verified residential plots, cottages, flats, and hillside villas across Dehradun, Rishikesh, Haridwar, Mussoorie, Nainital, Mukteshwar, and Almora.
+                    <strong>Uttarakhand Gateways</strong> connects buyers directly with property owners and brokers with 0% brokerage. Discover verified residential plots, cottages, flats, and hillside villas across Dehradun, Rishikesh, Haridwar, Mussoorie, Nainital, Mukteshwar, and Almora.
                   </>
                 )}
               </p>

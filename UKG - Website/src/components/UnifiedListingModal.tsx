@@ -1141,8 +1141,8 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
                       ? 'सीधे मालिक (Owner)'
                       : 'Direct Owner'
                     : isHindi
-                      ? 'सत्यापित ब्रोकर (Broker)'
-                      : 'Verified Broker'}
+                      ? 'ब्रोकर (Broker)'
+                      : 'Broker'}
                 </button>
               ))}
             </div>

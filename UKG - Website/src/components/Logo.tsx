@@ -334,17 +334,17 @@ export const Logo: React.FC<LogoProps> = ({
   };
 
   const titleSizes = {
-    sm: 'text-base font-bold',
-    md: 'text-xl sm:text-2xl font-black tracking-tight',
-    lg: 'text-2xl sm:text-3xl font-black tracking-tight',
-    xl: 'text-3xl sm:text-4xl font-black tracking-tight',
+    sm: 'text-[15px] min-[380px]:text-[17px]',
+    md: 'text-[18px] sm:text-[20px]',
+    lg: 'text-[20px] xl:text-[22px]',
+    xl: 'text-2xl sm:text-[26px]',
   };
 
-  const gatewaySizes = {
-    sm: 'text-[10px] tracking-[0.22em] font-extrabold',
-    md: 'text-[11px] sm:text-xs tracking-[0.26em] font-extrabold',
-    lg: 'text-xs sm:text-sm tracking-[0.3em] font-black',
-    xl: 'text-sm sm:text-base tracking-[0.32em] font-black',
+  const subtitleSizes = {
+    sm: 'text-[8.5px] tracking-[0.30em]',
+    md: 'text-[9.5px] sm:text-[10px] tracking-[0.34em]',
+    lg: 'text-[10px] tracking-[0.34em]',
+    xl: 'text-[11px] tracking-[0.36em]',
   };
 
   const { width, height } = iconDimensions[size];
@@ -370,13 +370,13 @@ export const Logo: React.FC<LogoProps> = ({
         )}
       </div>
 
-      {/* Brand Typography */}
-      <div className="flex flex-col justify-center leading-tight select-none outline-none">
-        <span className={`font-semibold tracking-tight ${titleSizes[size]} font-sans ${darkText ? 'text-[#0E3A2B] dark:text-[#F4F3EF]' : 'text-[#F4F3EF]'}`}>
-          Uttarakhand
+      {/* Brand Typography matching Mobile App luxury serif style & OAKEN palette */}
+      <div className="flex flex-col justify-center leading-none select-none outline-none">
+        <span className={`font-serif-luxury font-black tracking-[0.025em] whitespace-nowrap ${titleSizes[size]} ${darkText ? 'text-[#0E3A2B] dark:text-[#F4F3EF]' : 'text-[#F4F3EF]'}`}>
+          Uttarakhand <span className={`italic ${darkText ? 'text-[#AA8F7C] dark:text-[#C2A691]' : 'text-[#C2A691]'}`}>Gateways</span>
         </span>
-        <span className={`font-bold font-sans uppercase ${gatewaySizes[size]} ${darkText ? 'text-[#32463D] dark:text-[#C2A691]' : 'text-[#C2A691]'}`}>
-          GATEWAYS
+        <span className={`uppercase font-black mt-1 whitespace-nowrap ${subtitleSizes[size]} ${darkText ? 'text-[#32463D] dark:text-[#AA8F7C]' : 'text-[#AA8F7C]'}`}>
+          Real Estate
         </span>
         {showTagline && (
           <span className={`text-[10px] font-light mt-0.5 ${darkText ? 'text-slate-500 dark:text-emerald-300/80' : 'text-slate-300'}`}>

@@ -103,7 +103,7 @@ export const ListPage: React.FC<ListPageProps> = ({
               >
                 <span className="flex items-center gap-2">
                   <Building2 className="w-4 h-4" />
-                  <span>{isHindi ? 'सत्यापित ब्रोकर के रूप में लिस्ट करें' : 'List as Verified Broker'}</span>
+                  <span>{isHindi ? 'ब्रोकर के रूप में लिस्ट करें' : 'List as Broker'}</span>
                 </span>
                 <ArrowRight className="w-4 h-4" />
               </a>
@@ -147,7 +147,7 @@ export const ListPage: React.FC<ListPageProps> = ({
               >
                 <span className="flex items-center gap-2">
                   <Building2 className="w-4 h-4" />
-                  <span>{isHindi ? 'सत्यापित ब्रोकर के रूप में लिस्ट करें' : 'List as Verified Broker'}</span>
+                  <span>{isHindi ? 'ब्रोकर के रूप में लिस्ट करें' : 'List as Broker'}</span>
                 </span>
                 <ArrowRight className="w-4 h-4" />
               </a>

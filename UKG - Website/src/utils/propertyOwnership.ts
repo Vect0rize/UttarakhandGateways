@@ -183,7 +183,7 @@ export const getPropertyOwnerDisplayName = (
 
   // 2. Hide all fake / personal seller names (e.g. Sunil Joshi). Always show verified direct ownership badge.
   return isBroker
-    ? (isHindi ? 'सत्यापित ब्रोकर' : 'Verified Broker')
+    ? (isHindi ? 'ब्रोकर' : 'Broker')
     : (isHindi ? 'सत्यापित डायरेक्ट ओनर' : 'Verified Direct Owner');
 };
 
