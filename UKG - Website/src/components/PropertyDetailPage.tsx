@@ -40,7 +40,8 @@ import {
   Link2,
   IndianRupee,
   ArrowRight,
-  Calculator
+  Calculator,
+  Flag
 } from 'lucide-react';
 import { resolveApiUrl } from '../config/apiConfig';
 import { SeoKeywordsSection } from './SeoKeywordsSection';
@@ -518,6 +519,19 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
             <Bookmark className={`w-3.5 h-3.5 ${isFavorite ? 'fill-emerald-600 text-emerald-600 dark:fill-emerald-400 dark:text-emerald-400' : ''}`} />
             <span className="hidden sm:inline">{isFavorite ? (isHindi ? 'सहेजा गया' : 'Saved') : (isHindi ? 'सहेजें' : 'Save')}</span>
           </button>
+
+          {/* Report Listing */}
+          {onReportListing && (
+            <button
+              type="button"
+              onClick={() => onReportListing(property)}
+              className="p-2 sm:px-3 sm:py-1.5 rounded-xl border border-rose-200 dark:border-rose-900/70 bg-white dark:bg-[#0c241c] hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-700 dark:text-rose-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+              title={isHindi ? 'लिस्टिंग की रिपोर्ट करें' : 'Report Listing'}
+            >
+              <Flag className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{isHindi ? 'रिपोर्ट' : 'Report'}</span>
+            </button>
+          )}
 
           {/* Print */}
           <button

@@ -27,9 +27,23 @@ export interface DbUser {
   role?: 'user' | 'owner' | 'admin';
   avatar?: string;
   isOwner?: boolean;
+  usernameChangeTimestamps?: number[];
   createdAt?: string;
   updatedAt?: string;
   data?: string;
+}
+
+export interface DbReport {
+  id: string;
+  propertyId: string;
+  propertyTitle?: string;
+  reason: string;
+  details?: string;
+  reporterId?: string;
+  reporterEmail?: string;
+  status: 'open' | 'resolved' | 'dismissed';
+  createdAt: string;
+  updatedAt?: string;
 }
 
 export interface DbSession {
@@ -69,6 +83,29 @@ class DatabaseService {
   private sessionsFilePath: string;
   private resetsFilePath: string;
   private otpsFilePath: string;
+  private reportsFilePath: string;
+  private revokedSessionsFilePath: string;
+  private revokedTokens = new Set<string>();
+  private writeLocks = new Map<string, Promise<unknown>>();
+
+  private async withLock<T>(key: string, fn: () => Promise<T> | T): Promise<T> {
+    const prev = this.writeLocks.get(key) || Promise.resolve();
+    let release!: () => void;
+    const next = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const chain = prev.then(() => next);
+    this.writeLocks.set(key, chain);
+    await prev;
+    try {
+      return await fn();
+    } finally {
+      release();
+      if (this.writeLocks.get(key) === chain) {
+        this.writeLocks.delete(key);
+      }
+    }
+  }
 
   constructor() {
     const possibleDataDirs = [
@@ -91,6 +128,17 @@ class DatabaseService {
     this.sessionsFilePath = path.join(this.dataDir, 'sessions.json');
     this.resetsFilePath = path.join(this.dataDir, 'password_resets.json');
     this.otpsFilePath = path.join(this.dataDir, 'otps.json');
+    this.reportsFilePath = path.join(this.dataDir, 'reports.json');
+    this.revokedSessionsFilePath = path.join(this.dataDir, 'revoked_sessions.json');
+    try {
+      const revokedList = this.readJsonFile(this.revokedSessionsFilePath);
+      const now = Date.now();
+      for (const item of revokedList) {
+        if (item && typeof item.sessionId === 'string' && (!item.expiresAt || Number(item.expiresAt) >= now)) {
+          this.revokedTokens.add(item.sessionId);
+        }
+      }
+    } catch {}
 
     if (!fs.existsSync(this.dataDir)) {
       try {
@@ -169,6 +217,16 @@ class DatabaseService {
               code_hash VARCHAR(255) NOT NULL,
               expires_at BIGINT NOT NULL,
               attempts INT DEFAULT 0
+            );
+          `);
+
+          await client.query(`
+            CREATE TABLE IF NOT EXISTS ukg_reports (
+              id VARCHAR(255) PRIMARY KEY,
+              property_id VARCHAR(255) NOT NULL,
+              status VARCHAR(50) DEFAULT 'open',
+              data TEXT NOT NULL,
+              created_at VARCHAR(100)
             );
           `);
 
@@ -268,6 +326,16 @@ class DatabaseService {
               code_hash VARCHAR(255) NOT NULL,
               expires_at BIGINT NOT NULL,
               attempts INT DEFAULT 0
+            );
+          `);
+
+          await conn.query(`
+            CREATE TABLE IF NOT EXISTS ukg_reports (
+              id VARCHAR(255) PRIMARY KEY,
+              property_id VARCHAR(255) NOT NULL,
+              status VARCHAR(50) DEFAULT 'open',
+              data LONGTEXT NOT NULL,
+              created_at VARCHAR(100)
             );
           `);
 
@@ -455,7 +523,10 @@ class DatabaseService {
 
   public async saveProperty(property: any): Promise<any> {
     if (!this.initialized) await this.initialize();
+    return this.withLock('properties', () => this.savePropertyUnlocked(property));
+  }
 
+  private async savePropertyUnlocked(property: any): Promise<any> {
     if (!property.createdAt) {
       property.createdAt = new Date().toISOString();
     }
@@ -525,7 +596,10 @@ class DatabaseService {
 
   public async updateProperty(id: string, updates: any): Promise<any | null> {
     if (!this.initialized) await this.initialize();
+    return this.withLock('properties', () => this.updatePropertyUnlocked(id, updates));
+  }
 
+  private async updatePropertyUnlocked(id: string, updates: any): Promise<any | null> {
     const existing = await this.getPropertyById(id);
     if (!existing) return null;
 
@@ -540,49 +614,79 @@ class DatabaseService {
       if (merged[key] === null) delete merged[key];
     }
 
-    await this.saveProperty(merged);
+    await this.savePropertyUnlocked(merged);
     return merged;
   }
 
   public async incrementPropertyMetric(id: string, metric: 'views' | 'shares' | 'inquiries'): Promise<any | null> {
     if (!this.initialized) await this.initialize();
-    const existing = await this.getPropertyById(id);
-    if (!existing) return null;
-    const current = typeof existing[metric] === 'number' ? existing[metric] : 0;
-    const nextVal = current + 1;
-    return await this.updateProperty(id, { [metric]: nextVal });
+    return this.withLock('properties', async () => {
+      const existing = await this.getPropertyById(id);
+      if (!existing) return null;
+      const current = typeof existing[metric] === 'number' ? existing[metric] : 0;
+      const nextVal = current + 1;
+      return await this.updatePropertyUnlocked(id, { [metric]: nextVal });
+    });
   }
 
   public async deleteProperty(id: string): Promise<boolean> {
     if (!this.initialized) await this.initialize();
-
-    if (this.dbType === 'postgres' && this.pgPool) {
-      try {
-        await this.pgPool.query('DELETE FROM ukg_properties WHERE id = $1', [id]);
-        const local = this.readJsonFile(this.propertiesFilePath).filter((p) => p.id !== id);
-        this.writeJsonFileAtomically(this.propertiesFilePath, local);
-        return true;
-      } catch (err) {
-        console.error('[UKG DB] PostgreSQL deleteProperty error:', err);
-        throw err;
+    return this.withLock('properties', async () => {
+      if (this.dbType === 'postgres' && this.pgPool) {
+        try {
+          await this.pgPool.query('DELETE FROM ukg_properties WHERE id = $1', [id]);
+          const local = this.readJsonFile(this.propertiesFilePath).filter((p) => p.id !== id);
+          this.writeJsonFileAtomically(this.propertiesFilePath, local);
+          return true;
+        } catch (err) {
+          console.error('[UKG DB] PostgreSQL deleteProperty error:', err);
+          throw err;
+        }
       }
-    }
 
-    if (this.dbType === 'mysql' && this.mysqlPool) {
-      try {
-        await this.mysqlPool.query('DELETE FROM ukg_properties WHERE id = ?', [id]);
-        const local = this.readJsonFile(this.propertiesFilePath).filter((p) => p.id !== id);
-        this.writeJsonFileAtomically(this.propertiesFilePath, local);
-        return true;
-      } catch (err) {
-        console.error('[UKG DB] MySQL deleteProperty error:', err);
-        throw err;
+      if (this.dbType === 'mysql' && this.mysqlPool) {
+        try {
+          await this.mysqlPool.query('DELETE FROM ukg_properties WHERE id = ?', [id]);
+          const local = this.readJsonFile(this.propertiesFilePath).filter((p) => p.id !== id);
+          this.writeJsonFileAtomically(this.propertiesFilePath, local);
+          return true;
+        } catch (err) {
+          console.error('[UKG DB] MySQL deleteProperty error:', err);
+          throw err;
+        }
       }
-    }
 
-    const list = this.readJsonFile(this.propertiesFilePath).filter((p) => p.id !== id);
-    this.writeJsonFileAtomically(this.propertiesFilePath, list);
-    return true;
+      const list = this.readJsonFile(this.propertiesFilePath).filter((p) => p.id !== id);
+      this.writeJsonFileAtomically(this.propertiesFilePath, list);
+      return true;
+    });
+  }
+
+  public async deletePropertiesByOwner(userId: string, contact: string): Promise<number> {
+    if (!this.initialized) await this.initialize();
+    const normContact = String(contact || '').trim().toLowerCase();
+    return this.withLock('properties', async () => {
+      const all = await this.getAllProperties();
+      const toDelete = all.filter((p) => {
+        const pOwnerId = String(p.ownerId || '');
+        const pContact = String(p.ownerContact || p.sellerEmail || '').trim().toLowerCase();
+        return (userId && pOwnerId === userId) || (normContact && pContact === normContact);
+      });
+      if (toDelete.length === 0) return 0;
+      const deleteIds = new Set(toDelete.map((p) => p.id));
+      if (this.dbType === 'postgres' && this.pgPool) {
+        for (const id of deleteIds) {
+          await this.pgPool.query('DELETE FROM ukg_properties WHERE id = $1', [id]);
+        }
+      } else if (this.dbType === 'mysql' && this.mysqlPool) {
+        for (const id of deleteIds) {
+          await this.mysqlPool.query('DELETE FROM ukg_properties WHERE id = ?', [id]);
+        }
+      }
+      const remaining = this.readJsonFile(this.propertiesFilePath).filter((p) => !deleteIds.has(p.id));
+      this.writeJsonFileAtomically(this.propertiesFilePath, remaining);
+      return deleteIds.size;
+    });
   }
 
   public async clearAllProperties(): Promise<void> {
@@ -724,88 +828,95 @@ class DatabaseService {
   public async saveUser(user: DbUser): Promise<DbUser> {
     if (!this.initialized) await this.initialize();
 
-    const normalizedContact = (user.contact || (user as any).email || '').trim().toLowerCase();
-    const completeUser: DbUser = {
-      ...user,
-      contact: normalizedContact,
-      createdAt: user.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      isOwner: user.isOwner || normalizedContact === 'amit1986.delhi@gmail.com' || user.username.trim().toLowerCase() === 'amit tyagi',
-      role: (normalizedContact === 'amit1986.delhi@gmail.com' || user.username.trim().toLowerCase() === 'amit tyagi') ? 'owner' : (user.role || 'user'),
-    };
+    return this.withLock('users', async () => {
+      const normalizedContact = (user.contact || (user as any).email || '').trim().toLowerCase();
+      const adminEmail = (process.env.ADMIN_EMAIL || 'amit1986.delhi@gmail.com').trim().toLowerCase();
+      // Strict email-based owner check only — never derive admin privileges from display username
+      const isAdminEmail = normalizedContact === adminEmail;
+      const completeUser: DbUser = {
+        ...user,
+        contact: normalizedContact,
+        createdAt: user.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        isOwner: isAdminEmail,
+        role: isAdminEmail ? 'owner' : (user.role === 'admin' ? 'admin' : 'user'),
+      };
 
-    const json = JSON.stringify(completeUser);
+      const json = JSON.stringify(completeUser);
 
-    if (this.dbType === 'postgres' && this.pgPool) {
-      try {
-        await this.pgPool.query(
-          `INSERT INTO ukg_users (id, username, contact, data, created_at)
-           VALUES ($1, $2, $3, $4, $5)
-           ON CONFLICT (id) DO UPDATE SET username = $2, contact = $3, data = $4`,
-          [completeUser.id, completeUser.username, normalizedContact, json, completeUser.createdAt]
-        );
-        const local = this.readJsonFile(this.usersFilePath).filter((u) => u.id !== completeUser.id && String(u.contact).toLowerCase() !== normalizedContact);
-        local.push(completeUser);
-        this.writeJsonFileAtomically(this.usersFilePath, local);
-        return completeUser;
-      } catch (err) {
-        console.error('[UKG DB] PostgreSQL saveUser error:', err);
-        throw err;
+      if (this.dbType === 'postgres' && this.pgPool) {
+        try {
+          await this.pgPool.query(
+            `INSERT INTO ukg_users (id, username, contact, data, created_at)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (id) DO UPDATE SET username = $2, contact = $3, data = $4`,
+            [completeUser.id, completeUser.username, normalizedContact, json, completeUser.createdAt]
+          );
+          const local = this.readJsonFile(this.usersFilePath).filter((u) => u.id !== completeUser.id && String(u.contact).toLowerCase() !== normalizedContact);
+          local.push(completeUser);
+          this.writeJsonFileAtomically(this.usersFilePath, local);
+          return completeUser;
+        } catch (err) {
+          console.error('[UKG DB] PostgreSQL saveUser error:', err);
+          throw err;
+        }
       }
-    }
 
-    if (this.dbType === 'mysql' && this.mysqlPool) {
-      try {
-        await this.mysqlPool.query(
-          `INSERT INTO ukg_users (id, username, contact, data, created_at)
-           VALUES (?, ?, ?, ?, ?)
-           ON DUPLICATE KEY UPDATE username = VALUES(username), contact = VALUES(contact), data = VALUES(data)`,
-          [completeUser.id, completeUser.username, normalizedContact, json, completeUser.createdAt]
-        );
-        const local = this.readJsonFile(this.usersFilePath).filter((u) => u.id !== completeUser.id && String(u.contact).toLowerCase() !== normalizedContact);
-        local.push(completeUser);
-        this.writeJsonFileAtomically(this.usersFilePath, local);
-        return completeUser;
-      } catch (err) {
-        console.error('[UKG DB] MySQL saveUser error:', err);
-        throw err;
+      if (this.dbType === 'mysql' && this.mysqlPool) {
+        try {
+          await this.mysqlPool.query(
+            `INSERT INTO ukg_users (id, username, contact, data, created_at)
+             VALUES (?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE username = VALUES(username), contact = VALUES(contact), data = VALUES(data)`,
+            [completeUser.id, completeUser.username, normalizedContact, json, completeUser.createdAt]
+          );
+          const local = this.readJsonFile(this.usersFilePath).filter((u) => u.id !== completeUser.id && String(u.contact).toLowerCase() !== normalizedContact);
+          local.push(completeUser);
+          this.writeJsonFileAtomically(this.usersFilePath, local);
+          return completeUser;
+        } catch (err) {
+          console.error('[UKG DB] MySQL saveUser error:', err);
+          throw err;
+        }
       }
-    }
 
-    const users = this.readJsonFile(this.usersFilePath);
-    const idx = users.findIndex((u) => u.id === completeUser.id || String(u.contact || '').toLowerCase() === normalizedContact);
-    if (idx >= 0) {
-      users[idx] = { ...users[idx], ...completeUser };
-    } else {
-      users.push(completeUser);
-    }
-    this.writeJsonFileAtomically(this.usersFilePath, users);
-    return completeUser;
+      const users = this.readJsonFile(this.usersFilePath);
+      const idx = users.findIndex((u) => u.id === completeUser.id || String(u.contact || '').toLowerCase() === normalizedContact);
+      if (idx >= 0) {
+        users[idx] = { ...users[idx], ...completeUser };
+      } else {
+        users.push(completeUser);
+      }
+      this.writeJsonFileAtomically(this.usersFilePath, users);
+      return completeUser;
+    });
   }
 
   public async deleteUser(idOrContact: string): Promise<boolean> {
     if (!this.initialized) await this.initialize();
     const target = idOrContact.trim().toLowerCase();
 
-    if (this.dbType === 'postgres' && this.pgPool) {
-      try {
-        await this.pgPool.query('DELETE FROM ukg_users WHERE id = $1 OR contact = $1', [target]);
-      } catch (err) {
-        console.error('[UKG DB] PostgreSQL deleteUser error:', err);
+    return this.withLock('users', async () => {
+      if (this.dbType === 'postgres' && this.pgPool) {
+        try {
+          await this.pgPool.query('DELETE FROM ukg_users WHERE LOWER(id) = $1 OR LOWER(contact) = $1', [target]);
+        } catch (err) {
+          console.error('[UKG DB] PostgreSQL deleteUser error:', err);
+        }
       }
-    }
 
-    if (this.dbType === 'mysql' && this.mysqlPool) {
-      try {
-        await this.mysqlPool.query('DELETE FROM ukg_users WHERE id = ? OR contact = ?', [target, target]);
-      } catch (err) {
-        console.error('[UKG DB] MySQL deleteUser error:', err);
+      if (this.dbType === 'mysql' && this.mysqlPool) {
+        try {
+          await this.mysqlPool.query('DELETE FROM ukg_users WHERE LOWER(id) = ? OR LOWER(contact) = ?', [target, target]);
+        } catch (err) {
+          console.error('[UKG DB] MySQL deleteUser error:', err);
+        }
       }
-    }
 
-    const users = this.readJsonFile(this.usersFilePath).filter((u) => u.id !== target && String(u.contact || '').toLowerCase() !== target);
-    this.writeJsonFileAtomically(this.usersFilePath, users);
-    return true;
+      const users = this.readJsonFile(this.usersFilePath).filter((u) => String(u.id || '').toLowerCase() !== target && String(u.contact || '').toLowerCase() !== target);
+      this.writeJsonFileAtomically(this.usersFilePath, users);
+      return true;
+    });
   }
 
   public async syncUsers(incomingUsers: any[]): Promise<number> {
@@ -902,8 +1013,27 @@ class DatabaseService {
     return found ? { sessionId: found.sessionId, userId: found.userId, createdAt: found.createdAt, expiresAt: Number(found.expiresAt) } : null;
   }
 
+  public async revokeSession(sessionId: string): Promise<void> {
+    if (!sessionId) return;
+    this.revokedTokens.add(sessionId);
+    await this.withLock('revoked_sessions', () => {
+      const now = Date.now();
+      const expiresAt = now + 31 * 24 * 60 * 60 * 1000;
+      const existing = this.readJsonFile(this.revokedSessionsFilePath).filter(
+        (r) => r && r.sessionId && r.sessionId !== sessionId && (!r.expiresAt || Number(r.expiresAt) >= now)
+      );
+      existing.push({ sessionId, revokedAt: new Date().toISOString(), expiresAt });
+      this.writeJsonFileAtomically(this.revokedSessionsFilePath, existing);
+    });
+  }
+
+  public isSessionRevoked(sessionId: string): boolean {
+    return this.revokedTokens.has(sessionId);
+  }
+
   public async deleteSession(sessionId: string): Promise<void> {
     if (!this.initialized) await this.initialize();
+    await this.revokeSession(sessionId);
 
     if (this.dbType === 'postgres' && this.pgPool) {
       try {
@@ -930,8 +1060,17 @@ class DatabaseService {
   public async deleteUserSessions(userId: string): Promise<void> {
     if (!this.initialized) await this.initialize();
 
+    const jsonSessions = this.readJsonFile(this.sessionsFilePath).filter((s) => s.userId === userId);
+    for (const s of jsonSessions) {
+      if (s.sessionId) await this.revokeSession(s.sessionId);
+    }
+
     if (this.dbType === 'postgres' && this.pgPool) {
       try {
+        const res = await this.pgPool.query('SELECT session_id FROM ukg_sessions WHERE user_id = $1', [userId]);
+        for (const r of res.rows || []) {
+          if (r.session_id) await this.revokeSession(r.session_id);
+        }
         await this.pgPool.query('DELETE FROM ukg_sessions WHERE user_id = $1', [userId]);
         return;
       } catch (err) {
@@ -941,6 +1080,10 @@ class DatabaseService {
 
     if (this.dbType === 'mysql' && this.mysqlPool) {
       try {
+        const [rows]: any = await this.mysqlPool.query('SELECT session_id FROM ukg_sessions WHERE user_id = ?', [userId]);
+        for (const r of rows || []) {
+          if (r.session_id) await this.revokeSession(r.session_id);
+        }
         await this.mysqlPool.query('DELETE FROM ukg_sessions WHERE user_id = ?', [userId]);
         return;
       } catch (err) {
@@ -1210,6 +1353,79 @@ class DatabaseService {
     otps.splice(idx, 1);
     this.writeJsonFileAtomically(this.otpsFilePath, otps);
     return { success: true };
+  }
+
+  // =================================================================
+  // LISTING REPORTS STORAGE & MODERATION
+  // =================================================================
+
+  public async getAllReports(): Promise<DbReport[]> {
+    if (!this.initialized) await this.initialize();
+
+    if (this.dbType === 'postgres' && this.pgPool) {
+      try {
+        const res = await this.pgPool.query('SELECT data FROM ukg_reports ORDER BY created_at DESC');
+        return res.rows.map((r) => (typeof r.data === 'string' ? JSON.parse(r.data) : r.data));
+      } catch (err) {
+        console.error('[UKG DB] PostgreSQL getAllReports error:', err);
+      }
+    }
+
+    if (this.dbType === 'mysql' && this.mysqlPool) {
+      try {
+        const [rows]: any = await this.mysqlPool.query('SELECT data FROM ukg_reports ORDER BY created_at DESC');
+        return rows.map((r: any) => (typeof r.data === 'string' ? JSON.parse(r.data) : r.data));
+      } catch (err) {
+        console.error('[UKG DB] MySQL getAllReports error:', err);
+      }
+    }
+
+    return this.readJsonFile(this.reportsFilePath);
+  }
+
+  public async saveReport(report: DbReport): Promise<DbReport> {
+    if (!this.initialized) await this.initialize();
+    return this.withLock('reports', async () => {
+      const json = JSON.stringify(report);
+      if (this.dbType === 'postgres' && this.pgPool) {
+        await this.pgPool.query(
+          `INSERT INTO ukg_reports (id, property_id, status, data, created_at)
+           VALUES ($1, $2, $3, $4, $5)
+           ON CONFLICT (id) DO UPDATE SET status = $3, data = $4`,
+          [report.id, report.propertyId, report.status, json, report.createdAt]
+        );
+      } else if (this.dbType === 'mysql' && this.mysqlPool) {
+        await this.mysqlPool.query(
+          `INSERT INTO ukg_reports (id, property_id, status, data, created_at)
+           VALUES (?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE status = VALUES(status), data = VALUES(data)`,
+          [report.id, report.propertyId, report.status, json, report.createdAt]
+        );
+      }
+      const reports = this.readJsonFile(this.reportsFilePath).filter((r: any) => r.id !== report.id);
+      reports.unshift(report);
+      this.writeJsonFileAtomically(this.reportsFilePath, reports);
+      return report;
+    });
+  }
+
+  public async updateReportStatus(id: string, status: 'open' | 'resolved' | 'dismissed'): Promise<DbReport | null> {
+    if (!this.initialized) await this.initialize();
+    return this.withLock('reports', async () => {
+      const all = await this.getAllReports();
+      const target = all.find((r) => r.id === id);
+      if (!target) return null;
+      const updated: DbReport = { ...target, status, updatedAt: new Date().toISOString() };
+      const json = JSON.stringify(updated);
+      if (this.dbType === 'postgres' && this.pgPool) {
+        await this.pgPool.query('UPDATE ukg_reports SET status = $2, data = $3 WHERE id = $1', [id, status, json]);
+      } else if (this.dbType === 'mysql' && this.mysqlPool) {
+        await this.mysqlPool.query('UPDATE ukg_reports SET status = ?, data = ? WHERE id = ?', [status, json, id]);
+      }
+      const list = this.readJsonFile(this.reportsFilePath).map((r: any) => (r.id === id ? updated : r));
+      this.writeJsonFileAtomically(this.reportsFilePath, list);
+      return updated;
+    });
   }
 }
 

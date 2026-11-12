@@ -780,9 +780,14 @@ export default function App() {
 
     // Save to shared server database so other users (and logged-out visitors) see it
     try {
+      const token = (() => { try { return localStorage.getItem('ukg_session_token'); } catch { return null; } })();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
       const res = await fetch('/api/properties', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers,
         body: JSON.stringify(newProperty),
       });
 
@@ -1098,12 +1103,21 @@ export default function App() {
 
     // 4. Wipe from backend server persistent store
     try {
+      const token = (() => { try { return localStorage.getItem('ukg_session_token'); } catch { return null; } })();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
       const res = await fetch('/api/properties/clear-all', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers,
       });
       if (!res.ok) {
-        await fetch('/api/properties', { method: 'DELETE' });
+        await fetch('/api/properties', {
+          method: 'DELETE',
+          credentials: 'include',
+          headers,
+        });
       }
     } catch (err) {
       console.error('Failed to clear properties from server:', err);
@@ -1153,13 +1167,25 @@ export default function App() {
         if (currentUser?.contact) headers['X-User-Contact'] = currentUser.contact;
         if (currentUser?.id) headers['X-User-Id'] = currentUser.id;
 
-        await fetch(`/api/properties/${encodeURIComponent(propertyId)}`, {
+        const res = await fetch(`/api/properties/${encodeURIComponent(propertyId)}`, {
           method: 'PUT',
           credentials: 'include',
           headers,
           body: JSON.stringify(targetProp),
         });
-      } catch (err) {}
+        if (!res.ok) {
+          throw new Error('Failed to update property status on server');
+        }
+      } catch (err) {
+        console.error('[UKG ToggleSold] Revert due to error:', err);
+        const revertedIsSold = !targetProp.isSold;
+        setProperties((prev) =>
+          prev.map((p) => (p.id === propertyId ? { ...p, isSold: revertedIsSold } : p))
+        );
+        if (selectedProperty?.id === propertyId) {
+          setSelectedProperty((prev) => (prev ? { ...prev, isSold: revertedIsSold } : prev));
+        }
+      }
       broadcastPropertiesUpdated([]);
     }
   };

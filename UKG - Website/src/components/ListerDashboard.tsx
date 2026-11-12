@@ -66,31 +66,24 @@ export const ListerDashboard: React.FC<ListerDashboardProps> = ({
     return properties.filter((p) => isPropertyOwner(p, currentUser));
   }, [properties, currentUser]);
 
-  // If user has no properties, provide sample mock analytics for demo
-  const isDemo = myProperties.length === 0;
-
-  // Aggregate metrics
+  // Aggregate real metrics from database properties
   const totalViews = useMemo(() => {
-    if (isDemo) return 428;
-    return myProperties.reduce((sum, p) => sum + (p.views || Math.max(12, Math.floor(((p.price || 500000) % 1000) / 4) + 18)), 0);
-  }, [myProperties, isDemo]);
+    return myProperties.reduce((sum, p) => sum + (Number(p.views) || 0), 0);
+  }, [myProperties]);
 
   const totalInquiries = useMemo(() => {
-    if (isDemo) return 32;
-    return myProperties.reduce((sum, p) => sum + (p.inquiries || Math.max(2, Math.floor((p.views || 25) / 8))), 0);
-  }, [myProperties, isDemo]);
+    return myProperties.reduce((sum, p) => sum + (Number(p.inquiries) || 0), 0);
+  }, [myProperties]);
 
   const totalShares = useMemo(() => {
-    if (isDemo) return 64;
-    return myProperties.reduce((sum, p) => sum + (p.shares || Math.max(1, Math.floor((p.views || 20) / 12))), 0);
-  }, [myProperties, isDemo]);
+    return myProperties.reduce((sum, p) => sum + (Number(p.shares) || 0), 0);
+  }, [myProperties]);
 
   const totalSaves = useMemo(() => {
-    if (isDemo) return 47;
-    return myProperties.reduce((sum, p) => sum + Math.max(3, Math.floor((p.views || 30) / 6)), 0);
-  }, [myProperties, isDemo]);
+    return 0;
+  }, []);
 
-  const conversionRate = totalViews > 0 ? ((totalInquiries / totalViews) * 100).toFixed(1) : '4.5';
+  const conversionRate = totalViews > 0 ? ((totalInquiries / totalViews) * 100).toFixed(1) : '0.0';
 
   // Share Property handler
   const handleShareProperty = async (e: React.MouseEvent, prop: Property) => {
@@ -181,19 +174,19 @@ export const ListerDashboard: React.FC<ListerDashboardProps> = ({
       {/* Main Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         
-        {/* Demo Notice Banner if 0 properties */}
-        {isDemo && (
+        {/* Empty Notice Banner if 0 properties */}
+        {myProperties.length === 0 && (
           <div className="p-4 sm:p-5 rounded-2xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm animate-in fade-in">
             <div className="flex items-start gap-3">
               <Sparkles className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
               <div>
                 <h4 className="text-xs sm:text-sm font-bold text-amber-900 dark:text-amber-200">
-                  {isHindi ? 'ग्रोथ डैशबोर्ड प्रीव्यू (डेमो मोड)' : 'Lister Growth Dashboard Preview (Demo Mode)'}
+                  {isHindi ? 'ग्रोथ डैशबोर्ड (कोई प्रॉपर्टी नहीं)' : 'Lister Growth Dashboard'}
                 </h4>
                 <p className="text-xs text-amber-800/80 dark:text-amber-300/80 mt-0.5">
                   {isHindi 
-                    ? 'आपने अभी तक कोई प्रॉपर्टी लिस्ट नहीं की है। नीचे दिया गया डेटा दिखाता है कि उत्तराखंड गेटवेज पर आपकी प्रॉपर्टी कैसे व्यूज और इंक्वायरी पाती है!' 
-                    : 'You have not listed any properties yet. The stats below illustrate how your listings will track live views, buyer chat inquiries, and WhatsApp shares!'}
+                    ? 'आपने अभी तक कोई प्रॉपर्टी लिस्ट नहीं की है। प्रॉपर्टी जोड़ने के बाद यहाँ वास्तविक व्यूज, इंक्वायरी और शेयर दिखाई देंगे।' 
+                    : 'You have not listed any properties yet. Live views, buyer inquiries, and shares for your listings will appear here.'}
                 </p>
               </div>
             </div>

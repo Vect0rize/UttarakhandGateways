@@ -69,7 +69,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     updateProfile, 
     deleteAccount, 
     logout,
-    getAllRegisteredUsers,
+    fetchAllRegisteredUsers,
     deleteUserByOwner
   } = useAuth();
   
@@ -102,19 +102,21 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   useEffect(() => {
     if (isOwner && isOpen) {
-      setRegisteredUsersList(getAllRegisteredUsers());
+      void fetchAllRegisteredUsers().then((users) => {
+        setRegisteredUsersList(users);
+      });
     }
-  }, [isOwner, isOpen, getAllRegisteredUsers]);
+  }, [isOwner, isOpen, fetchAllRegisteredUsers]);
 
   if (!isOpen || !currentUser) return null;
 
-  const handleSaveUsername = () => {
+  const handleSaveUsername = async () => {
     if (!username.trim() || username.trim().length < 2) {
       setErrorMsg(isHindi ? 'यूजरनेम कम से कम 2 अक्षरों का होना चाहिए।' : 'Username must be at least 2 characters.');
       return;
     }
 
-    const res = updateProfile({ username: username.trim() });
+    const res = await updateProfile({ username: username.trim() });
     if (res.success) {
       setIsEditingUsername(false);
       setErrorMsg(null);
@@ -124,16 +126,24 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     }
   };
 
-  const handleSelectPresetAvatar = (url: string) => {
-    updateProfile({ avatar: url });
+  const handleSelectPresetAvatar = async (url: string) => {
+    const res = await updateProfile({ avatar: url });
     setShowPfpPicker(false);
-    showToast(isHindi ? 'प्रोफ़ाइल फोटो अपडेट की गई!' : 'Profile picture updated!');
+    if (res.success) {
+      showToast(isHindi ? 'प्रोफ़ाइल फोटो अपडेट की गई!' : 'Profile picture updated!');
+    } else {
+      setErrorMsg(res.error || 'Failed to update profile picture');
+    }
   };
 
-  const handleRemoveAvatar = () => {
-    updateProfile({ avatar: undefined });
+  const handleRemoveAvatar = async () => {
+    const res = await updateProfile({ avatar: undefined });
     setShowPfpPicker(false);
-    showToast(isHindi ? 'डिफ़ॉल्ट फोटो पर सेट किया गया' : 'Reset to default avatar');
+    if (res.success) {
+      showToast(isHindi ? 'डिफ़ॉल्ट फोटो पर सेट किया गया' : 'Reset to default avatar');
+    } else {
+      setErrorMsg(res.error || 'Failed to reset avatar');
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -146,27 +156,42 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     }
 
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       const dataUrl = reader.result as string;
-      updateProfile({ avatar: dataUrl });
+      const res = await updateProfile({ avatar: dataUrl });
       setShowPfpPicker(false);
-      showToast(isHindi ? 'कस्टम फोटो अपलोड की गई!' : 'Custom photo uploaded!');
+      if (res.success) {
+        showToast(isHindi ? 'कस्टम फोटो अपलोड की गई!' : 'Custom photo uploaded!');
+      } else {
+        setErrorMsg(res.error || 'Failed to upload custom photo');
+      }
     };
     reader.readAsDataURL(file);
   };
 
-  const handleDeleteAccountConfirmed = () => {
-    deleteAccount(currentUser.contact);
-    setShowDeleteConfirm(false);
-    onClose();
+  const handleDeleteAccountConfirmed = async () => {
+    const res = await deleteAccount(currentUser.contact);
+    if (res.success) {
+      setShowDeleteConfirm(false);
+      onClose();
+    } else {
+      setErrorMsg(res.message || 'Failed to delete account.');
+      setShowDeleteConfirm(false);
+    }
   };
 
-  const handleDeleteUserByOwnerConfirmed = () => {
+  const handleDeleteUserByOwnerConfirmed = async () => {
     if (!accountToDeleteByOwner) return;
-    deleteUserByOwner(accountToDeleteByOwner.contact);
-    setRegisteredUsersList((prev) => prev.filter((u) => u.id !== accountToDeleteByOwner.id));
-    setAccountToDeleteByOwner(null);
-    showToast(isHindi ? 'खाता व संपत्तियां सफलतापूर्वक हटाई गईं।' : `Account (${accountToDeleteByOwner.username}) deleted.`);
+    const deleted = accountToDeleteByOwner;
+    const res = await deleteUserByOwner(deleted.contact || deleted.id);
+    if (res.success) {
+      setRegisteredUsersList((prev) => prev.filter((u) => u.id !== deleted.id));
+      setAccountToDeleteByOwner(null);
+      showToast(isHindi ? 'खाता व संपत्तियां सफलतापूर्वक हटाई गईं।' : `Account (${deleted.username}) deleted.`);
+    } else {
+      setErrorMsg(res.message || 'Failed to delete user.');
+      setAccountToDeleteByOwner(null);
+    }
   };
 
   const showToast = (msg: string) => {
@@ -256,7 +281,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               type="button"
               onClick={() => {
                 setActiveTab('owner');
-                setRegisteredUsersList(getAllRegisteredUsers());
+                void fetchAllRegisteredUsers().then((users) => {
+                  setRegisteredUsersList(users);
+                });
               }}
               className={`pb-2 px-3 text-xs font-bold border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 ${
                 activeTab === 'owner' 

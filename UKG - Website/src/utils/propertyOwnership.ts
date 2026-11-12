@@ -7,11 +7,8 @@ import { User } from '../context/AuthContext';
  */
 export const isAppOwner = (user: { username?: string; contact?: string; email?: string; role?: string; isOwner?: boolean } | null | undefined): boolean => {
   if (!user) return false;
-  const username = (user.username || '').trim().toLowerCase();
   const contact = (user.contact || (user as any).email || '').trim().toLowerCase();
   return (
-    username === 'amit tyagi' ||
-    username === 'amit1986.delhi' ||
     contact === 'amit1986.delhi@gmail.com' ||
     Boolean(user.isOwner) ||
     user.role === 'owner' ||
@@ -112,9 +109,17 @@ export const isDirectPropertyOwner = (property?: Property | null, currentUser?: 
     }
   }
 
-  // 3. Direct owner username match
-  if (property.ownerUsername && property.ownerUsername.trim().toLowerCase() === userUsername) {
-    return true;
+  // If listing already has explicit ownerId/contact identity, strictly require identity match (never match by display username alone to prevent spoofing)
+  const hasExplicitOwnerIdentity = Boolean(property.ownerId || property.ownerContact || property.sellerEmail);
+
+  // 3 & 6. Legacy fallback when no explicit owner ID/email exists
+  if (!hasExplicitOwnerIdentity) {
+    if (property.ownerUsername && property.ownerUsername.trim().toLowerCase() === userUsername) {
+      return true;
+    }
+    if (property.sellerName && property.sellerName.trim().toLowerCase() === userUsername) {
+      return true;
+    }
   }
 
   // 4. Seller Email match
@@ -128,11 +133,6 @@ export const isDirectPropertyOwner = (property?: Property | null, currentUser?: 
     if (userPhoneDigits.length >= 10 && sellerDigits.length >= 10 && (userPhoneDigits === sellerDigits || userPhoneDigits.endsWith(sellerDigits) || sellerDigits.endsWith(userPhoneDigits))) {
       return true;
     }
-  }
-
-  // 6. Seller name match with current user's username
-  if (property.sellerName && property.sellerName.trim().toLowerCase() === userUsername) {
-    return true;
   }
 
   // 7. Check local/session uploaded registries

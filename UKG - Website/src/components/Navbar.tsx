@@ -401,7 +401,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Download Android App (Direct Native APK) */}
             <a
-              href="/UKG - App.apk?v=9"
+              href="/UKG - App.apk?v=10"
               download="UKG - App.apk"
               className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/80 hover:bg-emerald-100 dark:hover:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800 text-xs font-bold shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap"
               title={isHindi ? 'ऑफिशियल एंड्रॉइड ऐप डाउनलोड करें' : 'Download Official Android App (APK)'}
@@ -526,7 +526,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Direct Official Android APK Download Banner */}
             <a
-              href="/UKG - App.apk?v=9"
+              href="/UKG - App.apk?v=10"
               download="UKG - App.apk"
               onClick={() => setMobileMenuOpen(false)}
               className="w-full p-2.5 bg-gradient-to-r from-[#0E3A2B] via-[#32463D] to-[#0C3628] text-[#F4F3EF] font-extrabold rounded-2xl text-xs flex items-center justify-between shadow-md shadow-[#032D1F]/25 border border-[#AA8F7C]/40 cursor-pointer active:scale-98 transition-all"
@@ -906,8 +906,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  deleteAccount();
+                onClick={async () => {
+                  await deleteAccount();
                   setShowDeleteModal(false);
                 }}
                 className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-md shadow-rose-600/25 transition-all cursor-pointer"

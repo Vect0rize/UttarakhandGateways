@@ -1,0 +1,188 @@
+{
+  "baseUrl": "http://127.0.0.1:3099",
+  "timestamp": "2026-11-12T13:50:05.984Z",
+  "passed": 19,
+  "failed": 3,
+  "total": 22,
+  "pageErrors": [],
+  "consoleErrors": [],
+  "server500s": [],
+  "results": [
+    {
+      "id": "E2E-HOME-01",
+      "category": "Functionality",
+      "severity": "CRITICAL",
+      "name": "Homepage renders cleanly with H1 & content",
+      "status": "PASS",
+      "detail": "load=2185ms, h1Count=1, textLen=71951"
+    },
+    {
+      "id": "A11Y-01",
+      "category": "Accessibility",
+      "severity": "MEDIUM",
+      "name": "Homepage images have alt text & load cleanly",
+      "status": "PASS",
+      "detail": "total=518, noAlt=0, broken=[]"
+    },
+    {
+      "id": "A11Y-02",
+      "category": "Accessibility",
+      "severity": "MEDIUM",
+      "name": "Visible icon buttons have aria-label or title",
+      "status": "PASS",
+      "detail": "emptyIconButtons=0"
+    },
+    {
+      "id": "E2E-CHAT-01",
+      "category": "Functionality",
+      "severity": "MEDIUM",
+      "name": "AI Chatbot opens & answers query live",
+      "status": "PASS",
+      "detail": "{\"opened\":true,\"replied\":true}"
+    },
+    {
+      "id": "E2E-AUTH-01",
+      "category": "Auth/UX",
+      "severity": "CRITICAL",
+      "name": "User registration via UI creates session & logs user in",
+      "status": "PASS",
+      "detail": "{\"foundForm\":true,\"stored\":{\"id\":\"user-1794491365276-f71d20aa\",\"username\":\"E2E Seller Original\",\"contact\":\"qa_e2e_1794491361853@example.com\",\"contactType\":\"email\",\"isVerified\":false,\"createdAt\":\"2026-11-12T13:49:25.276Z\",\"isOwner\":false},\"token\":true,\"errText\":\"Uttarakhand Gateways\\nREAL ESTATE\\nअ\\nहिन्दी\\n+\\nList\\nFREE\\nE\\nE2E Seller Original\\nLand Laws & Guides\\nDownload App\\nMenu\\nUttarakhand\\nGateways\\nREAL ESTATE\\nYour Gateway To Mountains\\n\\nDiscover verified residenti\"}"
+    },
+    {
+      "id": "E2E-PERSIST-01",
+      "category": "Persistence",
+      "severity": "CRITICAL",
+      "name": "Authenticated user session survives full page reload",
+      "status": "PASS",
+      "detail": "username=E2E Seller Original"
+    },
+    {
+      "id": "E2E-PERSIST-02",
+      "category": "Persistence",
+      "severity": "HIGH",
+      "name": "Updated profile username persists across full page reload (server /api/auth/me check)",
+      "status": "FAIL",
+      "detail": "beforeReload=\"undefined\", afterReload=\"E2E Seller Original\""
+    },
+    {
+      "id": "E2E-COPY-01",
+      "category": "Functionality/Copy",
+      "severity": "MEDIUM",
+      "name": "/list/buy excludes Builder & Agent options, uses Broker",
+      "status": "PASS",
+      "detail": "{\"hasBuilder\":false,\"hasAgent\":false,\"hasBroker\":true,\"hasZeroBrokerageBadge\":false}"
+    },
+    {
+      "id": "E2E-COPY-02",
+      "category": "Functionality/Copy",
+      "severity": "MEDIUM",
+      "name": "/list/rent excludes Builder/Agent/removed badge & uses Broker",
+      "status": "PASS",
+      "detail": "{\"hasBuilder\":false,\"hasAgent\":false,\"hasBroker\":true,\"hasRemovedBadge\":false}"
+    },
+    {
+      "id": "E2E-FEAT-REP-MODAL",
+      "category": "Functionality/UX",
+      "severity": "MEDIUM",
+      "name": "PropertyDetailModal (opened from marketplace cards) exposes Report Listing button",
+      "status": "FAIL",
+      "detail": "hasReportButton=false"
+    },
+    {
+      "id": "E2E-FEAT-REP",
+      "category": "Persistence",
+      "severity": "HIGH",
+      "name": "Report Listing Modal sends report to backend /api/reports instead of faking success",
+      "status": "FAIL",
+      "detail": "ui={\"visited\":true,\"foundReportBtn\":false}, backendCalled=false"
+    },
+    {
+      "id": "UX-VP-320",
+      "category": "UI/Responsive",
+      "severity": "HIGH",
+      "name": "No horizontal overflow at 320px width",
+      "status": "PASS",
+      "detail": "scrollW=320, innerW=320, overflow=0px"
+    },
+    {
+      "id": "UX-VP-375",
+      "category": "UI/Responsive",
+      "severity": "HIGH",
+      "name": "No horizontal overflow at 375px width",
+      "status": "PASS",
+      "detail": "scrollW=375, innerW=375, overflow=0px"
+    },
+    {
+      "id": "UX-VP-390",
+      "category": "UI/Responsive",
+      "severity": "HIGH",
+      "name": "No horizontal overflow at 390px width",
+      "status": "PASS",
+      "detail": "scrollW=390, innerW=390, overflow=0px"
+    },
+    {
+      "id": "UX-VP-430",
+      "category": "UI/Responsive",
+      "severity": "HIGH",
+      "name": "No horizontal overflow at 430px width",
+      "status": "PASS",
+      "detail": "scrollW=430, innerW=430, overflow=0px"
+    },
+    {
+      "id": "UX-VP-768",
+      "category": "UI/Responsive",
+      "severity": "MEDIUM",
+      "name": "No horizontal overflow at 768px width",
+      "status": "PASS",
+      "detail": "scrollW=768, innerW=768, overflow=0px"
+    },
+    {
+      "id": "UX-VP-1366",
+      "category": "UI/Responsive",
+      "severity": "MEDIUM",
+      "name": "No horizontal overflow at 1366px width",
+      "status": "PASS",
+      "detail": "scrollW=1360, innerW=1366, overflow=0px"
+    },
+    {
+      "id": "UX-VP-1920",
+      "category": "UI/Responsive",
+      "severity": "MEDIUM",
+      "name": "No horizontal overflow at 1920px width",
+      "status": "PASS",
+      "detail": "scrollW=1920, innerW=1920, overflow=0px"
+    },
+    {
+      "id": "NET-OFFLINE-01",
+      "category": "Network/Resilience",
+      "severity": "MEDIUM",
+      "name": "Offline mode triggers clean fetch failure without app crash",
+      "status": "PASS",
+      "detail": "offline={\"threw\":true,\"msg\":\"Failed to fetch\"}, pageErrors=0"
+    },
+    {
+      "id": "E2E-STAB-01",
+      "category": "Stability",
+      "severity": "CRITICAL",
+      "name": "Zero uncaught JS runtime exceptions during entire E2E suite",
+      "status": "PASS",
+      "detail": "exceptions=[]"
+    },
+    {
+      "id": "E2E-STAB-02",
+      "category": "Stability",
+      "severity": "CRITICAL",
+      "name": "Zero HTTP 5xx server responses during entire E2E suite",
+      "status": "PASS",
+      "detail": "server500s=[]"
+    },
+    {
+      "id": "E2E-STAB-03",
+      "category": "Stability",
+      "severity": "HIGH",
+      "name": "Zero console.error logs during entire E2E suite",
+      "status": "PASS",
+      "detail": "consoleErrors=[]"
+    }
+  ]
+}

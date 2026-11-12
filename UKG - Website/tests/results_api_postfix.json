@@ -1,0 +1,409 @@
+{
+  "baseUrl": "http://127.0.0.1:3099",
+  "timestamp": "2026-11-12T14:07:24.105Z",
+  "passed": 50,
+  "failed": 0,
+  "total": 50,
+  "results": [
+    {
+      "id": "API-01",
+      "category": "Infrastructure",
+      "severity": "CRITICAL",
+      "name": "Health Endpoint Returns Connected DB",
+      "status": "PASS",
+      "detail": "HTTP 200, db=file, count=1010"
+    },
+    {
+      "id": "SEO-/",
+      "category": "SEO/Routing",
+      "severity": "HIGH",
+      "name": "Route / returns 200",
+      "status": "PASS",
+      "detail": "HTTP 200, len=12337"
+    },
+    {
+      "id": "SEO-/buy",
+      "category": "SEO/Routing",
+      "severity": "HIGH",
+      "name": "Route /buy returns 200",
+      "status": "PASS",
+      "detail": "HTTP 200, len=12337"
+    },
+    {
+      "id": "SEO-/rent",
+      "category": "SEO/Routing",
+      "severity": "HIGH",
+      "name": "Route /rent returns 200",
+      "status": "PASS",
+      "detail": "HTTP 200, len=12477"
+    },
+    {
+      "id": "SEO-/list",
+      "category": "SEO/Routing",
+      "severity": "HIGH",
+      "name": "Route /list returns 200",
+      "status": "PASS",
+      "detail": "HTTP 200, len=9675"
+    },
+    {
+      "id": "SEO-/list/buy",
+      "category": "SEO/Routing",
+      "severity": "HIGH",
+      "name": "Route /list/buy returns 200",
+      "status": "PASS",
+      "detail": "HTTP 200, len=9800"
+    },
+    {
+      "id": "SEO-/list/rent",
+      "category": "SEO/Routing",
+      "severity": "HIGH",
+      "name": "Route /list/rent returns 200",
+      "status": "PASS",
+      "detail": "HTTP 200, len=9652"
+    },
+    {
+      "id": "SEO-/guides",
+      "category": "SEO/Routing",
+      "severity": "HIGH",
+      "name": "Route /guides returns 200",
+      "status": "PASS",
+      "detail": "HTTP 200, len=23011"
+    },
+    {
+      "id": "SEO-/properties-in-dehradun",
+      "category": "SEO/Routing",
+      "severity": "HIGH",
+      "name": "Route /properties-in-dehradun returns 200",
+      "status": "PASS",
+      "detail": "HTTP 200, len=22415"
+    },
+    {
+      "id": "SEO-/flats-for-sale-in-dehradun",
+      "category": "SEO/Routing",
+      "severity": "HIGH",
+      "name": "Route /flats-for-sale-in-dehradun returns 200",
+      "status": "PASS",
+      "detail": "HTTP 200, len=21087"
+    },
+    {
+      "id": "SEO-/robots.txt",
+      "category": "SEO/Routing",
+      "severity": "HIGH",
+      "name": "Route /robots.txt returns 200",
+      "status": "PASS",
+      "detail": "HTTP 200, len=1541"
+    },
+    {
+      "id": "SEO-/sitemap.xml",
+      "category": "SEO/Routing",
+      "severity": "HIGH",
+      "name": "Route /sitemap.xml returns 200",
+      "status": "PASS",
+      "detail": "HTTP 200, len=794207"
+    },
+    {
+      "id": "SEO-404",
+      "category": "SEO/Routing",
+      "severity": "HIGH",
+      "name": "Unknown route returns true HTTP 404 with noindex",
+      "status": "PASS",
+      "detail": "HTTP 404, hasNoindex=true"
+    },
+    {
+      "id": "SEO-NOINDEX",
+      "category": "SEO/Routing",
+      "severity": "MEDIUM",
+      "name": "Private route /dashboard includes noindex meta",
+      "status": "PASS",
+      "detail": "HTTP 200, hasNoindex=true"
+    },
+    {
+      "id": "AUTH-01",
+      "category": "Auth",
+      "severity": "HIGH",
+      "name": "Register rejects short name, bad email, short password",
+      "status": "PASS",
+      "detail": "HTTP 400: Please enter your full name (at least 2 characters)."
+    },
+    {
+      "id": "AUTH-02",
+      "category": "Auth",
+      "severity": "CRITICAL",
+      "name": "Register creates normal user A with session cookie & token",
+      "status": "PASS",
+      "detail": "HTTP 201, role=user, isOwner=false"
+    },
+    {
+      "id": "AUTH-03",
+      "category": "Auth",
+      "severity": "HIGH",
+      "name": "Duplicate email registration returns 409",
+      "status": "PASS",
+      "detail": "HTTP 409: An account with this email address already exists. Please sign in instead."
+    },
+    {
+      "id": "SEC-PRIV-01",
+      "category": "Security",
+      "severity": "CRITICAL",
+      "name": "Registering with username \"Amit Tyagi\" MUST NOT grant owner privileges",
+      "status": "PASS",
+      "detail": "HTTP 201, returned isOwner=false, role=user"
+    },
+    {
+      "id": "SEC-PRIV-02",
+      "category": "Security",
+      "severity": "CRITICAL",
+      "name": "Fake \"Amit Tyagi\" account MUST NOT access /api/users admin directory",
+      "status": "PASS",
+      "detail": "HTTP 403, leakedUsers=0"
+    },
+    {
+      "id": "SEC-AUTH-LEGACY",
+      "category": "Security",
+      "severity": "HIGH",
+      "name": "Legacy /api/register-user validates email format and password strength",
+      "status": "PASS",
+      "detail": "HTTP 400: {\"success\":false,\"error\":\"Username must be between 2 and 80 characters.\"}"
+    },
+    {
+      "id": "SEC-SESS-01",
+      "category": "Security",
+      "severity": "HIGH",
+      "name": "Logout with Bearer token invalidates server session for that token",
+      "status": "PASS",
+      "detail": "logout HTTP 200, /api/auth/me after logout HTTP 401"
+    },
+    {
+      "id": "AUTH-04",
+      "category": "Auth",
+      "severity": "CRITICAL",
+      "name": "User B login succeeds after register & logout",
+      "status": "PASS",
+      "detail": "HTTP 200"
+    },
+    {
+      "id": "AUTH-05",
+      "category": "Auth",
+      "severity": "HIGH",
+      "name": "Wrong password rejected with 401",
+      "status": "PASS",
+      "detail": "HTTP 401"
+    },
+    {
+      "id": "SEC-SESS-02",
+      "category": "Security",
+      "severity": "CRITICAL",
+      "name": "Unauthenticated /api/auth/sync-session spoofing rejected with 401",
+      "status": "PASS",
+      "detail": "HTTP 401"
+    },
+    {
+      "id": "SEC-ADMIN-01",
+      "category": "Security",
+      "severity": "CRITICAL",
+      "name": "Normal User B blocked from GET /api/users",
+      "status": "PASS",
+      "detail": "HTTP 403"
+    },
+    {
+      "id": "SEC-ADMIN-02",
+      "category": "Security",
+      "severity": "CRITICAL",
+      "name": "Normal User B blocked from POST /api/properties/clear-all",
+      "status": "PASS",
+      "detail": "HTTP 403"
+    },
+    {
+      "id": "SEC-PROP-01",
+      "category": "Security",
+      "severity": "CRITICAL",
+      "name": "Unauthenticated POST /api/properties rejected with 401",
+      "status": "PASS",
+      "detail": "HTTP 401"
+    },
+    {
+      "id": "CRUD-01",
+      "category": "CRUD/Persistence",
+      "severity": "CRITICAL",
+      "name": "User A creates property P1 via POST /api/properties",
+      "status": "PASS",
+      "detail": "HTTP 200, id=user-prop-qa-1794492438950"
+    },
+    {
+      "id": "SEC-MASS-01",
+      "category": "Security",
+      "severity": "HIGH",
+      "name": "POST /api/properties strips spoofed views/featured/isSold & unsafe javascript: image URLs",
+      "status": "PASS",
+      "detail": "views=0, isSold=false, images=[\"https://images.unsplash.com/photo-1613977257363-707ba9348227?w=800\"]"
+    },
+    {
+      "id": "SEC-PII-01",
+      "category": "Security",
+      "severity": "HIGH",
+      "name": "Unauthenticated GET /api/properties/:id does not expose sellerEmail/ownerContact",
+      "status": "PASS",
+      "detail": "ownerContact=undefined, sellerEmail=undefined, sellerPhone=9876543210"
+    },
+    {
+      "id": "SEC-IDOR-01",
+      "category": "Security",
+      "severity": "CRITICAL",
+      "name": "User B blocked from PUT /api/properties/:id owned by User A",
+      "status": "PASS",
+      "detail": "HTTP 403"
+    },
+    {
+      "id": "SEC-IDOR-02",
+      "category": "Security",
+      "severity": "CRITICAL",
+      "name": "User B MUST NOT overwrite User A property by passing existing id to POST /api/properties",
+      "status": "PASS",
+      "detail": "POST HTTP 409, storedTitle=\"QA Test Mountain Cottage\""
+    },
+    {
+      "id": "SEC-IDOR-03",
+      "category": "Security",
+      "severity": "CRITICAL",
+      "name": "User B blocked from DELETE /api/properties/:id owned by User A",
+      "status": "PASS",
+      "detail": "HTTP 403"
+    },
+    {
+      "id": "SEC-MASS-02",
+      "category": "Security",
+      "severity": "HIGH",
+      "name": "PUT /api/properties/:id prevents ownerId or metric views tampering by client",
+      "status": "PASS",
+      "detail": "PUT HTTP 200, ownerId=user-1794492436770-727ddbcd, views=0"
+    },
+    {
+      "id": "VAL-01",
+      "category": "Validation",
+      "severity": "MEDIUM",
+      "name": "Negative property price rejected with 400",
+      "status": "PASS",
+      "detail": "HTTP 400"
+    },
+    {
+      "id": "SEC-UPL-01",
+      "category": "Security",
+      "severity": "HIGH",
+      "name": "Unauthenticated / non-video upload to /api/upload-video rejected",
+      "status": "PASS",
+      "detail": "HTTP 401: {\"success\":false,\"error\":\"Authentication required to upload property videos.\"}"
+    },
+    {
+      "id": "SEC-UPL-01B",
+      "category": "Security",
+      "severity": "HIGH",
+      "name": "Authenticated fake HTML payload uploaded to /api/upload-video rejected by magic bytes",
+      "status": "PASS",
+      "detail": "HTTP 400: {\"success\":false,\"error\":\"Invalid or unsupported video binary format. Only real MP4, MOV, WebM, AVI, or Ogg videos are allowed.\"}"
+    },
+    {
+      "id": "SEC-ADMIN-03",
+      "category": "Security",
+      "severity": "CRITICAL",
+      "name": "Normal User B blocked from bulk-sync importing arbitrary properties without ownership",
+      "status": "PASS",
+      "detail": "HTTP 403: {\"success\":false,\"error\":\"Platform owner privileges required to bulk sync properties.\"}"
+    },
+    {
+      "id": "SEC-UPL-02",
+      "category": "Security",
+      "severity": "HIGH",
+      "name": "SVG image rejected by /api/moderate-image",
+      "status": "PASS",
+      "detail": "HTTP 400: {\"error\":\"Unsupported media format. Only JPEG, PNG, and WebP images are permitted.\"}"
+    },
+    {
+      "id": "AI-01",
+      "category": "Validation",
+      "severity": "LOW",
+      "name": "Empty chat message rejected with 400",
+      "status": "PASS",
+      "detail": "HTTP 400"
+    },
+    {
+      "id": "AI-02",
+      "category": "Validation",
+      "severity": "MEDIUM",
+      "name": "Over-1000 char chat message rejected with 400",
+      "status": "PASS",
+      "detail": "HTTP 400"
+    },
+    {
+      "id": "AI-03",
+      "category": "Validation",
+      "severity": "LOW",
+      "name": "Too-short enhance description rejected with 400",
+      "status": "PASS",
+      "detail": "HTTP 400"
+    },
+    {
+      "id": "SEC-RL-01",
+      "category": "Security",
+      "severity": "MEDIUM",
+      "name": "/api/enhance-description enforces rate limiting",
+      "status": "PASS",
+      "detail": "rateLimited=true"
+    },
+    {
+      "id": "FEAT-PROF-01",
+      "category": "Persistence/API",
+      "severity": "HIGH",
+      "name": "User profile update persists in database (PUT /api/auth/profile -> GET /api/auth/me)",
+      "status": "PASS",
+      "detail": "PUT HTTP 200, /me username=\"QA Updated Alpha\""
+    },
+    {
+      "id": "FEAT-REP-01",
+      "category": "Persistence/API",
+      "severity": "HIGH",
+      "name": "Listing report persists via POST /api/reports",
+      "status": "PASS",
+      "detail": "HTTP 201, reportId=rep-1794492442596-4e9c3176"
+    },
+    {
+      "id": "SEC-ADMIN-04",
+      "category": "Security",
+      "severity": "HIGH",
+      "name": "Normal User B blocked from GET /api/reports moderation queue",
+      "status": "PASS",
+      "detail": "HTTP 403"
+    },
+    {
+      "id": "SEC-ADMIN-05",
+      "category": "Security",
+      "severity": "CRITICAL",
+      "name": "Normal User B blocked from DELETE /api/users/:id",
+      "status": "PASS",
+      "detail": "HTTP 403"
+    },
+    {
+      "id": "DB-RACE-01",
+      "category": "Database/Concurrency",
+      "severity": "HIGH",
+      "name": "10 concurrent /view increments all persist without lost updates",
+      "status": "PASS",
+      "detail": "Expected >=10 views after 10 concurrent POST /view calls, got 10"
+    },
+    {
+      "id": "CRUD-DEL-01",
+      "category": "CRUD/Persistence",
+      "severity": "CRITICAL",
+      "name": "Deleted property returns 404 on GET /api/properties/:id",
+      "status": "PASS",
+      "detail": "DELETE HTTP 200, follow-up GET HTTP 404"
+    },
+    {
+      "id": "FEAT-DELACC-01",
+      "category": "Persistence/API",
+      "severity": "HIGH",
+      "name": "Self account deletion invalidates session and removes user from DB (DELETE /api/auth/account)",
+      "status": "PASS",
+      "detail": "DELETE HTTP 200, /me HTTP 401, login HTTP 401"
+    }
+  ]
+}

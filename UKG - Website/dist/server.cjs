@@ -45,6 +45,8 @@ var DatabaseService = class {
     this.mysqlPool = null;
     this.pgPool = null;
     this.initialized = false;
+    this.revokedTokens = /* @__PURE__ */ new Set();
+    this.writeLocks = /* @__PURE__ */ new Map();
     const possibleDataDirs = [
       process.env.DATA_DIR,
       import_path.default.join(process.cwd(), "data"),
@@ -63,11 +65,41 @@ var DatabaseService = class {
     this.sessionsFilePath = import_path.default.join(this.dataDir, "sessions.json");
     this.resetsFilePath = import_path.default.join(this.dataDir, "password_resets.json");
     this.otpsFilePath = import_path.default.join(this.dataDir, "otps.json");
+    this.reportsFilePath = import_path.default.join(this.dataDir, "reports.json");
+    this.revokedSessionsFilePath = import_path.default.join(this.dataDir, "revoked_sessions.json");
+    try {
+      const revokedList = this.readJsonFile(this.revokedSessionsFilePath);
+      const now = Date.now();
+      for (const item of revokedList) {
+        if (item && typeof item.sessionId === "string" && (!item.expiresAt || Number(item.expiresAt) >= now)) {
+          this.revokedTokens.add(item.sessionId);
+        }
+      }
+    } catch {
+    }
     if (!import_fs.default.existsSync(this.dataDir)) {
       try {
         import_fs.default.mkdirSync(this.dataDir, { recursive: true });
       } catch (err) {
         console.warn("[UKG DB] Could not create data directory:", err);
+      }
+    }
+  }
+  async withLock(key, fn) {
+    const prev = this.writeLocks.get(key) || Promise.resolve();
+    let release;
+    const next = new Promise((resolve) => {
+      release = resolve;
+    });
+    const chain = prev.then(() => next);
+    this.writeLocks.set(key, chain);
+    await prev;
+    try {
+      return await fn();
+    } finally {
+      release();
+      if (this.writeLocks.get(key) === chain) {
+        this.writeLocks.delete(key);
       }
     }
   }
@@ -131,6 +163,15 @@ var DatabaseService = class {
               code_hash VARCHAR(255) NOT NULL,
               expires_at BIGINT NOT NULL,
               attempts INT DEFAULT 0
+            );
+          `);
+          await client.query(`
+            CREATE TABLE IF NOT EXISTS ukg_reports (
+              id VARCHAR(255) PRIMARY KEY,
+              property_id VARCHAR(255) NOT NULL,
+              status VARCHAR(50) DEFAULT 'open',
+              data TEXT NOT NULL,
+              created_at VARCHAR(100)
             );
           `);
           console.log("[UKG DB] PostgreSQL schema ready.");
@@ -221,6 +262,15 @@ var DatabaseService = class {
               code_hash VARCHAR(255) NOT NULL,
               expires_at BIGINT NOT NULL,
               attempts INT DEFAULT 0
+            );
+          `);
+          await conn.query(`
+            CREATE TABLE IF NOT EXISTS ukg_reports (
+              id VARCHAR(255) PRIMARY KEY,
+              property_id VARCHAR(255) NOT NULL,
+              status VARCHAR(50) DEFAULT 'open',
+              data LONGTEXT NOT NULL,
+              created_at VARCHAR(100)
             );
           `);
           console.log("[UKG DB] MySQL schema ready.");
@@ -385,6 +435,9 @@ var DatabaseService = class {
   }
   async saveProperty(property) {
     if (!this.initialized) await this.initialize();
+    return this.withLock("properties", () => this.savePropertyUnlocked(property));
+  }
+  async savePropertyUnlocked(property) {
     if (!property.createdAt) {
       property.createdAt = (/* @__PURE__ */ new Date()).toISOString();
     }
@@ -450,6 +503,9 @@ var DatabaseService = class {
   }
   async updateProperty(id, updates) {
     if (!this.initialized) await this.initialize();
+    return this.withLock("properties", () => this.updatePropertyUnlocked(id, updates));
+  }
+  async updatePropertyUnlocked(id, updates) {
     const existing = await this.getPropertyById(id);
     if (!existing) return null;
     const merged = {
@@ -461,44 +517,74 @@ var DatabaseService = class {
     for (const key of Object.keys(merged)) {
       if (merged[key] === null) delete merged[key];
     }
-    await this.saveProperty(merged);
+    await this.savePropertyUnlocked(merged);
     return merged;
   }
   async incrementPropertyMetric(id, metric) {
     if (!this.initialized) await this.initialize();
-    const existing = await this.getPropertyById(id);
-    if (!existing) return null;
-    const current = typeof existing[metric] === "number" ? existing[metric] : 0;
-    const nextVal = current + 1;
-    return await this.updateProperty(id, { [metric]: nextVal });
+    return this.withLock("properties", async () => {
+      const existing = await this.getPropertyById(id);
+      if (!existing) return null;
+      const current = typeof existing[metric] === "number" ? existing[metric] : 0;
+      const nextVal = current + 1;
+      return await this.updatePropertyUnlocked(id, { [metric]: nextVal });
+    });
   }
   async deleteProperty(id) {
     if (!this.initialized) await this.initialize();
-    if (this.dbType === "postgres" && this.pgPool) {
-      try {
-        await this.pgPool.query("DELETE FROM ukg_properties WHERE id = $1", [id]);
-        const local = this.readJsonFile(this.propertiesFilePath).filter((p) => p.id !== id);
-        this.writeJsonFileAtomically(this.propertiesFilePath, local);
-        return true;
-      } catch (err) {
-        console.error("[UKG DB] PostgreSQL deleteProperty error:", err);
-        throw err;
+    return this.withLock("properties", async () => {
+      if (this.dbType === "postgres" && this.pgPool) {
+        try {
+          await this.pgPool.query("DELETE FROM ukg_properties WHERE id = $1", [id]);
+          const local = this.readJsonFile(this.propertiesFilePath).filter((p) => p.id !== id);
+          this.writeJsonFileAtomically(this.propertiesFilePath, local);
+          return true;
+        } catch (err) {
+          console.error("[UKG DB] PostgreSQL deleteProperty error:", err);
+          throw err;
+        }
       }
-    }
-    if (this.dbType === "mysql" && this.mysqlPool) {
-      try {
-        await this.mysqlPool.query("DELETE FROM ukg_properties WHERE id = ?", [id]);
-        const local = this.readJsonFile(this.propertiesFilePath).filter((p) => p.id !== id);
-        this.writeJsonFileAtomically(this.propertiesFilePath, local);
-        return true;
-      } catch (err) {
-        console.error("[UKG DB] MySQL deleteProperty error:", err);
-        throw err;
+      if (this.dbType === "mysql" && this.mysqlPool) {
+        try {
+          await this.mysqlPool.query("DELETE FROM ukg_properties WHERE id = ?", [id]);
+          const local = this.readJsonFile(this.propertiesFilePath).filter((p) => p.id !== id);
+          this.writeJsonFileAtomically(this.propertiesFilePath, local);
+          return true;
+        } catch (err) {
+          console.error("[UKG DB] MySQL deleteProperty error:", err);
+          throw err;
+        }
       }
-    }
-    const list = this.readJsonFile(this.propertiesFilePath).filter((p) => p.id !== id);
-    this.writeJsonFileAtomically(this.propertiesFilePath, list);
-    return true;
+      const list = this.readJsonFile(this.propertiesFilePath).filter((p) => p.id !== id);
+      this.writeJsonFileAtomically(this.propertiesFilePath, list);
+      return true;
+    });
+  }
+  async deletePropertiesByOwner(userId, contact) {
+    if (!this.initialized) await this.initialize();
+    const normContact = String(contact || "").trim().toLowerCase();
+    return this.withLock("properties", async () => {
+      const all = await this.getAllProperties();
+      const toDelete = all.filter((p) => {
+        const pOwnerId = String(p.ownerId || "");
+        const pContact = String(p.ownerContact || p.sellerEmail || "").trim().toLowerCase();
+        return userId && pOwnerId === userId || normContact && pContact === normContact;
+      });
+      if (toDelete.length === 0) return 0;
+      const deleteIds = new Set(toDelete.map((p) => p.id));
+      if (this.dbType === "postgres" && this.pgPool) {
+        for (const id of deleteIds) {
+          await this.pgPool.query("DELETE FROM ukg_properties WHERE id = $1", [id]);
+        }
+      } else if (this.dbType === "mysql" && this.mysqlPool) {
+        for (const id of deleteIds) {
+          await this.mysqlPool.query("DELETE FROM ukg_properties WHERE id = ?", [id]);
+        }
+      }
+      const remaining = this.readJsonFile(this.propertiesFilePath).filter((p) => !deleteIds.has(p.id));
+      this.writeJsonFileAtomically(this.propertiesFilePath, remaining);
+      return deleteIds.size;
+    });
   }
   async clearAllProperties() {
     if (!this.initialized) await this.initialize();
@@ -617,80 +703,86 @@ var DatabaseService = class {
   }
   async saveUser(user) {
     if (!this.initialized) await this.initialize();
-    const normalizedContact = (user.contact || user.email || "").trim().toLowerCase();
-    const completeUser = {
-      ...user,
-      contact: normalizedContact,
-      createdAt: user.createdAt || (/* @__PURE__ */ new Date()).toISOString(),
-      updatedAt: (/* @__PURE__ */ new Date()).toISOString(),
-      isOwner: user.isOwner || normalizedContact === "amit1986.delhi@gmail.com" || user.username.trim().toLowerCase() === "amit tyagi",
-      role: normalizedContact === "amit1986.delhi@gmail.com" || user.username.trim().toLowerCase() === "amit tyagi" ? "owner" : user.role || "user"
-    };
-    const json = JSON.stringify(completeUser);
-    if (this.dbType === "postgres" && this.pgPool) {
-      try {
-        await this.pgPool.query(
-          `INSERT INTO ukg_users (id, username, contact, data, created_at)
-           VALUES ($1, $2, $3, $4, $5)
-           ON CONFLICT (id) DO UPDATE SET username = $2, contact = $3, data = $4`,
-          [completeUser.id, completeUser.username, normalizedContact, json, completeUser.createdAt]
-        );
-        const local = this.readJsonFile(this.usersFilePath).filter((u) => u.id !== completeUser.id && String(u.contact).toLowerCase() !== normalizedContact);
-        local.push(completeUser);
-        this.writeJsonFileAtomically(this.usersFilePath, local);
-        return completeUser;
-      } catch (err) {
-        console.error("[UKG DB] PostgreSQL saveUser error:", err);
-        throw err;
+    return this.withLock("users", async () => {
+      const normalizedContact = (user.contact || user.email || "").trim().toLowerCase();
+      const adminEmail = (process.env.ADMIN_EMAIL || "amit1986.delhi@gmail.com").trim().toLowerCase();
+      const isAdminEmail = normalizedContact === adminEmail;
+      const completeUser = {
+        ...user,
+        contact: normalizedContact,
+        createdAt: user.createdAt || (/* @__PURE__ */ new Date()).toISOString(),
+        updatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+        isOwner: isAdminEmail,
+        role: isAdminEmail ? "owner" : user.role === "admin" ? "admin" : "user"
+      };
+      const json = JSON.stringify(completeUser);
+      if (this.dbType === "postgres" && this.pgPool) {
+        try {
+          await this.pgPool.query(
+            `INSERT INTO ukg_users (id, username, contact, data, created_at)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (id) DO UPDATE SET username = $2, contact = $3, data = $4`,
+            [completeUser.id, completeUser.username, normalizedContact, json, completeUser.createdAt]
+          );
+          const local = this.readJsonFile(this.usersFilePath).filter((u) => u.id !== completeUser.id && String(u.contact).toLowerCase() !== normalizedContact);
+          local.push(completeUser);
+          this.writeJsonFileAtomically(this.usersFilePath, local);
+          return completeUser;
+        } catch (err) {
+          console.error("[UKG DB] PostgreSQL saveUser error:", err);
+          throw err;
+        }
       }
-    }
-    if (this.dbType === "mysql" && this.mysqlPool) {
-      try {
-        await this.mysqlPool.query(
-          `INSERT INTO ukg_users (id, username, contact, data, created_at)
-           VALUES (?, ?, ?, ?, ?)
-           ON DUPLICATE KEY UPDATE username = VALUES(username), contact = VALUES(contact), data = VALUES(data)`,
-          [completeUser.id, completeUser.username, normalizedContact, json, completeUser.createdAt]
-        );
-        const local = this.readJsonFile(this.usersFilePath).filter((u) => u.id !== completeUser.id && String(u.contact).toLowerCase() !== normalizedContact);
-        local.push(completeUser);
-        this.writeJsonFileAtomically(this.usersFilePath, local);
-        return completeUser;
-      } catch (err) {
-        console.error("[UKG DB] MySQL saveUser error:", err);
-        throw err;
+      if (this.dbType === "mysql" && this.mysqlPool) {
+        try {
+          await this.mysqlPool.query(
+            `INSERT INTO ukg_users (id, username, contact, data, created_at)
+             VALUES (?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE username = VALUES(username), contact = VALUES(contact), data = VALUES(data)`,
+            [completeUser.id, completeUser.username, normalizedContact, json, completeUser.createdAt]
+          );
+          const local = this.readJsonFile(this.usersFilePath).filter((u) => u.id !== completeUser.id && String(u.contact).toLowerCase() !== normalizedContact);
+          local.push(completeUser);
+          this.writeJsonFileAtomically(this.usersFilePath, local);
+          return completeUser;
+        } catch (err) {
+          console.error("[UKG DB] MySQL saveUser error:", err);
+          throw err;
+        }
       }
-    }
-    const users = this.readJsonFile(this.usersFilePath);
-    const idx = users.findIndex((u) => u.id === completeUser.id || String(u.contact || "").toLowerCase() === normalizedContact);
-    if (idx >= 0) {
-      users[idx] = { ...users[idx], ...completeUser };
-    } else {
-      users.push(completeUser);
-    }
-    this.writeJsonFileAtomically(this.usersFilePath, users);
-    return completeUser;
+      const users = this.readJsonFile(this.usersFilePath);
+      const idx = users.findIndex((u) => u.id === completeUser.id || String(u.contact || "").toLowerCase() === normalizedContact);
+      if (idx >= 0) {
+        users[idx] = { ...users[idx], ...completeUser };
+      } else {
+        users.push(completeUser);
+      }
+      this.writeJsonFileAtomically(this.usersFilePath, users);
+      return completeUser;
+    });
   }
   async deleteUser(idOrContact) {
     if (!this.initialized) await this.initialize();
     const target = idOrContact.trim().toLowerCase();
-    if (this.dbType === "postgres" && this.pgPool) {
-      try {
-        await this.pgPool.query("DELETE FROM ukg_users WHERE id = $1 OR contact = $1", [target]);
-      } catch (err) {
-        console.error("[UKG DB] PostgreSQL deleteUser error:", err);
+    return this.withLock("users", async () => {
+      if (this.dbType === "postgres" && this.pgPool) {
+        try {
+          await this.pgPool.query("DELETE FROM ukg_users WHERE LOWER(id) = $1 OR LOWER(contact) = $1", [target]);
+        } catch (err) {
+          console.error("[UKG DB] PostgreSQL deleteUser error:", err);
+        }
       }
-    }
-    if (this.dbType === "mysql" && this.mysqlPool) {
-      try {
-        await this.mysqlPool.query("DELETE FROM ukg_users WHERE id = ? OR contact = ?", [target, target]);
-      } catch (err) {
-        console.error("[UKG DB] MySQL deleteUser error:", err);
+      if (this.dbType === "mysql" && this.mysqlPool) {
+        try {
+          await this.mysqlPool.query("DELETE FROM ukg_users WHERE LOWER(id) = ? OR LOWER(contact) = ?", [target, target]);
+        } catch (err) {
+          console.error("[UKG DB] MySQL deleteUser error:", err);
+        }
       }
-    }
-    const users = this.readJsonFile(this.usersFilePath).filter((u) => u.id !== target && String(u.contact || "").toLowerCase() !== target);
-    this.writeJsonFileAtomically(this.usersFilePath, users);
-    return true;
+      const users = this.readJsonFile(this.usersFilePath).filter((u) => String(u.id || "").toLowerCase() !== target && String(u.contact || "").toLowerCase() !== target);
+      this.writeJsonFileAtomically(this.usersFilePath, users);
+      return true;
+    });
   }
   async syncUsers(incomingUsers) {
     if (!this.initialized) await this.initialize();
@@ -774,8 +866,25 @@ var DatabaseService = class {
     const found = sessions.find((s) => s.sessionId === sessionId);
     return found ? { sessionId: found.sessionId, userId: found.userId, createdAt: found.createdAt, expiresAt: Number(found.expiresAt) } : null;
   }
+  async revokeSession(sessionId) {
+    if (!sessionId) return;
+    this.revokedTokens.add(sessionId);
+    await this.withLock("revoked_sessions", () => {
+      const now = Date.now();
+      const expiresAt = now + 31 * 24 * 60 * 60 * 1e3;
+      const existing = this.readJsonFile(this.revokedSessionsFilePath).filter(
+        (r) => r && r.sessionId && r.sessionId !== sessionId && (!r.expiresAt || Number(r.expiresAt) >= now)
+      );
+      existing.push({ sessionId, revokedAt: (/* @__PURE__ */ new Date()).toISOString(), expiresAt });
+      this.writeJsonFileAtomically(this.revokedSessionsFilePath, existing);
+    });
+  }
+  isSessionRevoked(sessionId) {
+    return this.revokedTokens.has(sessionId);
+  }
   async deleteSession(sessionId) {
     if (!this.initialized) await this.initialize();
+    await this.revokeSession(sessionId);
     if (this.dbType === "postgres" && this.pgPool) {
       try {
         await this.pgPool.query("DELETE FROM ukg_sessions WHERE session_id = $1", [sessionId]);
@@ -797,8 +906,16 @@ var DatabaseService = class {
   }
   async deleteUserSessions(userId) {
     if (!this.initialized) await this.initialize();
+    const jsonSessions = this.readJsonFile(this.sessionsFilePath).filter((s) => s.userId === userId);
+    for (const s of jsonSessions) {
+      if (s.sessionId) await this.revokeSession(s.sessionId);
+    }
     if (this.dbType === "postgres" && this.pgPool) {
       try {
+        const res = await this.pgPool.query("SELECT session_id FROM ukg_sessions WHERE user_id = $1", [userId]);
+        for (const r of res.rows || []) {
+          if (r.session_id) await this.revokeSession(r.session_id);
+        }
         await this.pgPool.query("DELETE FROM ukg_sessions WHERE user_id = $1", [userId]);
         return;
       } catch (err) {
@@ -807,6 +924,10 @@ var DatabaseService = class {
     }
     if (this.dbType === "mysql" && this.mysqlPool) {
       try {
+        const [rows] = await this.mysqlPool.query("SELECT session_id FROM ukg_sessions WHERE user_id = ?", [userId]);
+        for (const r of rows || []) {
+          if (r.session_id) await this.revokeSession(r.session_id);
+        }
         await this.mysqlPool.query("DELETE FROM ukg_sessions WHERE user_id = ?", [userId]);
         return;
       } catch (err) {
@@ -1040,6 +1161,72 @@ var DatabaseService = class {
     otps.splice(idx, 1);
     this.writeJsonFileAtomically(this.otpsFilePath, otps);
     return { success: true };
+  }
+  // =================================================================
+  // LISTING REPORTS STORAGE & MODERATION
+  // =================================================================
+  async getAllReports() {
+    if (!this.initialized) await this.initialize();
+    if (this.dbType === "postgres" && this.pgPool) {
+      try {
+        const res = await this.pgPool.query("SELECT data FROM ukg_reports ORDER BY created_at DESC");
+        return res.rows.map((r) => typeof r.data === "string" ? JSON.parse(r.data) : r.data);
+      } catch (err) {
+        console.error("[UKG DB] PostgreSQL getAllReports error:", err);
+      }
+    }
+    if (this.dbType === "mysql" && this.mysqlPool) {
+      try {
+        const [rows] = await this.mysqlPool.query("SELECT data FROM ukg_reports ORDER BY created_at DESC");
+        return rows.map((r) => typeof r.data === "string" ? JSON.parse(r.data) : r.data);
+      } catch (err) {
+        console.error("[UKG DB] MySQL getAllReports error:", err);
+      }
+    }
+    return this.readJsonFile(this.reportsFilePath);
+  }
+  async saveReport(report) {
+    if (!this.initialized) await this.initialize();
+    return this.withLock("reports", async () => {
+      const json = JSON.stringify(report);
+      if (this.dbType === "postgres" && this.pgPool) {
+        await this.pgPool.query(
+          `INSERT INTO ukg_reports (id, property_id, status, data, created_at)
+           VALUES ($1, $2, $3, $4, $5)
+           ON CONFLICT (id) DO UPDATE SET status = $3, data = $4`,
+          [report.id, report.propertyId, report.status, json, report.createdAt]
+        );
+      } else if (this.dbType === "mysql" && this.mysqlPool) {
+        await this.mysqlPool.query(
+          `INSERT INTO ukg_reports (id, property_id, status, data, created_at)
+           VALUES (?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE status = VALUES(status), data = VALUES(data)`,
+          [report.id, report.propertyId, report.status, json, report.createdAt]
+        );
+      }
+      const reports = this.readJsonFile(this.reportsFilePath).filter((r) => r.id !== report.id);
+      reports.unshift(report);
+      this.writeJsonFileAtomically(this.reportsFilePath, reports);
+      return report;
+    });
+  }
+  async updateReportStatus(id, status) {
+    if (!this.initialized) await this.initialize();
+    return this.withLock("reports", async () => {
+      const all = await this.getAllReports();
+      const target = all.find((r) => r.id === id);
+      if (!target) return null;
+      const updated = { ...target, status, updatedAt: (/* @__PURE__ */ new Date()).toISOString() };
+      const json = JSON.stringify(updated);
+      if (this.dbType === "postgres" && this.pgPool) {
+        await this.pgPool.query("UPDATE ukg_reports SET status = $2, data = $3 WHERE id = $1", [id, status, json]);
+      } else if (this.dbType === "mysql" && this.mysqlPool) {
+        await this.mysqlPool.query("UPDATE ukg_reports SET status = ?, data = ? WHERE id = ?", [status, json, id]);
+      }
+      const list = this.readJsonFile(this.reportsFilePath).map((r) => r.id === id ? updated : r);
+      this.writeJsonFileAtomically(this.reportsFilePath, list);
+      return updated;
+    });
   }
 };
 var db = new DatabaseService();
@@ -3008,6 +3195,7 @@ function formatSafeUser(u) {
     avatar: u.avatar || void 0,
     role: isOwner ? "owner" : u.role || "user",
     isOwner,
+    usernameChangeTimestamps: Array.isArray(u.usernameChangeTimestamps) ? u.usernameChangeTimestamps : void 0,
     createdAt: u.createdAt || (/* @__PURE__ */ new Date()).toISOString()
   };
 }
@@ -3039,7 +3227,7 @@ async function getSessionUser(req) {
   if (!sessionId && req.headers["x-session-token"]) {
     sessionId = String(req.headers["x-session-token"]);
   }
-  if (!sessionId) {
+  if (!sessionId || db.isSessionRevoked(sessionId)) {
     return null;
   }
   try {
@@ -3094,6 +3282,14 @@ app.get("/api/health", async (req, res) => {
     });
   }
 });
+function sanitizePublicProperty(prop, sessionUser) {
+  if (!prop || typeof prop !== "object") return prop;
+  if (sessionUser && canUserManageProperty(prop, sessionUser)) {
+    return prop;
+  }
+  const { ownerContact, sellerEmail, ...safeProp } = prop;
+  return safeProp;
+}
 app.get("/api/properties", async (req, res) => {
   res.set({
     "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
@@ -3102,10 +3298,11 @@ app.get("/api/properties", async (req, res) => {
     "Surrogate-Control": "no-store"
   });
   try {
+    const sessionUser = await getSessionUser(req).catch(() => null);
     const list = await db.getAllProperties();
     res.json({
       success: true,
-      properties: list
+      properties: list.map((p) => sanitizePublicProperty(p, sessionUser))
     });
   } catch (err) {
     console.error("Error fetching properties from db:", err);
@@ -3154,13 +3351,14 @@ app.get("/api/properties/:id", async (req, res) => {
   });
   try {
     const { id } = req.params;
+    const sessionUser = await getSessionUser(req).catch(() => null);
     let prop = await db.getPropertyById(id);
     if (!prop) {
       const allProps = await db.getAllProperties();
       prop = findPropertyBySlugOrId(id, allProps);
     }
     if (prop) {
-      return res.json({ success: true, property: prop });
+      return res.json({ success: true, property: sanitizePublicProperty(prop, sessionUser) });
     }
     return res.status(404).json({ success: false, error: "Property not found" });
   } catch (err) {
@@ -3189,11 +3387,28 @@ function persistInlineVideos(prop) {
     prop.videos = [prop.videoUrl];
   }
 }
+function detectVideoExtensionFromMagic(buf) {
+  if (!Buffer.isBuffer(buf) || buf.length < 12) return null;
+  if (buf.subarray(4, 8).toString("ascii") === "ftyp") {
+    const brand = buf.subarray(8, 12).toString("ascii");
+    return brand === "qt  " ? "mov" : "mp4";
+  }
+  if (buf[0] === 26 && buf[1] === 69 && buf[2] === 223 && buf[3] === 163) return "webm";
+  if (buf.subarray(0, 4).toString("ascii") === "RIFF" && buf.subarray(8, 11).toString("ascii") === "AVI") return "avi";
+  if (buf.subarray(0, 4).toString("ascii") === "OggS") return "ogv";
+  if (buf[0] === 71 && buf.length >= 192 && buf[188] === 71) return "ts";
+  return null;
+}
 app.post(
   "/api/upload-video",
   import_express.default.raw({ type: ["video/*", "application/octet-stream"], limit: "45mb" }),
   async (req, res) => {
     try {
+      const clientIp = req.ip || req.socket.remoteAddress || "unknown";
+      const limit = checkRateLimit(`upload_vid_${clientIp}`, 15, 15 * 60 * 1e3);
+      if (limit.limited) {
+        return res.status(429).json({ success: false, error: `Too many video uploads. Please wait ${limit.retryAfterSeconds} seconds.` });
+      }
       const sessionUser = await getSessionUser(req);
       if (!sessionUser) {
         return res.status(401).json({ success: false, error: "Authentication required to upload property videos." });
@@ -3202,12 +3417,11 @@ app.post(
       if (!Buffer.isBuffer(body) || body.length === 0) {
         return res.status(400).json({ success: false, error: "Empty video file uploaded." });
       }
-      const ct = String(req.headers["content-type"] || "video/mp4").toLowerCase();
-      let ext = "mp4";
-      if (ct.includes("webm")) ext = "webm";
-      else if (ct.includes("quicktime") || ct.includes("mov")) ext = "mov";
-      else if (ct.includes("ogg")) ext = "ogv";
-      const fileName = `ukg-vid-${Date.now()}-${import_crypto2.default.randomBytes(4).toString("hex")}.${ext}`;
+      const detectedExt = detectVideoExtensionFromMagic(body);
+      if (!detectedExt) {
+        return res.status(400).json({ success: false, error: "Invalid or unsupported video binary format. Only real MP4, MOV, WebM, AVI, or Ogg videos are allowed." });
+      }
+      const fileName = `ukg-vid-${Date.now()}-${import_crypto2.default.randomBytes(4).toString("hex")}.${detectedExt}`;
       import_fs2.default.writeFileSync(import_path2.default.join(uploadsDir, fileName), body);
       res.json({ success: true, url: `/uploads/${fileName}` });
     } catch (err) {
@@ -3222,25 +3436,49 @@ app.post("/api/properties", async (req, res) => {
     if (!sessionUser) {
       return res.status(401).json({ success: false, error: "Authentication required. Please sign in to create property listings." });
     }
-    const property = req.body;
-    if (!property || typeof property !== "object" || !property.id || !property.title) {
+    const raw = req.body;
+    if (!raw || typeof raw !== "object" || !raw.id || !raw.title) {
       return res.status(400).json({ success: false, error: "Property id and title are required" });
     }
-    if (typeof property.title !== "string" || property.title.trim().length < 3 || property.title.length > 200) {
+    const propId = String(raw.id).trim();
+    if (!/^[a-zA-Z0-9_-]{3,120}$/.test(propId)) {
+      return res.status(400).json({ success: false, error: "Invalid property ID format." });
+    }
+    const existingProp = await db.getPropertyById(propId);
+    if (existingProp) {
+      return res.status(409).json({ success: false, error: "A property listing with this ID already exists." });
+    }
+    if (typeof raw.title !== "string" || raw.title.trim().length < 3 || raw.title.length > 200) {
       return res.status(400).json({ success: false, error: "Title must be between 3 and 200 characters." });
     }
-    if (property.price !== void 0 && property.price !== null) {
-      const p = Number(property.price);
+    if (raw.price !== void 0 && raw.price !== null) {
+      const p = Number(raw.price);
       if (isNaN(p) || p < 0 || p > 1e10) {
         return res.status(400).json({ success: false, error: "Price must be a valid positive number." });
       }
     }
-    if (property.description && typeof property.description === "string" && property.description.length > 1e4) {
+    if (raw.description && typeof raw.description === "string" && raw.description.length > 1e4) {
       return res.status(400).json({ success: false, error: "Description exceeds maximum allowed length of 10000 characters." });
     }
-    if (!property.createdAt) {
-      property.createdAt = (/* @__PURE__ */ new Date()).toISOString();
-    }
+    const {
+      views: _v,
+      shares: _s,
+      inquiries: _inq,
+      isSold: _sold,
+      featured: _feat,
+      isOwner: _iso,
+      role: _role,
+      ownerId: _oid,
+      ownerUsername: _ou,
+      ownerContact: _oc,
+      ...property
+    } = raw;
+    property.id = propId;
+    property.createdAt = (/* @__PURE__ */ new Date()).toISOString();
+    property.views = 0;
+    property.shares = 0;
+    property.inquiries = 0;
+    property.isSold = false;
     sanitizePropertyInput(property);
     if (property.title.length < 3) {
       return res.status(400).json({ success: false, error: "Title must contain at least 3 non-HTML characters." });
@@ -3250,6 +3488,7 @@ app.post("/api/properties", async (req, res) => {
     property.ownerUsername = sessionUser.username;
     property.ownerContact = sessionUser.contact;
     if (property.sellerType !== "Broker") {
+      property.sellerType = "Owner";
       if (!property.sellerName || property.sellerName.includes("@") || property.sellerName.toLowerCase() === "amit1986.delhi") {
         property.sellerName = sessionUser.username;
       }
@@ -3313,15 +3552,26 @@ app.put("/api/properties/:id", async (req, res) => {
         return res.status(400).json({ success: false, error: "Price must be a valid positive number." });
       }
     }
-    if (!updates.ownerId && existing.ownerId) updates.ownerId = existing.ownerId;
-    else if (!updates.ownerId && sessionUser.id) updates.ownerId = sessionUser.id;
-    if (!updates.ownerContact && existing.ownerContact) updates.ownerContact = existing.ownerContact;
-    else if (!updates.ownerContact && sessionUser.contact) updates.ownerContact = sessionUser.contact;
-    if (!updates.ownerUsername && existing.ownerUsername) updates.ownerUsername = existing.ownerUsername;
-    else if (!updates.ownerUsername && sessionUser.username) updates.ownerUsername = sessionUser.username;
-    sanitizePropertyInput(updates);
-    persistInlineVideos(updates);
-    const updated = await db.updateProperty(id, updates);
+    const {
+      id: _dropId,
+      ownerId: _dropOwnerId,
+      ownerContact: _dropOwnerContact,
+      ownerUsername: _dropOwnerUsername,
+      createdAt: _dropCreatedAt,
+      views: _dropViews,
+      shares: _dropShares,
+      inquiries: _dropInquiries,
+      featured: _dropFeatured,
+      isOwner: _dropIsOwner,
+      role: _dropRole,
+      ...safeUpdates
+    } = updates || {};
+    if (!existing.ownerId && sessionUser.id) safeUpdates.ownerId = sessionUser.id;
+    if (!existing.ownerContact && sessionUser.contact) safeUpdates.ownerContact = sessionUser.contact;
+    if (!existing.ownerUsername && sessionUser.username) safeUpdates.ownerUsername = sessionUser.username;
+    sanitizePropertyInput(safeUpdates);
+    persistInlineVideos(safeUpdates);
+    const updated = await db.updateProperty(id, safeUpdates);
     console.log(`[UKG Properties] Updated property "${updated.title}" (${id})`);
     res.json({ success: true, property: updated });
   } catch (err) {
@@ -3674,9 +3924,13 @@ app.post("/api/auth/google", async (req, res) => {
 });
 app.post("/api/auth/logout", async (req, res) => {
   try {
-    const sessionId = req.cookies?.ukg_session;
-    if (sessionId) {
-      await db.deleteSession(sessionId);
+    const authHeader = req.headers["authorization"];
+    const bearerToken = typeof authHeader === "string" && authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : null;
+    const headerToken = typeof req.headers["x-session-token"] === "string" ? req.headers["x-session-token"].trim() : null;
+    const cookieToken = req.cookies?.ukg_session;
+    const tokensToDelete = Array.from(new Set([cookieToken, bearerToken, headerToken].filter(Boolean)));
+    for (const t of tokensToDelete) {
+      await db.deleteSession(t);
     }
     res.clearCookie("ukg_session", { path: "/" });
     res.json({ success: true, message: "Logged out successfully." });
@@ -3766,7 +4020,7 @@ app.post("/api/auth/forgot-password", async (req, res) => {
           html: `
             <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:28px;background:#f0fdf4;border-radius:16px;">
               <h2 style="color:#065f46;margin:0 0 10px;">Uttarakhand Gateways</h2>
-              <p style="color:#374151;">Namaste ${user.username},</p>
+              <p style="color:#374151;">Namaste ${escapeHtml(user.username)},</p>
               <p style="color:#374151;">You requested to reset your password. Click the button below to set a new password:</p>
               <div style="text-align:center;margin:28px 0;">
                 <a href="${resetUrl}" style="background:#047857;color:#fff;padding:14px 28px;text-decoration:none;font-size:15px;font-weight:700;border-radius:10px;display:inline-block;">Reset Password</a>
@@ -3835,8 +4089,8 @@ app.post("/api/auth/reset-password", async (req, res) => {
     if (!token || typeof token !== "string") {
       return res.status(400).json({ success: false, error: "Invalid reset token." });
     }
-    if (!newPassword || typeof newPassword !== "string" || newPassword.length < 8) {
-      return res.status(400).json({ success: false, error: "New password must be at least 8 characters long." });
+    if (!newPassword || typeof newPassword !== "string" || newPassword.length < 6 || newPassword.length > 128) {
+      return res.status(400).json({ success: false, error: "New password must be between 6 and 128 characters long." });
     }
     if (confirmPassword !== void 0 && newPassword !== confirmPassword) {
       return res.status(400).json({ success: false, error: "Passwords do not match." });
@@ -3916,15 +4170,35 @@ app.post("/api/users/sync", async (req, res) => {
 });
 app.post("/api/register-user", async (req, res) => {
   try {
+    const clientIp = req.ip || req.socket.remoteAddress || "unknown";
+    const limit = checkRateLimit(`register_${clientIp}`, 10, 15 * 60 * 1e3);
+    if (limit.limited) {
+      return res.status(429).json({
+        success: false,
+        error: `Too many registration attempts. Please try again in ${limit.retryAfterSeconds} seconds.`
+      });
+    }
     const { username, contact, password } = req.body;
     if (!contact || !username) {
       return res.status(400).json({ success: false, error: "Username and email are required" });
     }
     const trimmedContact = String(contact).trim().toLowerCase();
-    const trimmedUsername = String(username).trim();
+    const trimmedUsername = stripHtmlTags(String(username)).trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (trimmedUsername.length < 2 || trimmedUsername.length > 80) {
+      return res.status(400).json({ success: false, error: "Username must be between 2 and 80 characters." });
+    }
+    if (!emailRegex.test(trimmedContact)) {
+      return res.status(400).json({ success: false, error: "Please enter a valid email address." });
+    }
+    if (password !== void 0) {
+      if (typeof password !== "string" || password.length < 6 || password.length > 128) {
+        return res.status(400).json({ success: false, error: "Password must be between 6 and 128 characters long." });
+      }
+    }
     const existing = await db.findUserByEmail(trimmedContact);
     if (existing) {
-      return res.status(400).json({ success: false, error: "An account with this email address already exists. Please log in." });
+      return res.status(409).json({ success: false, error: "An account with this email address already exists. Please log in." });
     }
     const rawPass = password ? String(password).trim() : import_crypto2.default.randomBytes(32).toString("hex");
     const passwordHash = await import_bcryptjs.default.hash(rawPass, 12);
@@ -3947,6 +4221,172 @@ app.post("/api/register-user", async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err?.message || "Failed to register account" });
+  }
+});
+app.put("/api/auth/profile", async (req, res) => {
+  try {
+    const sessionUser = await getSessionUser(req);
+    if (!sessionUser) {
+      return res.status(401).json({ success: false, error: "Authentication required to update profile." });
+    }
+    const { username, avatar } = req.body || {};
+    const updatedUser = { ...sessionUser };
+    if (username !== void 0) {
+      const cleanedName = stripHtmlTags(String(username)).trim();
+      if (cleanedName.length < 2 || cleanedName.length > 80) {
+        return res.status(400).json({ success: false, error: "Username must be between 2 and 80 characters." });
+      }
+      if (cleanedName !== sessionUser.username) {
+        const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1e3;
+        const recent = Array.isArray(sessionUser.usernameChangeTimestamps) ? sessionUser.usernameChangeTimestamps.filter((ts) => Date.now() - ts < ONE_WEEK_MS) : [];
+        if (recent.length >= 2) {
+          return res.status(429).json({ success: false, error: "Username can only be changed up to 2 times per 7 days." });
+        }
+        updatedUser.username = cleanedName;
+        updatedUser.usernameChangeTimestamps = [...recent, Date.now()];
+      }
+    }
+    if (avatar !== void 0) {
+      if (avatar === null || avatar === "") {
+        delete updatedUser.avatar;
+      } else if (typeof avatar === "string") {
+        const trimmedAvatar = avatar.trim();
+        if (trimmedAvatar.length > 2 * 1024 * 1024) {
+          return res.status(413).json({ success: false, error: "Avatar image exceeds maximum size limit." });
+        }
+        if (!isSafeMediaUrl(trimmedAvatar)) {
+          return res.status(400).json({ success: false, error: "Invalid avatar image format." });
+        }
+        updatedUser.avatar = trimmedAvatar;
+      }
+    }
+    const saved = await db.saveUser(updatedUser);
+    return res.json({
+      success: true,
+      user: formatSafeUser(saved)
+    });
+  } catch (err) {
+    console.error("[UKG Auth] Profile update error:", err);
+    res.status(500).json({ success: false, error: "Failed to update profile." });
+  }
+});
+app.delete("/api/auth/account", async (req, res) => {
+  try {
+    const sessionUser = await getSessionUser(req);
+    if (!sessionUser) {
+      return res.status(401).json({ success: false, error: "Authentication required." });
+    }
+    const adminEmail = (process.env.ADMIN_EMAIL || "amit1986.delhi@gmail.com").toLowerCase();
+    if (String(sessionUser.contact || "").toLowerCase() === adminEmail) {
+      return res.status(403).json({ success: false, error: "Platform owner account cannot be deleted." });
+    }
+    await db.deletePropertiesByOwner(sessionUser.id, sessionUser.contact);
+    await db.deleteUserSessions(sessionUser.id);
+    await db.deleteUser(sessionUser.id);
+    res.clearCookie("ukg_session", { path: "/" });
+    return res.json({ success: true, message: "Account and owned listings permanently deleted." });
+  } catch (err) {
+    console.error("[UKG Auth] Delete account error:", err);
+    res.status(500).json({ success: false, error: "Failed to delete account." });
+  }
+});
+app.delete("/api/users/:id", async (req, res) => {
+  try {
+    const sessionUser = await getSessionUser(req);
+    const isPlatformAdmin = Boolean(sessionUser && (sessionUser.isOwner || sessionUser.role === "admin" || sessionUser.role === "owner"));
+    if (!isPlatformAdmin) {
+      return res.status(403).json({ success: false, error: "Access denied. Administrator privileges required." });
+    }
+    const targetParam = decodeURIComponent(req.params.id || "").trim();
+    if (!targetParam) {
+      return res.status(400).json({ success: false, error: "User ID or contact is required." });
+    }
+    const targetUser = await db.findUserById(targetParam) || await db.findUserByEmail(targetParam);
+    if (!targetUser) {
+      return res.status(404).json({ success: false, error: "User account not found." });
+    }
+    if (targetUser.id === sessionUser.id || targetUser.isOwner || targetUser.role === "owner") {
+      return res.status(403).json({ success: false, error: "Cannot delete the platform owner account." });
+    }
+    await db.deletePropertiesByOwner(targetUser.id, targetUser.contact);
+    await db.deleteUserSessions(targetUser.id);
+    await db.deleteUser(targetUser.id);
+    return res.json({ success: true, message: "User account deleted." });
+  } catch (err) {
+    console.error("[UKG Users] Delete user error:", err);
+    res.status(500).json({ success: false, error: "Failed to delete user." });
+  }
+});
+app.post("/api/reports", async (req, res) => {
+  try {
+    const clientIp = req.ip || req.socket.remoteAddress || "unknown";
+    const limit = checkRateLimit(`report_${clientIp}`, 10, 15 * 60 * 1e3);
+    if (limit.limited) {
+      return res.status(429).json({ success: false, error: `Too many reports submitted. Please wait ${limit.retryAfterSeconds} seconds.` });
+    }
+    const { propertyId, reason, details } = req.body || {};
+    const pid = String(propertyId || "").trim();
+    const cleanedReason = stripHtmlTags(String(reason || "")).trim();
+    const cleanedDetails = stripHtmlTags(String(details || "")).trim().slice(0, 1e3);
+    if (!pid) {
+      return res.status(400).json({ success: false, error: "Property ID is required." });
+    }
+    if (cleanedReason.length < 3 || cleanedReason.length > 200) {
+      return res.status(400).json({ success: false, error: "Please select a valid report reason." });
+    }
+    const prop = await db.getPropertyById(pid);
+    if (!prop) {
+      return res.status(404).json({ success: false, error: "Reported property listing was not found." });
+    }
+    const sessionUser = await getSessionUser(req).catch(() => null);
+    const report = await db.saveReport({
+      id: `rep-${Date.now()}-${import_crypto2.default.randomBytes(4).toString("hex")}`,
+      propertyId: pid,
+      propertyTitle: prop.title || "Property Listing",
+      reason: cleanedReason,
+      details: cleanedDetails || void 0,
+      reporterId: sessionUser?.id,
+      reporterEmail: sessionUser?.contact,
+      status: "open",
+      createdAt: (/* @__PURE__ */ new Date()).toISOString()
+    });
+    return res.status(201).json({ success: true, report });
+  } catch (err) {
+    console.error("[UKG Reports] Create report error:", err);
+    res.status(500).json({ success: false, error: "Failed to submit report." });
+  }
+});
+app.get("/api/reports", async (req, res) => {
+  try {
+    const sessionUser = await getSessionUser(req);
+    const isPlatformAdmin = Boolean(sessionUser && (sessionUser.isOwner || sessionUser.role === "admin" || sessionUser.role === "owner"));
+    if (!isPlatformAdmin) {
+      return res.status(403).json({ success: false, error: "Access denied. Administrator privileges required." });
+    }
+    const reports = await db.getAllReports();
+    return res.json({ success: true, reports });
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Failed to fetch reports." });
+  }
+});
+app.patch("/api/reports/:id", async (req, res) => {
+  try {
+    const sessionUser = await getSessionUser(req);
+    const isPlatformAdmin = Boolean(sessionUser && (sessionUser.isOwner || sessionUser.role === "admin" || sessionUser.role === "owner"));
+    if (!isPlatformAdmin) {
+      return res.status(403).json({ success: false, error: "Access denied. Administrator privileges required." });
+    }
+    const { status } = req.body || {};
+    if (!["open", "resolved", "dismissed"].includes(status)) {
+      return res.status(400).json({ success: false, error: "Invalid status value." });
+    }
+    const updated = await db.updateReportStatus(req.params.id, status);
+    if (!updated) {
+      return res.status(404).json({ success: false, error: "Report not found." });
+    }
+    return res.json({ success: true, report: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Failed to update report." });
   }
 });
 app.post("/api/send-otp", async (req, res) => {
@@ -3993,7 +4433,7 @@ app.post("/api/send-otp", async (req, res) => {
           html: `
             <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:28px;background:#f0fdf4;border-radius:16px;">
               <h2 style="color:#065f46;margin:0 0 10px;">Uttarakhand Gateways</h2>
-              <p style="color:#374151;">Namaste ${username || "Valued User"},</p>
+              <p style="color:#374151;">Namaste ${escapeHtml(String(username || "Valued User"))},</p>
               <p style="color:#374151;">Your verification code is:</p>
               <div style="background:#047857;color:#fff;padding:16px;text-align:center;font-size:30px;font-weight:700;letter-spacing:8px;border-radius:10px;margin:20px 0;">
                 ${code}
@@ -4040,7 +4480,7 @@ app.post("/api/send-otp", async (req, res) => {
           html: `
             <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:28px;background:#f0fdf4;border-radius:16px;">
               <h2 style="color:#065f46;margin:0 0 10px;">Uttarakhand Gateways</h2>
-              <p style="color:#374151;">Namaste ${username || "Valued User"},</p>
+              <p style="color:#374151;">Namaste ${escapeHtml(String(username || "Valued User"))},</p>
               <p style="color:#374151;">Your verification code is:</p>
               <div style="background:#047857;color:#fff;padding:16px;text-align:center;font-size:30px;font-weight:700;letter-spacing:8px;border-radius:10px;margin:20px 0;">
                 ${code}
@@ -4531,6 +4971,11 @@ ${footerNote}`;
 }
 app.post("/api/enhance-description", async (req, res) => {
   try {
+    const clientIp = req.ip || req.socket.remoteAddress || "unknown";
+    const limit = checkRateLimit(`enhance_desc_${clientIp}`, 20, 60 * 1e3);
+    if (limit.limited) {
+      return res.status(429).json({ success: false, error: `Too many enhancement requests. Please wait ${limit.retryAfterSeconds} seconds.` });
+    }
     const { description, language } = req.body;
     if (!description || typeof description !== "string" || !description.trim()) {
       return res.status(400).json({ success: false, error: "Property description text is required." });

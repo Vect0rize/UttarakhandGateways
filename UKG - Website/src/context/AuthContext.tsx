@@ -66,9 +66,9 @@ export interface AuthContextType {
   verifyRegistrationOtp: (code: string, contact: string, username: string, password?: string) => Promise<{ success: boolean; error?: string }>;
   sendOtp: (contact: string, username?: string) => Promise<{ success: boolean; error?: string; contactType?: 'email'; isExistingUser?: boolean; devCode?: string; notRegistered?: boolean }>;
   verifyOtp: (code: string, contact: string, username?: string, password?: string) => Promise<{ success: boolean; error?: string }>;
-  deleteAccount: (contact?: string) => { success: boolean; message: string };
+  deleteAccount: (contact?: string) => Promise<{ success: boolean; message: string }>;
   clearAllAccounts: () => { success: boolean; message: string };
-  updateProfile: (updates: { username?: string; avatar?: string }) => { success: boolean; error?: string };
+  updateProfile: (updates: { username?: string; avatar?: string }) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   requireAuth: <T>(action: () => T, reason?: string) => boolean;
   
@@ -83,7 +83,8 @@ export interface AuthContextType {
 
   // Platform Owner Management (Amit Tyagi)
   getAllRegisteredUsers: () => StoredUserAccount[];
-  deleteUserByOwner: (userIdOrContact: string) => { success: boolean; message: string };
+  fetchAllRegisteredUsers: () => Promise<StoredUserAccount[]>;
+  deleteUserByOwner: (userIdOrContact: string) => Promise<{ success: boolean; message: string }>;
 
   // Login Success Celebration Animation
   showLoginAnimation: boolean;
@@ -115,8 +116,9 @@ export const normalizeUser = (u: any): User => {
     avatar: u.avatar,
     isVerified: Boolean(u.isVerified),
     createdAt: u.createdAt || new Date().toISOString(),
-    isOwner: isAppOwner({ username, contact }),
+    isOwner: isAppOwner({ contact, isOwner: u.isOwner, role: u.role }),
     provider: u.provider,
+    usernameChangeTimestamps: Array.isArray(u.usernameChangeTimestamps) ? u.usernameChangeTimestamps : undefined,
   };
 };
 
@@ -211,30 +213,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        // If session not found or 401, but we have a logged-in client user: auto-sync with server!
-        const userToSync = currentUser || localSavedUser;
-        if (userToSync) {
+        // If server rejected the session (401), clear stale local session state
+        if (res.status === 401) {
+          setCurrentUser(null);
           try {
-            const syncRes = await fetch('/api/auth/sync-session', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'include',
-              body: JSON.stringify({ user: userToSync }),
-            });
-            if (isMounted && syncRes.ok) {
-              const syncData = await syncRes.json();
-              if (syncData?.token || syncData?.sessionId) {
-                localStorage.setItem('ukg_session_token', syncData.token || syncData.sessionId);
-              }
-              if (syncData?.user) {
-                const syncedUser = normalizeUser(syncData.user);
-                setCurrentUser(syncedUser);
-                localStorage.setItem(AUTH_USER_KEY, JSON.stringify(syncedUser));
-              }
-            }
-          } catch (syncErr) {
-            console.warn('[UKG Auth] Auto-sync warning:', syncErr);
-          }
+            localStorage.removeItem(AUTH_USER_KEY);
+            localStorage.removeItem('ukg_session_token');
+          } catch {}
         }
       } catch (err) {
         console.warn('Session check warning:', err);
@@ -290,7 +275,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!u || !u.username || !u.contact) continue;
         const normU = u.username.trim().toLowerCase();
         const normC = u.contact.trim().toLowerCase();
-        const isOwnerAcc = normU === 'amit tyagi' || normC === 'amit1986.delhi@gmail.com';
+        const isOwnerAcc = normC === 'amit1986.delhi@gmail.com';
 
         if (isOwnerAcc) {
           if (ownerEncountered) continue;
@@ -397,65 +382,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const switchAccount = (accountId: string) => {
-    const found = savedAccounts.find((a) => a.id === accountId);
-    if (found) {
-      const safeUser: User = {
-        id: found.id,
-        username: found.username,
-        contact: found.contact,
-        contactType: found.contactType,
-        avatar: found.avatar,
-        isVerified: true,
-        createdAt: new Date().toISOString(),
-        isOwner: isAppOwner(found),
-      };
-      setCurrentUser(safeUser);
-      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(safeUser));
-      setSavedAccounts((prev) => 
-        prev.map((a) => a.id === accountId ? { ...a, lastLoginAt: Date.now() } : a)
-      );
-
-      // Sync active switch with backend session
-      fetch('/api/auth/sync-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ user: safeUser }),
-      }).then((r) => r.json()).then((data) => {
-        if (data?.token || data?.sessionId) {
-          try { localStorage.setItem('ukg_session_token', data.token || data.sessionId); } catch {}
-        }
-      }).catch(() => {});
+    const found = savedAccounts.find((a) => a.id === accountId) || getRegisteredUsers().find((u) => u.id === accountId);
+    if (found && currentUser && (found.id === currentUser.id || found.contact.toLowerCase() === currentUser.contact.toLowerCase())) {
       return;
     }
-
-    const allUsers = getRegisteredUsers();
-    const regUser = allUsers.find((u) => u.id === accountId);
-    if (regUser) {
-      const safeUser: User = {
-        id: regUser.id,
-        username: regUser.username,
-        contact: regUser.contact,
-        contactType: regUser.contactType,
-        avatar: regUser.avatar,
-        isVerified: true,
-        createdAt: regUser.createdAt,
-        isOwner: isAppOwner(regUser),
-      };
-      setCurrentUser(safeUser);
-      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(safeUser));
-
-      // Sync active switch with backend session
-      fetch('/api/auth/sync-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ user: safeUser }),
-      }).then((r) => r.json()).then((data) => {
-        if (data?.token || data?.sessionId) {
-          try { localStorage.setItem('ukg_session_token', data.token || data.sessionId); } catch {}
-        }
-      }).catch(() => {});
+    if (found) {
+      openAuthModal('login', `Sign in as ${found.contact} to switch accounts.`);
     }
   };
 
@@ -916,61 +848,65 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [triggerLoginAnimation, pendingSuccessCallback]);
 
   const loginWithSocialProvider = useCallback((
-    provider: 'google' | 'microsoft' | 'apple',
-    accountDetails?: { email: string; name: string; avatar?: string }
+    _provider: 'google' | 'microsoft' | 'apple',
+    _accountDetails?: { email: string; name: string; avatar?: string }
   ): { success: boolean; error?: string } => {
-    const email = accountDetails?.email?.trim().toLowerCase() || `${provider}-user@uttarakhandgateways.com`;
-    const name = accountDetails?.name?.trim() || email.split('@')[0];
+    return {
+      success: false,
+      error: 'Please complete sign-in with verified Google OAuth or email/password.',
+    };
+  }, []);
 
-    const safeUser = normalizeUser({
-      id: `user-${provider}-${Date.now()}`,
-      username: name,
-      contact: email,
-      provider,
-      avatar: accountDetails?.avatar,
-    });
+  const getAuthHeaders = (): Record<string, string> => {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    try {
+      const token = localStorage.getItem('ukg_session_token');
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+    } catch {}
+    return headers;
+  };
 
-    setCurrentUser(safeUser);
-    try { localStorage.setItem(AUTH_USER_KEY, JSON.stringify(safeUser)); } catch {}
+  const deleteAccount = useCallback(async (targetContact?: string): Promise<{ success: boolean; message: string }> => {
+    if (!currentUser) {
+      return { success: false, message: 'Authentication required.' };
+    }
 
-    // Issue verified server session for social logins
-    fetch('/api/auth/sync-session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ user: safeUser }),
-    }).then((r) => r.json()).then((data) => {
-      if (data?.token || data?.sessionId) {
-        try { localStorage.setItem('ukg_session_token', data.token || data.sessionId); } catch {}
+    const normalizedTarget = (targetContact || currentUser.contact || '').trim().toLowerCase();
+    const isSelfDelete =
+      !targetContact ||
+      normalizedTarget === currentUser.contact.toLowerCase() ||
+      targetContact === currentUser.id;
+
+    if (!isSelfDelete) {
+      return { success: false, message: 'Use owner moderation endpoint to delete another user.' };
+    }
+
+    try {
+      const res = await fetch('/api/auth/account', {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.success) {
+        return { success: false, message: data?.error || 'Failed to delete account.' };
       }
-    }).catch(() => {});
 
-    setIsAuthModalOpen(false);
-    triggerLoginAnimation(safeUser.username);
-    handlePostLoginSaveCheck(safeUser);
-
-    if (pendingSuccessCallback) {
-      const cb = pendingSuccessCallback;
-      setPendingSuccessCallback(null);
-      setTimeout(() => cb(), 100);
-    }
-
-    return { success: true };
-  }, [triggerLoginAnimation, pendingSuccessCallback]);
-
-  const deleteAccount = useCallback((targetContact?: string): { success: boolean; message: string } => {
-    const contactToDelete = (targetContact || currentUser?.contact || '').trim().toLowerCase();
-    
-    if (currentUser) {
       deletePropertiesForAccount({ id: currentUser.id, username: currentUser.username, contact: currentUser.contact });
+      setCurrentUser(null);
+      try {
+        localStorage.removeItem(AUTH_USER_KEY);
+        localStorage.removeItem('ukg_session_token');
+        const reg = getRegisteredUsers().filter(
+          (u) => u.contact.toLowerCase() !== normalizedTarget && u.id !== currentUser.id
+        );
+        localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(reg));
+      } catch {}
+      setSavedAccounts((prev) => prev.filter((a) => a.contact.toLowerCase() !== normalizedTarget && a.id !== currentUser.id));
+      return { success: true, message: data?.message || 'Account deleted.' };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Could not reach server to delete account.' };
     }
-
-    if (!contactToDelete || (currentUser && currentUser.contact.toLowerCase() === contactToDelete)) {
-      void logout();
-    }
-
-    setSavedAccounts((prev) => prev.filter((a) => a.contact.toLowerCase() !== contactToDelete));
-    return { success: true, message: 'Account deleted.' };
   }, [currentUser]);
 
   const clearAllAccounts = useCallback((): { success: boolean; message: string } => {
@@ -982,7 +918,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: true, message: 'All accounts removed.' };
   }, []);
 
-  const updateProfile = useCallback((updates: { username?: string; avatar?: string }): { success: boolean; error?: string } => {
+  const updateProfile = useCallback(async (updates: { username?: string; avatar?: string }): Promise<{ success: boolean; error?: string }> => {
     if (!currentUser) {
       return { success: false, error: 'No user is currently logged in.' };
     }
@@ -992,19 +928,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, error: 'Username must be at least 2 characters.' };
     }
 
-    const updatedUser: User = {
-      ...currentUser,
-      username: newUsername,
-      avatar: updates.avatar !== undefined ? updates.avatar : currentUser.avatar,
-      isOwner: isAppOwner({ username: newUsername, contact: currentUser.contact } as any),
-    };
-
-    setCurrentUser(updatedUser);
     try {
-      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(updatedUser));
-    } catch {}
+      const payload: Record<string, any> = {};
+      if (updates.username !== undefined) payload.username = newUsername;
+      if ('avatar' in updates) payload.avatar = updates.avatar ?? null;
 
-    return { success: true };
+      const res = await fetch('/api/auth/profile', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.success) {
+        return { success: false, error: data?.error || 'Failed to update profile.' };
+      }
+
+      const updatedUser: User = data.user
+        ? normalizeUser(data.user)
+        : {
+            ...currentUser,
+            username: newUsername,
+            avatar: 'avatar' in updates ? updates.avatar : currentUser.avatar,
+          };
+
+      setCurrentUser(updatedUser);
+      try {
+        localStorage.setItem(AUTH_USER_KEY, JSON.stringify(updatedUser));
+      } catch {}
+      setSavedAccounts((prev) =>
+        prev.map((a) =>
+          a.id === updatedUser.id || a.contact.toLowerCase() === updatedUser.contact.toLowerCase()
+            ? { ...a, username: updatedUser.username, avatar: updatedUser.avatar }
+            : a
+        )
+      );
+
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Failed to update profile.' };
+    }
   }, [currentUser]);
 
   const logout = async (): Promise<void> => {
@@ -1012,6 +975,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include',
+        headers: getAuthHeaders(),
       });
     } catch (e) {
       console.warn('Logout network notice:', e);
@@ -1043,12 +1007,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return getRegisteredUsers();
   }, []);
 
-  const deleteUserByOwner = useCallback((userIdOrContact: string): { success: boolean; message: string } => {
+  const fetchAllRegisteredUsers = useCallback(async (): Promise<StoredUserAccount[]> => {
+    if (!isAppOwner(currentUser)) return [];
+    try {
+      const res = await fetch('/api/users', {
+        credentials: 'include',
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) return getRegisteredUsers();
+      const data = await res.json().catch(() => ({}));
+      const list = Array.isArray(data) ? data : (Array.isArray(data.users) ? data.users : []);
+      const mapped: StoredUserAccount[] = list.map((u: any) => ({
+        id: u.id,
+        username: u.username,
+        contact: u.contact || u.email || '',
+        contactType: 'email',
+        avatar: u.avatar,
+        isVerified: Boolean(u.isVerified),
+        createdAt: u.createdAt || new Date().toISOString(),
+        isOwner: Boolean(u.isOwner),
+        usernameChangeTimestamps: Array.isArray(u.usernameChangeTimestamps) ? u.usernameChangeTimestamps : undefined,
+      }));
+      return mapped;
+    } catch {
+      return getRegisteredUsers();
+    }
+  }, [currentUser]);
+
+  const deleteUserByOwner = useCallback(async (userIdOrContact: string): Promise<{ success: boolean; message: string }> => {
     if (!isAppOwner(currentUser)) {
       return { success: false, message: 'Owner privileges required.' };
     }
-    return deleteAccount(userIdOrContact);
-  }, [currentUser, deleteAccount]);
+    try {
+      const res = await fetch(`/api/users/${encodeURIComponent(userIdOrContact)}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.success) {
+        return { success: false, message: data?.error || 'Failed to delete user.' };
+      }
+      const normTarget = userIdOrContact.trim().toLowerCase();
+      setSavedAccounts((prev) => prev.filter((a) => a.id !== userIdOrContact && a.contact.toLowerCase() !== normTarget));
+      return { success: true, message: data?.message || 'User account deleted.' };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Could not reach server.' };
+    }
+  }, [currentUser]);
 
   return (
     <AuthContext.Provider
@@ -1087,6 +1093,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         saveCurrentAccountToDevice,
         dismissSavePrompt,
         getAllRegisteredUsers,
+        fetchAllRegisteredUsers,
         deleteUserByOwner,
         showLoginAnimation,
         loginAnimationUser,

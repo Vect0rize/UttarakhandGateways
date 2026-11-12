@@ -25,6 +25,8 @@ export const ReportListingModal: React.FC<ReportListingModalProps> = ({
   const [reason, setReason] = useState('');
   const [details, setDetails] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   if (!isOpen || !property) return null;
 
@@ -32,32 +34,45 @@ export const ReportListingModal: React.FC<ReportListingModalProps> = ({
     setReason('');
     setDetails('');
     setSubmitted(false);
+    setIsSubmitting(false);
+    setErrorMsg(null);
     onClose();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!reason) return;
+    if (!reason || isSubmitting) return;
+    setIsSubmitting(true);
+    setErrorMsg(null);
 
-    /*
-     * For now the report is handled on the client side.
-     *
-     * You can later connect this to your backend/database by
-     * replacing this section with a POST request such as:
-     *
-     * fetch('/api/reports', {
-     *   method: 'POST',
-     *   headers: { 'Content-Type': 'application/json' },
-     *   body: JSON.stringify({
-     *     propertyId: property.id,
-     *     reason,
-     *     details
-     *   })
-     * })
-     */
+    try {
+      let token: string | null = null;
+      try { token = localStorage.getItem('ukg_session_token'); } catch {}
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    setSubmitted(true);
+      const res = await fetch('/api/reports', {
+        method: 'POST',
+        credentials: 'include',
+        headers,
+        body: JSON.stringify({
+          propertyId: property.id,
+          reason,
+          details: details.trim() || undefined,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.success) {
+        setErrorMsg(data?.error || 'Could not submit report. Please try again.');
+        return;
+      }
+      setSubmitted(true);
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Network error while submitting report.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -185,6 +200,12 @@ export const ReportListingModal: React.FC<ReportListingModalProps> = ({
                   {details.length}/1000
                 </p>
               </div>
+
+              {errorMsg && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+                  {errorMsg}
+                </div>
+              )}
             </div>
 
             {/* Footer */}
@@ -199,10 +220,10 @@ export const ReportListingModal: React.FC<ReportListingModalProps> = ({
 
               <button
                 type="submit"
-                disabled={!reason}
+                disabled={!reason || isSubmitting}
                 className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Submit Report
+                {isSubmitting ? 'Submitting...' : 'Submit Report'}
               </button>
             </div>
           </form>

@@ -182,6 +182,7 @@ function formatSafeUser(u: any) {
     avatar: u.avatar || undefined,
     role: isOwner ? 'owner' : (u.role || 'user'),
     isOwner,
+    usernameChangeTimestamps: Array.isArray(u.usernameChangeTimestamps) ? u.usernameChangeTimestamps : undefined,
     createdAt: u.createdAt || new Date().toISOString(),
   };
 }
@@ -219,7 +220,7 @@ async function getSessionUser(req: express.Request): Promise<any | null> {
     sessionId = String(req.headers['x-session-token']);
   }
 
-  if (!sessionId) {
+  if (!sessionId || db.isSessionRevoked(sessionId)) {
     return null;
   }
 
@@ -282,6 +283,15 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+function sanitizePublicProperty(prop: any, sessionUser: any): any {
+  if (!prop || typeof prop !== 'object') return prop;
+  if (sessionUser && canUserManageProperty(prop, sessionUser)) {
+    return prop;
+  }
+  const { ownerContact, sellerEmail, ...safeProp } = prop;
+  return safeProp;
+}
+
 // SHARED PROPERTIES CRUD APIS (Open to all visitors, logged in or logged out)
 app.get('/api/properties', async (req, res) => {
   res.set({
@@ -291,10 +301,11 @@ app.get('/api/properties', async (req, res) => {
     'Surrogate-Control': 'no-store'
   });
   try {
+    const sessionUser = await getSessionUser(req).catch(() => null);
     const list = await db.getAllProperties();
     res.json({
       success: true,
-      properties: list
+      properties: list.map((p) => sanitizePublicProperty(p, sessionUser))
     });
   } catch (err: any) {
     console.error('Error fetching properties from db:', err);
@@ -351,13 +362,14 @@ app.get('/api/properties/:id', async (req, res) => {
   });
   try {
     const { id } = req.params;
+    const sessionUser = await getSessionUser(req).catch(() => null);
     let prop = await db.getPropertyById(id);
     if (!prop) {
       const allProps = await db.getAllProperties();
       prop = findPropertyBySlugOrId(id, allProps);
     }
     if (prop) {
-      return res.json({ success: true, property: prop });
+      return res.json({ success: true, property: sanitizePublicProperty(prop, sessionUser) });
     }
     return res.status(404).json({ success: false, error: 'Property not found' });
   } catch (err: any) {
@@ -389,11 +401,34 @@ function persistInlineVideos(prop: any): void {
   }
 }
 
+function detectVideoExtensionFromMagic(buf: Buffer): string | null {
+  if (!Buffer.isBuffer(buf) || buf.length < 12) return null;
+  // MP4 / MOV: ISO Base Media File Format ('ftyp' at byte 4..8)
+  if (buf.subarray(4, 8).toString('ascii') === 'ftyp') {
+    const brand = buf.subarray(8, 12).toString('ascii');
+    return brand === 'qt  ' ? 'mov' : 'mp4';
+  }
+  // WebM / Matroska EBML header: 1A 45 DF A3
+  if (buf[0] === 0x1a && buf[1] === 0x45 && buf[2] === 0xdf && buf[3] === 0xa3) return 'webm';
+  // AVI: RIFF....AVI
+  if (buf.subarray(0, 4).toString('ascii') === 'RIFF' && buf.subarray(8, 11).toString('ascii') === 'AVI') return 'avi';
+  // Ogg container
+  if (buf.subarray(0, 4).toString('ascii') === 'OggS') return 'ogv';
+  // MPEG-2 Transport Stream
+  if (buf[0] === 0x47 && buf.length >= 192 && buf[188] === 0x47) return 'ts';
+  return null;
+}
+
 app.post(
   '/api/upload-video',
   express.raw({ type: ['video/*', 'application/octet-stream'], limit: '45mb' }),
   async (req, res) => {
     try {
+      const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
+      const limit = checkRateLimit(`upload_vid_${clientIp}`, 15, 15 * 60 * 1000);
+      if (limit.limited) {
+        return res.status(429).json({ success: false, error: `Too many video uploads. Please wait ${limit.retryAfterSeconds} seconds.` });
+      }
       const sessionUser = await getSessionUser(req);
       if (!sessionUser) {
         return res.status(401).json({ success: false, error: 'Authentication required to upload property videos.' });
@@ -402,12 +437,11 @@ app.post(
       if (!Buffer.isBuffer(body) || body.length === 0) {
         return res.status(400).json({ success: false, error: 'Empty video file uploaded.' });
       }
-      const ct = String(req.headers['content-type'] || 'video/mp4').toLowerCase();
-      let ext = 'mp4';
-      if (ct.includes('webm')) ext = 'webm';
-      else if (ct.includes('quicktime') || ct.includes('mov')) ext = 'mov';
-      else if (ct.includes('ogg')) ext = 'ogv';
-      const fileName = `ukg-vid-${Date.now()}-${crypto.randomBytes(4).toString('hex')}.${ext}`;
+      const detectedExt = detectVideoExtensionFromMagic(body);
+      if (!detectedExt) {
+        return res.status(400).json({ success: false, error: 'Invalid or unsupported video binary format. Only real MP4, MOV, WebM, AVI, or Ogg videos are allowed.' });
+      }
+      const fileName = `ukg-vid-${Date.now()}-${crypto.randomBytes(4).toString('hex')}.${detectedExt}`;
       fs.writeFileSync(path.join(uploadsDir, fileName), body);
       res.json({ success: true, url: `/uploads/${fileName}` });
     } catch (err: any) {
@@ -425,25 +459,53 @@ app.post('/api/properties', async (req, res) => {
       return res.status(401).json({ success: false, error: 'Authentication required. Please sign in to create property listings.' });
     }
 
-    const property = req.body;
-    if (!property || typeof property !== 'object' || !property.id || !property.title) {
+    const raw = req.body;
+    if (!raw || typeof raw !== 'object' || !raw.id || !raw.title) {
       return res.status(400).json({ success: false, error: 'Property id and title are required' });
     }
-    if (typeof property.title !== 'string' || property.title.trim().length < 3 || property.title.length > 200) {
+    const propId = String(raw.id).trim();
+    if (!/^[a-zA-Z0-9_-]{3,120}$/.test(propId)) {
+      return res.status(400).json({ success: false, error: 'Invalid property ID format.' });
+    }
+    // Prevent IDOR overwrite of existing listings via POST
+    const existingProp = await db.getPropertyById(propId);
+    if (existingProp) {
+      return res.status(409).json({ success: false, error: 'A property listing with this ID already exists.' });
+    }
+
+    if (typeof raw.title !== 'string' || raw.title.trim().length < 3 || raw.title.length > 200) {
       return res.status(400).json({ success: false, error: 'Title must be between 3 and 200 characters.' });
     }
-    if (property.price !== undefined && property.price !== null) {
-      const p = Number(property.price);
+    if (raw.price !== undefined && raw.price !== null) {
+      const p = Number(raw.price);
       if (isNaN(p) || p < 0 || p > 10000000000) {
         return res.status(400).json({ success: false, error: 'Price must be a valid positive number.' });
       }
     }
-    if (property.description && typeof property.description === 'string' && property.description.length > 10000) {
+    if (raw.description && typeof raw.description === 'string' && raw.description.length > 10000) {
       return res.status(400).json({ success: false, error: 'Description exceeds maximum allowed length of 10000 characters.' });
     }
-    if (!property.createdAt) {
-      property.createdAt = new Date().toISOString();
-    }
+
+    // Build sanitized listing without allowing client-side metric/privilege mass-assignment
+    const {
+      views: _v,
+      shares: _s,
+      inquiries: _inq,
+      isSold: _sold,
+      featured: _feat,
+      isOwner: _iso,
+      role: _role,
+      ownerId: _oid,
+      ownerUsername: _ou,
+      ownerContact: _oc,
+      ...property
+    } = raw;
+    property.id = propId;
+    property.createdAt = new Date().toISOString();
+    property.views = 0;
+    property.shares = 0;
+    property.inquiries = 0;
+    property.isSold = false;
 
     // Sanitize user-supplied strings and URLs before storing, then bind owner identity
     sanitizePropertyInput(property);
@@ -455,6 +517,7 @@ app.post('/api/properties', async (req, res) => {
     property.ownerUsername = sessionUser.username;
     property.ownerContact = sessionUser.contact;
     if (property.sellerType !== 'Broker') {
+      property.sellerType = 'Owner';
       if (!property.sellerName || property.sellerName.includes('@') || property.sellerName.toLowerCase() === 'amit1986.delhi') {
         property.sellerName = sessionUser.username;
       }
@@ -541,20 +604,31 @@ app.put('/api/properties/:id', async (req, res) => {
       }
     }
 
-    // Maintain owner reference if missing
-    if (!updates.ownerId && existing.ownerId) updates.ownerId = existing.ownerId;
-    else if (!updates.ownerId && sessionUser.id) updates.ownerId = sessionUser.id;
+    // Strip immutable ownership and analytics counter fields to prevent tampering
+    const {
+      id: _dropId,
+      ownerId: _dropOwnerId,
+      ownerContact: _dropOwnerContact,
+      ownerUsername: _dropOwnerUsername,
+      createdAt: _dropCreatedAt,
+      views: _dropViews,
+      shares: _dropShares,
+      inquiries: _dropInquiries,
+      featured: _dropFeatured,
+      isOwner: _dropIsOwner,
+      role: _dropRole,
+      ...safeUpdates
+    } = updates || {};
 
-    if (!updates.ownerContact && existing.ownerContact) updates.ownerContact = existing.ownerContact;
-    else if (!updates.ownerContact && sessionUser.contact) updates.ownerContact = sessionUser.contact;
+    // Preserve/backfill existing owner fields only if missing
+    if (!existing.ownerId && sessionUser.id) safeUpdates.ownerId = sessionUser.id;
+    if (!existing.ownerContact && sessionUser.contact) safeUpdates.ownerContact = sessionUser.contact;
+    if (!existing.ownerUsername && sessionUser.username) safeUpdates.ownerUsername = sessionUser.username;
 
-    if (!updates.ownerUsername && existing.ownerUsername) updates.ownerUsername = existing.ownerUsername;
-    else if (!updates.ownerUsername && sessionUser.username) updates.ownerUsername = sessionUser.username;
+    sanitizePropertyInput(safeUpdates);
+    persistInlineVideos(safeUpdates);
 
-    sanitizePropertyInput(updates);
-    persistInlineVideos(updates);
-
-    const updated = await db.updateProperty(id, updates);
+    const updated = await db.updateProperty(id, safeUpdates);
     console.log(`[UKG Properties] Updated property "${updated.title}" (${id})`);
     res.json({ success: true, property: updated });
   } catch (err: any) {
@@ -985,12 +1059,16 @@ app.post('/api/auth/google', async (req, res) => {
   }
 });
 
-// 3. User Logout
+// 3. User Logout (revokes cookie OR Bearer/x-session-token session)
 app.post('/api/auth/logout', async (req, res) => {
   try {
-    const sessionId = req.cookies?.ukg_session;
-    if (sessionId) {
-      await db.deleteSession(sessionId);
+    const authHeader = req.headers['authorization'];
+    const bearerToken = typeof authHeader === 'string' && authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+    const headerToken = typeof req.headers['x-session-token'] === 'string' ? req.headers['x-session-token'].trim() : null;
+    const cookieToken = req.cookies?.ukg_session;
+    const tokensToDelete = Array.from(new Set([cookieToken, bearerToken, headerToken].filter(Boolean) as string[]));
+    for (const t of tokensToDelete) {
+      await db.deleteSession(t);
     }
     res.clearCookie('ukg_session', { path: '/' });
     res.json({ success: true, message: 'Logged out successfully.' });
@@ -1101,7 +1179,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
           html: `
             <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:28px;background:#f0fdf4;border-radius:16px;">
               <h2 style="color:#065f46;margin:0 0 10px;">Uttarakhand Gateways</h2>
-              <p style="color:#374151;">Namaste ${user.username},</p>
+              <p style="color:#374151;">Namaste ${escapeHtml(user.username)},</p>
               <p style="color:#374151;">You requested to reset your password. Click the button below to set a new password:</p>
               <div style="text-align:center;margin:28px 0;">
                 <a href="${resetUrl}" style="background:#047857;color:#fff;padding:14px 28px;text-decoration:none;font-size:15px;font-weight:700;border-radius:10px;display:inline-block;">Reset Password</a>
@@ -1178,8 +1256,8 @@ app.post('/api/auth/reset-password', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid reset token.' });
     }
 
-    if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 8) {
-      return res.status(400).json({ success: false, error: 'New password must be at least 8 characters long.' });
+    if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 6 || newPassword.length > 128) {
+      return res.status(400).json({ success: false, error: 'New password must be between 6 and 128 characters long.' });
     }
 
     if (confirmPassword !== undefined && newPassword !== confirmPassword) {
@@ -1282,16 +1360,39 @@ app.post('/api/users/sync', async (req, res) => {
 
 app.post('/api/register-user', async (req, res) => {
   try {
+    const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
+    const limit = checkRateLimit(`register_${clientIp}`, 10, 15 * 60 * 1000);
+    if (limit.limited) {
+      return res.status(429).json({
+        success: false,
+        error: `Too many registration attempts. Please try again in ${limit.retryAfterSeconds} seconds.`,
+      });
+    }
+
     const { username, contact, password } = req.body;
     if (!contact || !username) {
       return res.status(400).json({ success: false, error: 'Username and email are required' });
     }
     const trimmedContact = String(contact).trim().toLowerCase();
-    const trimmedUsername = String(username).trim();
+    const trimmedUsername = stripHtmlTags(String(username)).trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (trimmedUsername.length < 2 || trimmedUsername.length > 80) {
+      return res.status(400).json({ success: false, error: 'Username must be between 2 and 80 characters.' });
+    }
+    if (!emailRegex.test(trimmedContact)) {
+      return res.status(400).json({ success: false, error: 'Please enter a valid email address.' });
+    }
+    if (password !== undefined) {
+      if (typeof password !== 'string' || password.length < 6 || password.length > 128) {
+        return res.status(400).json({ success: false, error: 'Password must be between 6 and 128 characters long.' });
+      }
+    }
+
     const existing = await db.findUserByEmail(trimmedContact);
 
     if (existing) {
-      return res.status(400).json({ success: false, error: 'An account with this email address already exists. Please log in.' });
+      return res.status(409).json({ success: false, error: 'An account with this email address already exists. Please log in.' });
     }
 
     // Cryptographically secure password hash (never static fallback strings)
@@ -1318,6 +1419,196 @@ app.post('/api/register-user', async (req, res) => {
     });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message || 'Failed to register account' });
+  }
+});
+
+// Persistent Profile Update (Username & Avatar)
+app.put('/api/auth/profile', async (req, res) => {
+  try {
+    const sessionUser = await getSessionUser(req);
+    if (!sessionUser) {
+      return res.status(401).json({ success: false, error: 'Authentication required to update profile.' });
+    }
+
+    const { username, avatar } = req.body || {};
+    const updatedUser: any = { ...sessionUser };
+
+    if (username !== undefined) {
+      const cleanedName = stripHtmlTags(String(username)).trim();
+      if (cleanedName.length < 2 || cleanedName.length > 80) {
+        return res.status(400).json({ success: false, error: 'Username must be between 2 and 80 characters.' });
+      }
+      if (cleanedName !== sessionUser.username) {
+        const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+        const recent = Array.isArray((sessionUser as any).usernameChangeTimestamps)
+          ? (sessionUser as any).usernameChangeTimestamps.filter((ts: number) => Date.now() - ts < ONE_WEEK_MS)
+          : [];
+        if (recent.length >= 2) {
+          return res.status(429).json({ success: false, error: 'Username can only be changed up to 2 times per 7 days.' });
+        }
+        updatedUser.username = cleanedName;
+        updatedUser.usernameChangeTimestamps = [...recent, Date.now()];
+      }
+    }
+
+    if (avatar !== undefined) {
+      if (avatar === null || avatar === '') {
+        delete updatedUser.avatar;
+      } else if (typeof avatar === 'string') {
+        const trimmedAvatar = avatar.trim();
+        if (trimmedAvatar.length > 2 * 1024 * 1024) {
+          return res.status(413).json({ success: false, error: 'Avatar image exceeds maximum size limit.' });
+        }
+        if (!isSafeMediaUrl(trimmedAvatar)) {
+          return res.status(400).json({ success: false, error: 'Invalid avatar image format.' });
+        }
+        updatedUser.avatar = trimmedAvatar;
+      }
+    }
+
+    const saved = await db.saveUser(updatedUser);
+    return res.json({
+      success: true,
+      user: formatSafeUser(saved),
+    });
+  } catch (err: any) {
+    console.error('[UKG Auth] Profile update error:', err);
+    res.status(500).json({ success: false, error: 'Failed to update profile.' });
+  }
+});
+
+// Persistent Own-Account Deletion
+app.delete('/api/auth/account', async (req, res) => {
+  try {
+    const sessionUser = await getSessionUser(req);
+    if (!sessionUser) {
+      return res.status(401).json({ success: false, error: 'Authentication required.' });
+    }
+    const adminEmail = (process.env.ADMIN_EMAIL || 'amit1986.delhi@gmail.com').toLowerCase();
+    if (String(sessionUser.contact || '').toLowerCase() === adminEmail) {
+      return res.status(403).json({ success: false, error: 'Platform owner account cannot be deleted.' });
+    }
+
+    await db.deletePropertiesByOwner(sessionUser.id, sessionUser.contact);
+    await db.deleteUserSessions(sessionUser.id);
+    await db.deleteUser(sessionUser.id);
+    res.clearCookie('ukg_session', { path: '/' });
+    return res.json({ success: true, message: 'Account and owned listings permanently deleted.' });
+  } catch (err: any) {
+    console.error('[UKG Auth] Delete account error:', err);
+    res.status(500).json({ success: false, error: 'Failed to delete account.' });
+  }
+});
+
+// Platform Admin: Delete a Specific Non-Owner User Account
+app.delete('/api/users/:id', async (req, res) => {
+  try {
+    const sessionUser = await getSessionUser(req);
+    const isPlatformAdmin = Boolean(sessionUser && (sessionUser.isOwner || sessionUser.role === 'admin' || sessionUser.role === 'owner'));
+    if (!isPlatformAdmin) {
+      return res.status(403).json({ success: false, error: 'Access denied. Administrator privileges required.' });
+    }
+
+    const targetParam = decodeURIComponent(req.params.id || '').trim();
+    if (!targetParam) {
+      return res.status(400).json({ success: false, error: 'User ID or contact is required.' });
+    }
+    const targetUser = (await db.findUserById(targetParam)) || (await db.findUserByEmail(targetParam));
+    if (!targetUser) {
+      return res.status(404).json({ success: false, error: 'User account not found.' });
+    }
+    if (targetUser.id === sessionUser.id || targetUser.isOwner || targetUser.role === 'owner') {
+      return res.status(403).json({ success: false, error: 'Cannot delete the platform owner account.' });
+    }
+
+    await db.deletePropertiesByOwner(targetUser.id, targetUser.contact);
+    await db.deleteUserSessions(targetUser.id);
+    await db.deleteUser(targetUser.id);
+    return res.json({ success: true, message: 'User account deleted.' });
+  } catch (err: any) {
+    console.error('[UKG Users] Delete user error:', err);
+    res.status(500).json({ success: false, error: 'Failed to delete user.' });
+  }
+});
+
+// Persistent Listing Reports Endpoints
+app.post('/api/reports', async (req, res) => {
+  try {
+    const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
+    const limit = checkRateLimit(`report_${clientIp}`, 10, 15 * 60 * 1000);
+    if (limit.limited) {
+      return res.status(429).json({ success: false, error: `Too many reports submitted. Please wait ${limit.retryAfterSeconds} seconds.` });
+    }
+
+    const { propertyId, reason, details } = req.body || {};
+    const pid = String(propertyId || '').trim();
+    const cleanedReason = stripHtmlTags(String(reason || '')).trim();
+    const cleanedDetails = stripHtmlTags(String(details || '')).trim().slice(0, 1000);
+
+    if (!pid) {
+      return res.status(400).json({ success: false, error: 'Property ID is required.' });
+    }
+    if (cleanedReason.length < 3 || cleanedReason.length > 200) {
+      return res.status(400).json({ success: false, error: 'Please select a valid report reason.' });
+    }
+
+    const prop = await db.getPropertyById(pid);
+    if (!prop) {
+      return res.status(404).json({ success: false, error: 'Reported property listing was not found.' });
+    }
+
+    const sessionUser = await getSessionUser(req).catch(() => null);
+    const report = await db.saveReport({
+      id: `rep-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`,
+      propertyId: pid,
+      propertyTitle: prop.title || 'Property Listing',
+      reason: cleanedReason,
+      details: cleanedDetails || undefined,
+      reporterId: sessionUser?.id,
+      reporterEmail: sessionUser?.contact,
+      status: 'open',
+      createdAt: new Date().toISOString(),
+    });
+
+    return res.status(201).json({ success: true, report });
+  } catch (err: any) {
+    console.error('[UKG Reports] Create report error:', err);
+    res.status(500).json({ success: false, error: 'Failed to submit report.' });
+  }
+});
+
+app.get('/api/reports', async (req, res) => {
+  try {
+    const sessionUser = await getSessionUser(req);
+    const isPlatformAdmin = Boolean(sessionUser && (sessionUser.isOwner || sessionUser.role === 'admin' || sessionUser.role === 'owner'));
+    if (!isPlatformAdmin) {
+      return res.status(403).json({ success: false, error: 'Access denied. Administrator privileges required.' });
+    }
+    const reports = await db.getAllReports();
+    return res.json({ success: true, reports });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: 'Failed to fetch reports.' });
+  }
+});
+
+app.patch('/api/reports/:id', async (req, res) => {
+  try {
+    const sessionUser = await getSessionUser(req);
+    const isPlatformAdmin = Boolean(sessionUser && (sessionUser.isOwner || sessionUser.role === 'admin' || sessionUser.role === 'owner'));
+    if (!isPlatformAdmin) {
+      return res.status(403).json({ success: false, error: 'Access denied. Administrator privileges required.' });
+    }
+    const { status } = req.body || {};
+    if (!['open', 'resolved', 'dismissed'].includes(status)) {
+      return res.status(400).json({ success: false, error: 'Invalid status value.' });
+    }
+    const updated = await db.updateReportStatus(req.params.id, status);
+    if (!updated) {
+      return res.status(404).json({ success: false, error: 'Report not found.' });
+    }
+    return res.json({ success: true, report: updated });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: 'Failed to update report.' });
   }
 });
 
@@ -1379,7 +1670,7 @@ app.post('/api/send-otp', async (req, res) => {
           html: `
             <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:28px;background:#f0fdf4;border-radius:16px;">
               <h2 style="color:#065f46;margin:0 0 10px;">Uttarakhand Gateways</h2>
-              <p style="color:#374151;">Namaste ${username || 'Valued User'},</p>
+              <p style="color:#374151;">Namaste ${escapeHtml(String(username || 'Valued User'))},</p>
               <p style="color:#374151;">Your verification code is:</p>
               <div style="background:#047857;color:#fff;padding:16px;text-align:center;font-size:30px;font-weight:700;letter-spacing:8px;border-radius:10px;margin:20px 0;">
                 ${code}
@@ -1430,7 +1721,7 @@ app.post('/api/send-otp', async (req, res) => {
           html: `
             <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:28px;background:#f0fdf4;border-radius:16px;">
               <h2 style="color:#065f46;margin:0 0 10px;">Uttarakhand Gateways</h2>
-              <p style="color:#374151;">Namaste ${username || 'Valued User'},</p>
+              <p style="color:#374151;">Namaste ${escapeHtml(String(username || 'Valued User'))},</p>
               <p style="color:#374151;">Your verification code is:</p>
               <div style="background:#047857;color:#fff;padding:16px;text-align:center;font-size:30px;font-weight:700;letter-spacing:8px;border-radius:10px;margin:20px 0;">
                 ${code}
@@ -1974,6 +2265,12 @@ function formatDescriptionFallback(
 // Enhances presentation, structure, flow, and formatting WITHOUT adding any new or fabricated info
 app.post('/api/enhance-description', async (req, res) => {
   try {
+    const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
+    const limit = checkRateLimit(`enhance_desc_${clientIp}`, 20, 60 * 1000);
+    if (limit.limited) {
+      return res.status(429).json({ success: false, error: `Too many enhancement requests. Please wait ${limit.retryAfterSeconds} seconds.` });
+    }
+
     const { description, language } = req.body;
     if (!description || typeof description !== 'string' || !description.trim()) {
       return res.status(400).json({ success: false, error: 'Property description text is required.' });

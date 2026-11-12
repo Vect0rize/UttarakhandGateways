@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   Users, 
@@ -30,15 +30,23 @@ export const AdminAccountsModal: React.FC<AdminAccountsModalProps> = ({
   onDeleteAllProperties,
   totalPropertiesCount = 0,
 }) => {
-  const { getAllRegisteredUsers, deleteUserByOwner, currentUser } = useAuth();
+  const { fetchAllRegisteredUsers, deleteUserByOwner, currentUser } = useAuth();
   const { isHindi } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const [allUsers, setAllUsers] = useState<StoredUserAccount[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setLoadingUsers(true);
+    void fetchAllRegisteredUsers()
+      .then((users) => setAllUsers(users))
+      .finally(() => setLoadingUsers(false));
+  }, [isOpen, fetchAllRegisteredUsers]);
 
   if (!isOpen) return null;
-
-  const allUsers: StoredUserAccount[] = getAllRegisteredUsers();
 
   const filteredUsers = allUsers.filter((u) => {
     const q = searchTerm.toLowerCase().trim();
@@ -49,10 +57,13 @@ export const AdminAccountsModal: React.FC<AdminAccountsModalProps> = ({
     );
   });
 
-  const handleDelete = (userId: string) => {
-    const res = deleteUserByOwner(userId);
+  const handleDelete = async (userId: string) => {
+    const res = await deleteUserByOwner(userId);
     setDeleteConfirmId(null);
     setActionNotice(res.message);
+    if (res.success) {
+      setAllUsers((prev) => prev.filter((u) => u.id !== userId));
+    }
     setTimeout(() => setActionNotice(null), 4000);
   };
 
@@ -150,8 +161,8 @@ export const AdminAccountsModal: React.FC<AdminAccountsModalProps> = ({
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3">
           {filteredUsers.length > 0 ? (
             filteredUsers.map((user) => {
-              const isSelf = user.username.trim().toLowerCase() === currentUser?.username?.trim().toLowerCase();
-              const isOwnerUser = user.username.trim().toLowerCase() === 'amit tyagi' || user.contact.toLowerCase() === 'amit1986.delhi@gmail.com';
+              const isSelf = user.id === currentUser?.id;
+              const isOwnerUser = Boolean(user.isOwner) || user.contact.toLowerCase() === 'amit1986.delhi@gmail.com';
               const isCurrentSession = currentUser?.id === user.id;
 
               return (

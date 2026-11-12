@@ -74,18 +74,18 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
   const isOwner = canManage;
   const isForRent = property ? (property.type === 'Rent/Lease' || Boolean(property.isAvailableForRent) || (Boolean(property.priceDisplay) && property.priceDisplay.toLowerCase().includes('/ month'))) : false;
 
+  useEffect(() => {
+    if (property?.id) {
+      fetch(`/api/properties/${encodeURIComponent(property.id)}/view`, { method: 'POST' }).catch(() => {});
+    }
+  }, [property?.id]);
+
   if (!property) return null;
 
   const isLandOrPlot = isLandOrPlotProperty(property);
   const formattedArea = formatPropertyArea(property, isHindi);
   const formattedRate = formatPropertyRate(property, isHindi);
   const safeAmenities = Array.isArray(property.amenities) ? property.amenities.filter(Boolean) : [];
-
-  useEffect(() => {
-    if (property?.id) {
-      fetch(`/api/properties/${encodeURIComponent(property.id)}/view`, { method: 'POST' }).catch(() => {});
-    }
-  }, [property?.id]);
 
   const getDeepLink = () => {
     const origin = window.location.origin;

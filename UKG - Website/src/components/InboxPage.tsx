@@ -453,9 +453,9 @@ export const InboxPage: React.FC<InboxPageProps> = ({
 
                   {currentUser && (
                     <button
-                      onClick={() => {
-                        if (window.confirm('Are you sure you want to permanently delete your account from this device?')) {
-                          deleteAccount();
+                      onClick={async () => {
+                        if (window.confirm('Are you sure you want to permanently delete your account from this server?')) {
+                          await deleteAccount();
                           setMenuOpen(false);
                           handleReturn();
                         }
