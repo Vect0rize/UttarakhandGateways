@@ -2561,6 +2561,7 @@ export default function App() {
         <AiChatbot
           onOpenSellModal={() => navigateToPage('list')}
           onOpenUnitConverter={() => setIsUnitConverterOpen(true)}
+          onOpenCalculator={() => setIsUnitConverterOpen(true)}
           onExploreProperties={() => {
             navigateToPage('home');
             window.scrollTo({ top: 500, behavior: 'smooth' });
