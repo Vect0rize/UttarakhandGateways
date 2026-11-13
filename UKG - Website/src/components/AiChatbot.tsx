@@ -198,16 +198,14 @@ export const AiChatbot: React.FC<AiChatbotProps> = ({
           onClick={() => {
             if (onOpenCalculator) {
               onOpenCalculator();
-            } else if (onOpenUnitConverter) {
-              onOpenUnitConverter();
             } else {
               const calcEl = document.getElementById('calculator-section') || document.getElementById('land-plots-section');
               if (calcEl) calcEl.scrollIntoView({ behavior: 'smooth' });
             }
           }}
           className="group relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-r from-[#06241a] via-[#093527] to-[#0b4231] hover:from-[#082e21] hover:to-[#0f543e] text-white border border-emerald-400/40 shadow-lg shadow-emerald-950/30 hover:shadow-xl hover:shadow-emerald-600/30 hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-emerald-400"
-          aria-label="Open Land Calculator"
-          title="Open Land Calculator (भूमि कैलकुलेटर)"
+          aria-label="Go to Calculator"
+          title="Go to Land Calculator (भूमि कैलकुलेटर)"
         >
           <Calculator className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" />
         </button>

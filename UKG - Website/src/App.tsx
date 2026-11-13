@@ -2339,7 +2339,7 @@ export default function App() {
         )}
 
         {/* Embedded Calculator Section for direct scroll & discovery */}
-        <div id="calculator-section" className="my-16 pt-8 border-t border-emerald-200/80 dark:border-emerald-950/80">
+        <div id="calculator-section" className="my-16 pt-8 border-t border-emerald-200/80 dark:border-emerald-950/80 scroll-mt-20 sm:scroll-mt-24">
           <div className="mb-6 text-center max-w-2xl mx-auto">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 text-xs font-bold mb-2 border border-emerald-200 dark:border-emerald-800">
               <Calculator className="w-3.5 h-3.5" />
@@ -2561,7 +2561,12 @@ export default function App() {
         <AiChatbot
           onOpenSellModal={() => navigateToPage('list')}
           onOpenUnitConverter={() => setIsUnitConverterOpen(true)}
-          onOpenCalculator={() => setIsUnitConverterOpen(true)}
+          onOpenCalculator={() => {
+            const el = document.getElementById('calculator-section');
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth' });
+            }
+          }}
           onExploreProperties={() => {
             navigateToPage('home');
             window.scrollTo({ top: 500, behavior: 'smooth' });
