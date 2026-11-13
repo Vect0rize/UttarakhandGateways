@@ -154,26 +154,47 @@ export const CITY_MARKET_DATA: Record<string, CityMarketData> = {
   Rishikesh: {
     city: 'Rishikesh',
     hindiName: 'ऋषिकेश',
-    metaTitle: 'Properties in Rishikesh | Ganga View Flats, Cottages & Plots for Sale',
-    metaDescription: 'Find verified properties in Rishikesh with 0% brokerage. Ganga-view apartments, yoga retreat plots, and cottages across Tapovan, Dhalwala, and Shyampur.',
-    h1: 'Properties in Rishikesh | Ganga Valley Living with 0% Brokerage',
-    tagline: 'The World Capital of Yoga, offering spiritual tranquility along the holy Ganga River and scenic Shivalik mountain foothills.',
+    metaTitle: 'Properties in Rishikesh | Near AIIMS, Visthapit, Aam Bagh, Seema Dental & Tapovan',
+    metaDescription: 'Find verified properties in Rishikesh with 0% brokerage. Flats, plots & houses near AIIMS Rishikesh, Visthapit Colony, Aam Bagh, Seema Dental College, Tapovan & Shyampur.',
+    h1: 'Properties in Rishikesh | Near AIIMS, Visthapit, Aam Bagh & Ganga Valley Living',
+    tagline: 'The World Capital of Yoga, offering spiritual tranquility along the holy Ganga River, high-demand medical healthcare corridors near AIIMS, and scenic foothills.',
     elevation: '372 m (1,220 ft)',
     priceRange: '₹22 Lac - ₹3.5 Cr',
     landPriceRange: '₹25,000 - ₹85,000 per Gaj',
     avgFlatRate: '₹4,200 - ₹8,500 per sq.ft',
-    popularLocalities: ['Tapovan', 'Dhalwala', 'Shyampur', 'Gumaniwala', 'Natraj Chowk', 'Bairaj Road', 'Muni Ki Reti'],
-    connectivityHighlights: ['Rishikesh-Karnaprayag Railway Mega-Project', 'Jolly Grant Airport just 18 km away', 'Direct 4-lane Highway to Haridwar & Dehradun'],
-    legalNotes: 'Properties located in Rishikesh Municipal Corporation and approved urban layouts carry clear freehold titles. Commercial homestays and yoga retreats must conform to local tourism guidelines.',
-    description: 'Rishikesh attracts real estate buyers from across India and worldwide seeking spiritual retreats, wellness centers, and serene retirement living on the banks of the sacred Ganga. Explore verified studios, 2BHK/3BHK Ganga-view flats in Tapovan, and residential plots in Shyampur with zero broker interference.',
+    popularLocalities: [
+      'Near AIIMS (Virbhadra Road)',
+      'Visthapit (Visthapit Colony)',
+      'Aam Bagh (Pashulok)',
+      'Near Seema Dental College',
+      'Tapovan',
+      'Dhalwala',
+      'Shyampur',
+      'Gumaniwala',
+      'Natraj Chowk',
+      'Bairaj Road',
+      'Muni Ki Reti'
+    ],
+    connectivityHighlights: [
+      'AIIMS Rishikesh & Seema Dental College healthcare & educational corridor',
+      'Rishikesh-Karnaprayag Railway Mega-Project & Yog Nagari Station',
+      'Jolly Grant Airport just 18 km away',
+      'Direct 4-lane Highway to Haridwar & Dehradun'
+    ],
+    legalNotes: 'Properties located in Rishikesh Municipal Corporation, Visthapit planned blocks, and approved urban layouts carry clear freehold titles. Commercial homestays and student/medical rentals must conform to local municipal norms.',
+    description: 'Rishikesh attracts real estate buyers, healthcare specialists, students, and spiritual seekers. High-rental-yield residential pockets include properties Near AIIMS Rishikesh, Visthapit Colony, Aam Bagh, and Near Seema Dental College, alongside Ganga-view apartments in Tapovan and residential plots in Shyampur.',
     faqs: [
       {
-        q: 'Is it profitable to buy an apartment in Rishikesh for rental income?',
-        a: 'Yes. Rishikesh experiences high tourist and wellness retreat demand year-round. Studio and 1/2 BHK apartments in Tapovan and Dhalwala offer strong yields through verified long-term rentals and registered homestays.'
+        q: 'Which localities in Rishikesh offer the highest rental demand and returns?',
+        a: 'Areas near AIIMS Rishikesh (Virbhadra Road corridor), Visthapit Colony, Aam Bagh, and Near Seema Dental College experience exceptionally high year-round tenant demand from medical residents, healthcare professionals, dental students, and faculty. In addition, Tapovan and Dhalwala offer premium returns from tourism and yoga practitioners.'
       },
       {
-        q: 'Are plots available in Rishikesh with clear Section 143 conversion?',
-        a: 'Yes, all residential land parcels listed on Uttarakhand Gateways in Shyampur and Gumaniwala specify their Section 143 non-agricultural conversion and registry title status.'
+        q: 'Is it profitable to buy an apartment in Rishikesh for rental income?',
+        a: 'Yes. Rishikesh experiences high healthcare, student, and tourist demand year-round. 1/2 BHK flats near AIIMS, Aam Bagh, and Tapovan offer strong yields through verified long-term rentals and registered homestays.'
+      },
+      {
+        q: 'Are plots available in Visthapit, Aam Bagh, and Shyampur with clear Section 143 conversion?',
+        a: 'Yes. Residential plots listed in Visthapit Colony, Aam Bagh (Pashulok), and Shyampur feature Section 143 non-agricultural conversion and clean registry title deeds.'
       }
     ]
   },

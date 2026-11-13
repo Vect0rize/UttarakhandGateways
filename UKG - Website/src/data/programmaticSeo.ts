@@ -216,24 +216,100 @@ export const LOCATION_SEO_PROFILES: Record<string, LocationSeoProfile> = {
     district: 'Dehradun / Tehri / Pauri Border',
     region: 'Garhwal',
     elevation: '372m',
-    tagline: 'Ganga Riverside Town, Wellness & Homestay Corridor',
+    tagline: 'Ganga Riverside Town, AIIMS Healthcare Corridor & Wellness Hub',
     overview:
-      'Rishikesh attracts residential buyers, spiritual retirees, and hospitality operators seeking apartments, river-belt flats, yoga retreat spaces, and residential plots across Tapovan, Lakshman Jhula, Shyampur, and Raiwala.',
+      'Rishikesh attracts residential buyers, healthcare specialists, spiritual retirees, and hospitality operators seeking apartments, river-belt flats, yoga retreat spaces, and residential plots across Near AIIMS Road, Visthapit Colony, Aam Bagh, Near Seema Dental, Tapovan, and Shyampur.',
     connectivity:
-      'Approximately 20 km from Jolly Grant Airport and linked directly via NH-34, Rishikesh Railway Station, and Yog Nagari Rishikesh rail terminus.',
+      'Approximately 18 km from Jolly Grant Airport and linked directly via NH-34, AIIMS Virbhadra corridor, Rishikesh Railway Station, and Yog Nagari Rishikesh rail terminus.',
     popularLocalities: [
+      'Near AIIMS (Virbhadra)',
+      'Visthapit Colony',
+      'Aam Bagh',
+      'Near Seema Dental',
       'Tapovan',
       'Lakshman Jhula',
       'Muni Ki Reti',
       'Dhalwala',
       'Shyampur',
-      'Aam Bagh',
+      'Gumaniwala',
     ],
-    nearbyLocationSlugs: ['dehradun', 'haridwar', 'devprayag', 'tehri-garhwal', 'kotdwar', 'mussoorie'],
+    nearbyLocationSlugs: ['near-aiims', 'visthapit', 'aam-bagh', 'near-seema-dental', 'dehradun', 'haridwar'],
     buyerChecklist: [
       'Check exact jurisdiction across Dehradun, Tehri Garhwal (Muni Ki Reti / Tapovan), or Pauri Garhwal (Swargashram) districts before stamp duty calculation.',
       'Verify Ganga flood-plain NGT buffer compliance and CRZ/riverbank setback norms on river-facing plots.',
       'For homestay or wellness rental intent, confirm UTDB (Uttarakhand Tourism Development Board) registration eligibility.',
+    ],
+  },
+  'near-aiims': {
+    slug: 'near-aiims',
+    name: 'Near AIIMS, Rishikesh',
+    district: 'Dehradun District',
+    region: 'Garhwal',
+    elevation: '360m',
+    tagline: 'Prime Medical & High-Yield Rental Hub in Rishikesh',
+    overview:
+      'The area Near AIIMS Rishikesh along the Virbhadra Road corridor is the highest-demand residential and rental hub in Rishikesh, with continuous demand for 1BHK/2BHK flats, studio apartments, PG accommodations, and freehold residential plots from doctors, medical students, staff, and families.',
+    connectivity:
+      'Immediate access to AIIMS Hospital Rishikesh, Virbhadra Railway Station, Barrage Road, and direct 4-lane highway to Haridwar and Dehradun.',
+    popularLocalities: ['AIIMS Main Gate', 'Virbhadra Road', 'Aam Bagh', 'Visthapit Link Road', 'IDPL Complex'],
+    nearbyLocationSlugs: ['rishikesh', 'visthapit', 'aam-bagh', 'near-seema-dental', 'haridwar'],
+    buyerChecklist: [
+      'Confirm MDDA and Nagar Nigam building height and setback compliance along AIIMS Virbhadra corridor.',
+      'Verify clean registry deeds and mutation records for multi-unit rental buildings.',
+    ],
+  },
+  visthapit: {
+    slug: 'visthapit',
+    name: 'Visthapit, Rishikesh',
+    district: 'Dehradun District',
+    region: 'Garhwal',
+    elevation: '360m',
+    tagline: 'Planned Residential Colony in Rishikesh near Ganga & AIIMS',
+    overview:
+      'Visthapit Colony (Visthapit) in Rishikesh is one of the premier planned residential colonies near Pashulok and the Ganga canal, featuring wide sector roads, independent family houses, Section 143 freehold plots, and direct connectivity to AIIMS Rishikesh.',
+    connectivity:
+      'Located 5-10 minutes from AIIMS Rishikesh and Virbhadra Road, with rapid access to Haridwar-Rishikesh Highway and Yog Nagari Rishikesh station.',
+    popularLocalities: ['Visthapit Colony Main', 'Pashulok Belt', 'Near AIIMS Road', 'Barrage Road Corridor'],
+    nearbyLocationSlugs: ['rishikesh', 'near-aiims', 'aam-bagh', 'haridwar'],
+    buyerChecklist: [
+      'Verify allotment and registry deed status in Visthapit Colony.',
+      'Check Municipal Corporation (Nagar Nigam Rishikesh) water, sewer, and electricity lines.',
+    ],
+  },
+  'aam-bagh': {
+    slug: 'aam-bagh',
+    name: 'Aam Bagh, Rishikesh',
+    district: 'Dehradun District',
+    region: 'Garhwal',
+    elevation: '365m',
+    tagline: 'Vibrant Residential Pocket near Seema Dental & AIIMS Corridor',
+    overview:
+      'Aam Bagh (Aambagh) is a popular residential locality in the Virbhadra / Pashulok belt in Rishikesh, adjacent to Seema Dental College and moments from AIIMS Rishikesh, making it an ideal destination for student rentals, duplexes, and affordable plots.',
+    connectivity:
+      'Direct connectivity to Virbhadra Railway Station, Seema Dental College, AIIMS Rishikesh, and Rishikesh-Haridwar bypass.',
+    popularLocalities: ['Aam Bagh Main', 'Seema Dental Road', 'Virbhadra Road', 'Pashulok Crossing'],
+    nearbyLocationSlugs: ['near-seema-dental', 'near-aiims', 'visthapit', 'rishikesh'],
+    buyerChecklist: [
+      'Confirm Section 143 non-agricultural conversion for residential plots in Aam Bagh.',
+      'Verify road access width and municipal drainage access.',
+    ],
+  },
+  'near-seema-dental': {
+    slug: 'near-seema-dental',
+    name: 'Near Seema Dental, Rishikesh',
+    district: 'Dehradun District',
+    region: 'Garhwal',
+    elevation: '362m',
+    tagline: 'Educational & Residential Enclave in Rishikesh',
+    overview:
+      'The area Near Seema Dental College & Hospital in Rishikesh (Virbhadra / Aam Bagh corridor) is a bustling educational and residential enclave featuring high student housing demand, rental rooms, builder floors, and freehold residential land.',
+    connectivity:
+      'Situated on Virbhadra Road minutes from Seema Dental College, AIIMS Rishikesh, Pashulok, and Rishikesh bus terminal.',
+    popularLocalities: ['Seema Dental Campus Road', 'Aam Bagh Extension', 'Virbhadra Belt', 'Visthapit Road'],
+    nearbyLocationSlugs: ['aam-bagh', 'near-aiims', 'visthapit', 'rishikesh'],
+    buyerChecklist: [
+      'Verify clean registry deeds and mutation (Dakhil-Kharij) records for plots and houses near Seema Dental.',
+      'Inspect road access width for student hostel and residential developments.',
     ],
   },
   haridwar: {
@@ -639,8 +715,13 @@ export const LOCATION_SEO_PROFILES: Record<string, LocationSeoProfile> = {
 };
 
 export function findLocationBySlug(slug: string): LocationSeoProfile | undefined {
-  const clean = slugify(slug);
+  let clean = slugify(slug);
   if (!clean) return undefined;
+  // Aliases for targeted micro-markets
+  if (clean === 'visthapit-rishikesh' || clean === 'visthapit-colony' || clean === 'near-visthapit') clean = 'visthapit';
+  if (clean === 'aambagh' || clean === 'aam-bagh-rishikesh' || clean === 'near-aam-bagh') clean = 'aam-bagh';
+  if (clean === 'aiims' || clean === 'aiims-rishikesh' || clean === 'near-aiims-rishikesh') clean = 'near-aiims';
+  if (clean === 'seema-dental' || clean === 'seema-dental-college' || clean === 'near-seema-dental-rishikesh') clean = 'near-seema-dental';
   return LOCATION_SEO_PROFILES[clean];
 }
 
@@ -908,6 +989,41 @@ function buildLocationMatchFn(location: LocationSeoProfile): (p: Property) => bo
   if (location.slug === 'uttarakhand') return () => true;
   const target = location.slug;
   const targetLower = location.name.toLowerCase();
+
+  // Tailored matchers for Rishikesh micro-markets
+  if (target === 'visthapit') {
+    return (p: Property) => {
+      const text = `${p.city || ''} ${p.location || ''} ${p.title || ''} ${p.description || ''}`.toLowerCase();
+      return text.includes('visthapit');
+    };
+  }
+
+  if (target === 'aam-bagh') {
+    return (p: Property) => {
+      const text = `${p.city || ''} ${p.location || ''} ${p.title || ''} ${p.description || ''}`.toLowerCase();
+      return text.includes('aam bagh') || text.includes('aambagh');
+    };
+  }
+
+  if (target === 'near-aiims') {
+    return (p: Property) => {
+      const text = `${p.city || ''} ${p.location || ''} ${p.title || ''} ${p.description || ''}`.toLowerCase();
+      return text.includes('aiims') || text.includes('aimms') || text.includes('virbhadra');
+    };
+  }
+
+  if (target === 'near-seema-dental') {
+    return (p: Property) => {
+      const text = `${p.city || ''} ${p.location || ''} ${p.title || ''} ${p.description || ''}`.toLowerCase();
+      const isRishikesh = (p.city || '').toLowerCase() === 'rishikesh';
+      return (
+        text.includes('seema dental') ||
+        text.includes('dental') ||
+        (isRishikesh && (text.includes('aam bagh') || text.includes('pashulok')))
+      );
+    };
+  }
+
   return (p: Property) => {
     const citySlug = getCitySlug(p.city || '');
     const locLower = `${p.city || ''} ${p.location || ''}`.toLowerCase();
@@ -1057,7 +1173,12 @@ export function resolveProgrammaticSeoRoute(
   const fallbackProperties =
     matched.length > 0
       ? []
-      : (locActive.length > 0 ? locActive : activeAll).slice(0, 9);
+      : (locActive.length > 0
+          ? locActive
+          : (['visthapit', 'aam-bagh', 'near-aiims', 'near-seema-dental'].includes(loc.slug)
+              ? activeAll.filter((p) => (p.city || '').toLowerCase() === 'rishikesh')
+              : activeAll)
+        ).slice(0, 9);
 
   // Build related category links that actually have >= 2 live listings in this location!
   const relatedCategoryLinks: ProgrammaticLinkItem[] = PROGRAMMATIC_PATTERNS.filter(
