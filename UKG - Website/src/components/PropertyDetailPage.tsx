@@ -55,6 +55,7 @@ import { formatPostTime } from '../utils/timeAgo';
 import { LegalPolicyId } from '../data/legalPolicies';
 import { formatPropertyArea, formatPropertyRate, isLandOrPlotProperty } from '../utils/areaUnits';
 import { getCitySlug, getPropertySlugPath } from '../data/programmaticSeo';
+import { getPropertyShareUrl, sharePropertyListing } from '../utils/propertyShare';
 
 interface PropertyDetailPageProps {
   property: Property;
@@ -297,11 +298,10 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onBack, isLightboxOpen]);
 
-  // Generates canonical deep link to the current property page
+  // Generates canonical share URL to the current property page
   const getPropertyDeepLink = () => {
-    if (!property) return window.location.href;
-    const origin = window.location.origin;
-    return `${origin}${getPropertySlugPath(property)}`;
+    if (!property) return typeof window !== 'undefined' ? window.location.href : 'https://uttarakhandgateways.com';
+    return getPropertyShareUrl(property);
   };
 
   const handleCopyDeepLink = async () => {
@@ -335,51 +335,18 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
   };
 
   /**
-   * Generates a deep link to the current property page and opens the native WhatsApp
-   * share dialog on mobile devices, with seamless desktop fallback.
+   * Universally shares the property listing without requiring user login.
+   * Anyone can share any property listing at any time.
    */
   const handleShareWhatsApp = async () => {
     if (!property) return;
-    if (!currentUser) {
-      openAuthModal('login', isHindi ? 'प्रॉपर्टी शेयर करने हेतु कृपया पहले लॉगिन करें।' : 'Please sign in to share listings.');
-      return;
-    }
-    const deepLink = getPropertyDeepLink();
-    if (property.id) {
-      fetch(`/api/properties/${property.id}/share`, { method: 'POST' }).catch(() => {});
-    }
-
-    // Silently copy deep link to clipboard as a helpful fallback
-    try {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(deepLink);
+    await sharePropertyListing(property, {
+      isHindi,
+      onCopied: () => {
         setCopiedLink(true);
         setTimeout(() => setCopiedLink(false), 2500);
-      }
-    } catch {}
-
-    const priceText = property.priceDisplay ? `\n💰 *Price:* ${property.priceDisplay}` : '';
-    const areaShare = formatPropertyArea(property, false);
-    const areaText = areaShare ? `\n📐 *Area:* ${areaShare}` : '';
-    const locText = property.location || property.city;
-
-    const shareMessage = `🏡 *${property.title}*${priceText}${areaText}\n📍 *Location:* ${locText}, Uttarakhand\n\n🔗 *View Full Property Page & Verified Photos:*\n${deepLink}\n\n_Uttarakhand Gateways (0% Brokerage Direct Marketplace)_`;
-
-    const encoded = encodeURIComponent(shareMessage);
-    const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-    if (isMobile) {
-      // Primary: Trigger the native WhatsApp share dialog on mobile devices
-      window.location.href = `whatsapp://send?text=${encoded}`;
-
-      // Fallback in case native scheme is not handled or takes a moment
-      setTimeout(() => {
-        window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
-      }, 700);
-    } else {
-      // Desktop: Open WhatsApp Web / API share
-      window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
-    }
+      },
+    });
   };
 
   const handleShare = () => {

@@ -25,6 +25,7 @@ import { formatLocalizedPrice, translatePropertyType } from '../utils/language';
 import { getPropertySlugPath } from '../data/programmaticSeo';
 import { formatPostTime } from '../utils/timeAgo';
 import { formatPropertyArea, formatPropertyRate, isLandOrPlotProperty } from '../utils/areaUnits';
+import { sharePropertyListing } from '../utils/propertyShare';
 
 interface PropertyCardProps {
   property: Property;
@@ -467,19 +468,11 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                if (!currentUser) {
-                  openAuthModal('login', isHindi ? 'प्रॉपर्टी शेयर करने हेतु कृपया पहले लॉगिन करें।' : 'Please sign in to share listings.');
-                  return;
-                }
-                const url = `${window.location.origin}/?property=${property.id}`;
-                const shareText = isHindi 
-                  ? `🏡 उत्तराखंड में यह प्रॉपर्टी देखें: ${property.title} (${property.priceDisplay}) - ${property.city}: ${url}`
-                  : `🏡 Check out this verified property in Uttarakhand: ${property.title} (${property.priceDisplay}) - ${property.city}: ${url}`;
-                fetch(`/api/properties/${encodeURIComponent(property.id)}/share`, { method: 'POST' }).catch(() => {});
-                window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`, '_blank');
+                sharePropertyListing(property, { isHindi });
               }}
               className="py-2.5 px-3 rounded-xl bg-green-50 dark:bg-green-950/80 hover:bg-green-100 dark:hover:bg-green-900/80 text-green-700 dark:text-green-300 font-bold text-xs flex items-center justify-center border border-green-300 dark:border-green-800 cursor-pointer transition-all active:scale-95 shadow-xs"
-              title={isHindi ? 'व्हाट्सएप पर शेयर करें' : 'Share on WhatsApp'}
+              title={isHindi ? 'प्रॉपर्टी शेयर करें' : 'Share Property'}
+              aria-label={isHindi ? 'प्रॉपर्टी शेयर करें' : 'Share Property'}
             >
               <Share2 className="w-3.5 h-3.5" />
             </button>

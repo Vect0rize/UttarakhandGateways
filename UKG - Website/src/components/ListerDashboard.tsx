@@ -29,6 +29,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { isPropertyOwner } from '../utils/propertyOwnership';
 import { formatLocalizedPrice } from '../utils/language';
+import { sharePropertyListing } from '../utils/propertyShare';
 import { SeoKeywordsSection } from './SeoKeywordsSection';
 import type { AppPageRouteKey } from '../data/seoMetadata';
 
@@ -88,36 +89,13 @@ export const ListerDashboard: React.FC<ListerDashboardProps> = ({
   // Share Property handler
   const handleShareProperty = async (e: React.MouseEvent, prop: Property) => {
     e.stopPropagation();
-    const url = `${window.location.origin}/?property=${prop.id}`;
-    const shareText = isHindi 
-      ? `🏡 उत्तराखंड में यह प्रॉपर्टी देखें: ${prop.title} (${prop.priceDisplay}) - ${prop.city}: ${url}`
-      : `🏡 Check out this verified property in Uttarakhand: ${prop.title} (${prop.priceDisplay}) - ${prop.city}: ${url}`;
-
-    // Increment share count via API
-    try {
-      fetch(`/api/properties/${encodeURIComponent(prop.id)}/share`, { method: 'POST' }).catch(() => {});
-    } catch {}
-
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: prop.title,
-          text: shareText,
-          url,
-        });
-        return;
-      } catch {}
-    }
-
-    // Fallback: Copy to clipboard & open WhatsApp
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopiedPropId(prop.id);
-      setTimeout(() => setCopiedPropId(null), 3000);
-    } catch {}
-
-    const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
-    window.open(waUrl, '_blank');
+    await sharePropertyListing(prop, {
+      isHindi,
+      onCopied: () => {
+        setCopiedPropId(prop.id);
+        setTimeout(() => setCopiedPropId(null), 3000);
+      },
+    });
   };
 
   const filteredList = useMemo(() => {

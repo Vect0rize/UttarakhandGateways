@@ -33,6 +33,7 @@ import { useAuth } from '../context/AuthContext';
 import { isPropertyOwner, canManageProperty, getPropertyOwnerDisplayName } from '../utils/propertyOwnership';
 import { formatLocalizedPrice, translatePropertyType } from '../utils/language';
 import { formatPropertyArea, formatPropertyRate, isLandOrPlotProperty } from '../utils/areaUnits';
+import { getPropertyShareUrl, sharePropertyListing } from '../utils/propertyShare';
 
 interface PropertyDetailModalProps {
   property: Property | null;
@@ -88,31 +89,19 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
   const safeAmenities = Array.isArray(property.amenities) ? property.amenities.filter(Boolean) : [];
 
   const getDeepLink = () => {
-    const origin = window.location.origin;
-    const rawPath = window.location.pathname.startsWith('/?') ? '/' : window.location.pathname;
-    const cleanPath = rawPath === '' ? '/' : rawPath;
-    return `${origin}${cleanPath}?property=${encodeURIComponent(property.id)}`;
+    if (!property) return typeof window !== 'undefined' ? window.location.href : 'https://uttarakhandgateways.com';
+    return getPropertyShareUrl(property);
   };
 
-  const handleShare = () => {
-    if (!currentUser) {
-      openAuthModal('login', isHindi ? 'प्रॉपर्टी शेयर करने हेतु कृपया पहले लॉगिन करें।' : 'Please sign in to share listings.');
-      return;
-    }
-    const deepLink = getDeepLink();
-    try {
-      fetch(`/api/properties/${encodeURIComponent(property.id)}/share`, { method: 'POST' }).catch(() => {});
-      navigator.clipboard.writeText(deepLink);
-    } catch {}
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2000);
-
-    const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    if (isMobile) {
-      const priceText = property.priceDisplay ? ` | ${property.priceDisplay}` : '';
-      const shareMessage = `🏡 *${property.title}*${priceText}\n📍 ${property.location || property.city}, Uttarakhand\n\n🔗 ${deepLink}`;
-      window.location.href = `whatsapp://send?text=${encodeURIComponent(shareMessage)}`;
-    }
+  const handleShare = async () => {
+    if (!property) return;
+    await sharePropertyListing(property, {
+      isHindi,
+      onCopied: () => {
+        setCopiedLink(true);
+        setTimeout(() => setCopiedLink(false), 2000);
+      },
+    });
   };
 
   const handleDownloadBrochure = () => {
