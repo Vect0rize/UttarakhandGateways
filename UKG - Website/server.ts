@@ -2615,6 +2615,31 @@ async function handleSeoPageRender(req: express.Request, res: express.Response, 
     }
   };
 
+  const isSearchBot = (ua?: string): boolean => {
+    if (!ua) return false;
+    return /\b(googlebot|google-inspectiontool|mediapartners-google|adsbot-google|bingbot|bingpreview|yandex|baiduspider|duckduckbot|slurp|twitterbot|facebookexternalhit|facebot|linkedinbot|whatsapp|telegrambot|applebot|semrushbot|ahrefsbot|mj12bot|dotbot|rogerbot|petalbot|seznambot|ia_archiver)\b|spider|crawl/i.test(ua);
+  };
+
+  const isBot = isSearchBot(req.headers['user-agent']);
+
+  const injectRootContent = (contentOrRootWrapped: string) => {
+    let rootHtml = contentOrRootWrapped;
+    let innerHtml = contentOrRootWrapped;
+    if (contentOrRootWrapped.includes('<div id="root">')) {
+      innerHtml = contentOrRootWrapped
+        .replace(/^[\s\S]*?<div id="root">/i, '')
+        .replace(/<\/div>[\s\S]*?$/i, '');
+    } else {
+      rootHtml = `<div id="root">${contentOrRootWrapped}</div>`;
+    }
+
+    if (isBot) {
+      html = html.replace(/<div id="root"><\/div>/i, rootHtml);
+    } else {
+      html = html.replace(/<div id="root"><\/div>/i, `<div id="root"></div><noscript>${innerHtml}</noscript>`);
+    }
+  };
+
   const renderNotFound = (heading = 'Page Not Found (404)', message = 'The requested page could not be found on Uttarakhand Gateways.') => {
     res.status(404);
     applyHeadMeta({
@@ -2623,8 +2648,7 @@ async function handleSeoPageRender(req: express.Request, res: express.Response, 
       canonicalUrl: `${DOMAIN}/`,
       robots: 'noindex, nofollow',
     });
-    html = html.replace(
-      /<div id="root"><\/div>/i,
+    injectRootContent(
       `<div id="root"><main style="font-family:sans-serif;max-width:720px;margin:72px auto;padding:24px;text-align:center;">
         <h1 style="color:#064e3b;font-size:30px;margin-bottom:10px;">${escapeHtml(heading)}</h1>
         <p style="color:#475569;margin-bottom:24px;">${escapeHtml(message)}</p>
@@ -2741,7 +2765,7 @@ async function handleSeoPageRender(req: express.Request, res: express.Response, 
     ${relatedProps.length > 0 ? `<section style="margin-top:28px;"><h2 style="font-size:20px;color:#064e3b;">Related Properties in ${escapeHtml(rawCity)}</h2><ul>${relatedProps.map((rp) => `<li><a href="${escapeHtml(getPropertySlugPath(rp))}">${escapeHtml(rp.title)}</a> — ${escapeHtml(rp.priceDisplay || `₹${Number(rp.price || 0).toLocaleString('en-IN')}`)}</li>`).join('')}</ul></section>` : ''}
   </article>
 </div>`;
-      html = html.replace(/<div id="root"><\/div>/i, preRendered);
+      injectRootContent(preRendered);
       return res.send(html);
     } catch (err) {
       console.error('[UKG Server] Error rendering property detail with SEO:', err);
@@ -2784,7 +2808,7 @@ async function handleSeoPageRender(req: express.Request, res: express.Response, 
     </div>
   </main>
 </div>`;
-    html = html.replace(/<div id="root"><\/div>/i, preRendered);
+    injectRootContent(preRendered);
     return res.send(html);
   }
 
@@ -2855,7 +2879,7 @@ async function handleSeoPageRender(req: express.Request, res: express.Response, 
     </div>
   </article>
 </div>`;
-    html = html.replace(/<div id="root"><\/div>/i, preRendered);
+    injectRootContent(preRendered);
     return res.send(html);
   }
 
@@ -2942,7 +2966,7 @@ async function handleSeoPageRender(req: express.Request, res: express.Response, 
     <section><h2 style="font-size:20px;color:#064e3b;">Frequently Asked Questions</h2>${progRoute.faqs.map((f) => `<div style="margin-bottom:14px;"><h3 style="font-size:16px;color:#166534;margin:0 0 4px 0;">${escapeHtml(f.q)}</h3><p style="font-size:14px;color:#475569;margin:0;">${escapeHtml(f.a)}</p></div>`).join('')}</section>
   </main>
 </div>`;
-    html = html.replace(/<div id="root"><\/div>/i, preRendered);
+    injectRootContent(preRendered);
     return res.send(html);
   }
 
@@ -2984,8 +3008,7 @@ async function handleSeoPageRender(req: express.Request, res: express.Response, 
         url: `${DOMAIN}${seo.canonicalPath}`,
       },
     });
-    html = html.replace(
-      /<div id="root"><\/div>/i,
+    injectRootContent(
       `<div id="root"><main style="max-width:900px;margin:40px auto;padding:24px;font-family:sans-serif;color:#1e293b;"><h1>${escapeHtml(seo.title.replace(' | Uttarakhand Gateways', ''))}</h1><p>${escapeHtml(seo.description)}</p><p><a href="/">Home</a> | <a href="/buy">Buy</a> | <a href="/rent">Rent</a> | <a href="/guides">Guides</a></p></main></div>`
     );
     return res.send(html);
@@ -3007,8 +3030,7 @@ async function handleSeoPageRender(req: express.Request, res: express.Response, 
   if (normalizedPath === '/buy' || normalizedPath === '/lbuy' || normalizedPath === '/buy-property' || pageParam === 'buy') {
     applyRouteSeoMeta('buy');
     const buyProps = allPropsForSsr.filter((p) => !p.isDeleted && p.status !== 'deleted' && p.purpose !== 'rent').slice(0, 15);
-    html = html.replace(
-      /<div id="root"><\/div>/i,
+    injectRootContent(
       `<div id="root"><main style="max-width:1100px;margin:40px auto;padding:20px;font-family:sans-serif;color:#1e293b;"><h1>Buy Properties in Uttarakhand</h1><p>Explore verified flats, plots, land, houses, villas, and commercial properties across Dehradun, Rishikesh, Haridwar, Nainital, Mussoorie, and Haldwani.</p><ul>${buyProps.map((p) => `<li><a href="${escapeHtml(getPropertySlugPath(p))}">${escapeHtml(p.title)}</a> — ${escapeHtml(p.city)}</li>`).join('')}</ul></main></div>`
     );
     return res.send(html);
@@ -3016,8 +3038,7 @@ async function handleSeoPageRender(req: express.Request, res: express.Response, 
   if (normalizedPath === '/rent' || normalizedPath === '/rent-property' || ['rent', 'rent-property'].includes(pageParam)) {
     applyRouteSeoMeta('rent');
     const rentProps = allPropsForSsr.filter((p) => !p.isDeleted && p.status !== 'deleted' && (p.purpose === 'rent' || p.type === 'Rent/Lease')).slice(0, 15);
-    html = html.replace(
-      /<div id="root"><\/div>/i,
+    injectRootContent(
       `<div id="root"><main style="max-width:1100px;margin:40px auto;padding:20px;font-family:sans-serif;color:#1e293b;"><h1>Rental Properties, Flats &amp; PG in Uttarakhand</h1><p>Browse direct owner flats, houses, rooms, homestays, and commercial rentals across Uttarakhand.</p><ul>${rentProps.map((p) => `<li><a href="${escapeHtml(getPropertySlugPath(p))}">${escapeHtml(p.title)}</a> — ${escapeHtml(p.city)}</li>`).join('')}</ul></main></div>`
     );
     return res.send(html);
@@ -3049,8 +3070,7 @@ async function handleSeoPageRender(req: express.Request, res: express.Response, 
   if (normalizedPath === '/') {
     applyRouteSeoMeta('home');
     const topHomeProps = allPropsForSsr.filter((p) => p && !p.isDeleted && p.status !== 'deleted' && !p.isSold).slice(0, 12);
-    html = html.replace(
-      /<div id="root"><\/div>/i,
+    injectRootContent(
       `<div id="root"><main style="max-width:1100px;margin:40px auto;padding:20px;font-family:sans-serif;color:#1e293b;"><h1>Uttarakhand Gateways — Verified Real Estate Marketplace Across Uttarakhand</h1><p>Buy, sell, or rent verified properties across Dehradun, Rishikesh, Haridwar, Nainital, Mussoorie, Haldwani, Almora, Bhimtal, Mukteshwar, and Roorkee/Kotdwar corridors with 0% brokerage.</p><nav><a href="/buy">Buy Properties</a> | <a href="/rent">Rent Properties</a> | <a href="/list">Post Property</a> | <a href="/properties-in-dehradun">Properties in Dehradun</a> | <a href="/properties-in-rishikesh">Properties in Rishikesh</a> | <a href="/properties-in-haridwar">Properties in Haridwar</a> | <a href="/properties-in-nainital">Properties in Nainital</a> | <a href="/guides">Uttarakhand Property Guides</a></nav><ul>${topHomeProps.map((p) => `<li><a href="${escapeHtml(getPropertySlugPath(p))}">${escapeHtml(p.title)}</a> — ${escapeHtml(p.city)}</li>`).join('')}</ul></main></div>`
     );
     return res.send(html);
