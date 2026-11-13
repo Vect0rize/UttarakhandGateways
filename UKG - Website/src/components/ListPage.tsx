@@ -73,7 +73,7 @@ export const ListPage: React.FC<ListPageProps> = ({
                 <Building2 className="w-5 h-5" />
               </div>
               <h2 className="text-lg sm:text-xl font-black text-[#0E3A2B] dark:text-[#F4F3EF] leading-tight">
-                {isHindi ? 'बिक्री हेतु लिस्ट करें (Sell)' : 'List Property for Sale'}
+                {isHindi ? 'प्रॉपर्टी बेचने हेतु विज्ञापन दें' : 'Post Ad to Sell Property'}
               </h2>
             </div>
 

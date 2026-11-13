@@ -1027,8 +1027,8 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
                     ? 'किराये हेतु संपत्ति लिस्ट करें'
                     : 'List Rental Property'
                   : isHindi
-                  ? 'बिक्री हेतु संपत्ति लिस्ट करें'
-                  : 'List Property for Sale'}
+                  ? 'प्रॉपर्टी बेचने का विज्ञापन दें'
+                  : 'Post Ad to Sell Property'}
               </h2>
               <span className="bg-emerald-500/20 text-emerald-200 text-[10px] font-black uppercase px-2 py-0.5 rounded-full border border-emerald-400/40">
                 0% Brokerage

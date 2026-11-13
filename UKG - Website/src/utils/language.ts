@@ -23,7 +23,7 @@ export const TRANSLATIONS = {
   'hero.realEstate': { en: 'REAL ESTATE', hi: 'रियल एस्टेट' },
   'hero.tagline': { en: 'Your Gateway To Mountains', hi: 'पहाड़ों में आपके सपनों का आशियाना' },
   'hero.buyBtn': { en: 'Buy Property', hi: 'प्रॉपर्टीज खरीदें' },
-  'hero.sellBtn': { en: 'Sell Property', hi: 'प्रॉपर्टी बेचें' },
+  'hero.sellBtn': { en: 'Post Ad to Sell Property', hi: 'प्रॉपर्टी बेचने का विज्ञापन दें' },
   'hero.assurance1': { en: 'Flats, Plots & Villas for Direct Purchase', hi: 'सीधी खरीद हेतु फ्लैट्स, प्लॉट्स व विला' },
   'hero.assurance2': { en: '100% Clear Title & Immediate Registry', hi: '100% स्पष्ट मालिकाना हक और तत्काल रजिस्ट्री' },
 

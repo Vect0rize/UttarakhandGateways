@@ -15,7 +15,7 @@ const translations: Record<Language, Record<string, string>> = {
   en: {
     // Nav
     'nav.buy': 'Buy',
-    'nav.sell': 'Sell Property',
+    'nav.sell': 'Post Ad to Sell Property',
     'nav.calculator': 'Land Calculator',
     'nav.inbox': 'Inbox',
     'nav.contact': 'Contact Us',
@@ -74,7 +74,7 @@ const translations: Record<Language, Record<string, string>> = {
   hi: {
     // Nav
     'nav.buy': 'प्रॉपर्टीज देखें',
-    'nav.sell': 'प्रॉपर्टी बेचें',
+    'nav.sell': 'प्रॉपर्टी बेचने का विज्ञापन दें',
     'nav.calculator': 'भूमि कैलकुलेटर',
     'nav.inbox': 'इनबॉक्स',
     'nav.contact': 'संपर्क करें',

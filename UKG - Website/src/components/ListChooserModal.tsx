@@ -102,7 +102,7 @@ export const ListChooserModal: React.FC<ListChooserModalProps> = ({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-base font-black text-slate-900 dark:text-white group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors">
-                    {isHindi ? 'बिक्री हेतु लिस्ट करें (For Sale)' : 'List For Sale (Outright Sale)'}
+                    {isHindi ? 'प्रॉपर्टी बेचने का विज्ञापन दें' : 'Post Ad to Sell Property'}
                   </span>
                   <span className="px-2 py-0.5 rounded-full bg-amber-400/90 text-slate-950 font-black text-[10px] uppercase">
                     Sale

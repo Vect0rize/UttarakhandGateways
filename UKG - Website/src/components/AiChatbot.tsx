@@ -295,7 +295,7 @@ export const AiChatbot: React.FC<AiChatbotProps> = ({
                 className="px-2.5 py-1 rounded-lg bg-white dark:bg-[#071f16] text-slate-700 dark:text-emerald-100 border border-emerald-300/70 dark:border-emerald-700 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/50 transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1 font-semibold shrink-0"
               >
                 <Building2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                <span>List Property (0%)</span>
+                <span>Post Ad to Sell Property</span>
               </button>
             )}
             {onExploreProperties && (

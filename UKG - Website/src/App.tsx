@@ -1963,7 +1963,7 @@ export default function App() {
           {/* Hero Section with Buy, Sell, Rent buttons above Filters & Search Bar */}
           <Hero
             isRentActive={false}
-            onSellClick={() => navigateToPage('list')}
+            onSellClick={() => navigateToPage('sell-gui')}
             onRentalClick={() => navigateToPage('rent-gui')}
             onBuyClick={() => navigateToPage('buy')}
             onRentClick={() => navigateToPage('rent')}
