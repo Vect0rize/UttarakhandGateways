@@ -389,7 +389,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                         }}
                         className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-all cursor-pointer shadow-sm active:scale-95"
                       >
-                        {isHindi ? 'प्रॉपर्टी बेचने का विज्ञापन दें' : 'Post Ad to Sell Property'}
+                        {isHindi ? 'प्रॉपर्टी बेचें' : 'Sell Property'}
                       </button>
                     )}
                     {onOpenRentalModal && (

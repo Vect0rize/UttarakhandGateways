@@ -105,7 +105,7 @@ export const Hero: React.FC<HeroProps> = ({
             <span className="hidden md:inline">{isHindi ? ' प्रॉपर्टी' : ' Property'}</span>
           </a>
 
-          {/* 3. Post Ad to Sell Property (with small FREE mark) */}
+          {/* 3. Sell Property (with small FREE mark) */}
           <a
             id="hero-post-ad-btn"
             href="/list/buy"
@@ -115,12 +115,11 @@ export const Hero: React.FC<HeroProps> = ({
                 onSellClick();
               }
             }}
-            className="flex-1 px-4 sm:px-6 py-3 sm:py-3.5 rounded-full font-extrabold text-sm sm:text-base border shadow-md backdrop-blur-md hover:scale-[1.02] active:scale-95 transition-all duration-300 cursor-pointer flex items-center justify-center gap-1.5 focus:outline-none focus:ring-2 bg-[#F4F4F1]/95 dark:bg-[#0C3628] hover:bg-white dark:hover:bg-[#134433] text-[#0E3A2B] dark:text-[#F4F3EF] border-[#CDD6D0] dark:border-[#AA8F7C]/40 hover:border-[#AA8F7C] focus:ring-[#AA8F7C] whitespace-nowrap"
-            title={isHindi ? 'प्रॉपर्टी बेचने का मुफ्त विज्ञापन दें (0% Brokerage Free)' : 'Post Ad to Sell Property (Free)'}
+            className="flex-1 px-3 sm:px-6 py-3 sm:py-3.5 rounded-full font-extrabold text-xs sm:text-base border shadow-md backdrop-blur-md hover:scale-[1.02] active:scale-95 transition-all duration-300 cursor-pointer flex items-center justify-center gap-1.5 focus:outline-none focus:ring-2 bg-[#F4F4F1]/95 dark:bg-[#0C3628] hover:bg-white dark:hover:bg-[#134433] text-[#0E3A2B] dark:text-[#F4F3EF] border-[#CDD6D0] dark:border-[#AA8F7C]/40 hover:border-[#AA8F7C] focus:ring-[#AA8F7C] whitespace-nowrap"
+            title={isHindi ? 'प्रॉपर्टी बेचें (0% ब्रोकरेज)' : 'Sell Property (0% Brokerage Free)'}
           >
             <span className="text-[#0E3A2B] dark:text-[#C2A691] text-base leading-none font-black">+</span>
-            <span>{isHindi ? 'प्रॉपर्टी बेचें' : 'Post Ad to Sell'}</span>
-            <span className="hidden md:inline">{isHindi ? ' (विज्ञापन)' : ' Property'}</span>
+            <span>{isHindi ? 'प्रॉपर्टी बेचें' : 'Sell Property'}</span>
             <span className="bg-[#C2A691] text-[#032D1F] text-[10px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
               FREE
             </span>

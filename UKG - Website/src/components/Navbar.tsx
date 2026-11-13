@@ -288,7 +288,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }
               }}
               className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-gradient-to-r from-emerald-600 via-teal-600 to-green-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-xs shadow-md shadow-emerald-600/30 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer ring-1 ring-emerald-300/40 whitespace-nowrap"
-              title={isHindi ? "प्रॉपर्टी बेचने का विज्ञापन दें" : "Post Ad to Sell Property"}
+              title={isHindi ? "प्रॉपर्टी बेचें" : "Sell Property"}
             >
               <span className="text-emerald-100 text-sm font-black">+</span>
               <span>{isHindi ? 'लिस्ट' : 'List'}</span>
