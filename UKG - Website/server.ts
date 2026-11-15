@@ -283,12 +283,26 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-function sanitizePublicProperty(prop: any, sessionUser: any): any {
+function sanitizePublicProperty(prop: any, sessionUser: any, approvedPropertyIds?: Set<string>): any {
   if (!prop || typeof prop !== 'object') return prop;
+
+  // 1. If sessionUser owns or can manage this listing, return full property details
   if (sessionUser && canUserManageProperty(prop, sessionUser)) {
-    return prop;
+    return { ...prop, isListerNameVisible: true };
   }
-  const { ownerContact, sellerEmail, ...safeProp } = prop;
+
+  // 2. If sessionUser sent a request and the lister ACCEPTED it, reveal real lister name & phone
+  if (approvedPropertyIds && approvedPropertyIds.has(prop.id)) {
+    const { ownerContact, sellerEmail, ...safeProp } = prop;
+    return { ...safeProp, isListerNameVisible: true };
+  }
+
+  // 3. STRICT PRIVACY: People should NOT be able to see the lister's name anywhere
+  // unless they send a request and the lister accepts.
+  const isBroker = prop.sellerType === 'Broker';
+  const { ownerContact, sellerEmail, sellerPhone, ownerUsername, ...safeProp } = prop;
+  safeProp.sellerName = isBroker ? 'Verified Broker' : 'Direct Property Owner';
+  safeProp.isListerNameVisible = false;
   return safeProp;
 }
 
@@ -302,10 +316,15 @@ app.get('/api/properties', async (req, res) => {
   });
   try {
     const sessionUser = await getSessionUser(req).catch(() => null);
+    let approvedSet: Set<string> | undefined;
+    if (sessionUser) {
+      const userTarget = sessionUser.id || sessionUser.contact || sessionUser.username;
+      approvedSet = await db.getApprovedPropertyIdsForUser(userTarget);
+    }
     const list = await db.getAllProperties();
     res.json({
       success: true,
-      properties: list.map((p) => sanitizePublicProperty(p, sessionUser))
+      properties: list.map((p) => sanitizePublicProperty(p, sessionUser, approvedSet))
     });
   } catch (err: any) {
     console.error('Error fetching properties from db:', err);
@@ -363,13 +382,18 @@ app.get('/api/properties/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const sessionUser = await getSessionUser(req).catch(() => null);
+    let approvedSet: Set<string> | undefined;
+    if (sessionUser) {
+      const userTarget = sessionUser.id || sessionUser.contact || sessionUser.username;
+      approvedSet = await db.getApprovedPropertyIdsForUser(userTarget);
+    }
     let prop = await db.getPropertyById(id);
     if (!prop) {
       const allProps = await db.getAllProperties();
       prop = findPropertyBySlugOrId(id, allProps);
     }
     if (prop) {
-      return res.json({ success: true, property: sanitizePublicProperty(prop, sessionUser) });
+      return res.json({ success: true, property: sanitizePublicProperty(prop, sessionUser, approvedSet) });
     }
     return res.status(404).json({ success: false, error: 'Property not found' });
   } catch (err: any) {
@@ -690,9 +714,186 @@ app.post('/api/properties/:id/inquiry', async (req, res) => {
   try {
     const { id } = req.params;
     const updated = await db.incrementPropertyMetric(id, 'inquiries');
+
+    // If client sent an access/phone request payload, also persist as access request
+    if (req.body?.type === 'phone_access_request') {
+      try {
+        const sessionUser = await getSessionUser(req).catch(() => null);
+        let prop = await db.getPropertyById(id);
+        if (!prop) {
+          const all = await db.getAllProperties();
+          prop = findPropertyBySlugOrId(id, all);
+        }
+        if (prop && sessionUser) {
+          const accessReq = {
+            id: `req-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`,
+            propertyId: prop.id,
+            propertyTitle: prop.title,
+            propertyCity: prop.city,
+            propertyImage: prop.images?.[0] || '',
+            listerId: prop.ownerId,
+            listerUsername: prop.ownerUsername,
+            listerContact: prop.ownerContact || prop.sellerPhone,
+            listerName: prop.sellerName || prop.ownerUsername || 'Direct Property Owner',
+            listerPhone: prop.sellerPhone || '',
+            requesterId: sessionUser.id,
+            requesterUsername: sessionUser.username,
+            requesterContact: sessionUser.contact,
+            requesterName: sessionUser.username,
+            requesterNote: req.body?.requesterNote || '',
+            status: 'pending' as const,
+            requestedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          };
+          await db.saveAccessRequest(accessReq);
+        }
+      } catch {}
+    }
+
     res.json({ success: true, inquiries: updated?.inquiries || 1 });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message });
+  }
+});
+
+// =================================================================
+// PROPERTY LISTER ACCESS REQUESTS APIS
+// =================================================================
+
+app.post('/api/requests', async (req, res) => {
+  try {
+    const sessionUser = await getSessionUser(req);
+    if (!sessionUser) {
+      return res.status(401).json({ success: false, error: 'Please sign in to request lister details.' });
+    }
+    const { propertyId, requesterNote } = req.body || {};
+    if (!propertyId || typeof propertyId !== 'string') {
+      return res.status(400).json({ success: false, error: 'propertyId is required.' });
+    }
+    let prop = await db.getPropertyById(propertyId);
+    if (!prop) {
+      const all = await db.getAllProperties();
+      prop = findPropertyBySlugOrId(propertyId, all);
+    }
+    if (!prop) {
+      return res.status(404).json({ success: false, error: 'Property not found.' });
+    }
+
+    const allRequests = await db.getAllAccessRequests();
+    const existing = allRequests.find((r) =>
+      r.propertyId === prop.id &&
+      (r.requesterId === sessionUser.id || r.requesterContact === sessionUser.contact || r.requesterUsername === sessionUser.username)
+    );
+    if (existing) {
+      return res.json({ success: true, request: existing, message: 'Request already submitted.' });
+    }
+
+    const accessReq = {
+      id: `req-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`,
+      propertyId: prop.id,
+      propertyTitle: prop.title,
+      propertyCity: prop.city,
+      propertyImage: prop.images?.[0] || '',
+      listerId: prop.ownerId,
+      listerUsername: prop.ownerUsername,
+      listerContact: prop.ownerContact || prop.sellerPhone,
+      listerName: prop.sellerName || prop.ownerUsername || 'Direct Property Owner',
+      listerPhone: prop.sellerPhone || '',
+      requesterId: sessionUser.id,
+      requesterUsername: sessionUser.username,
+      requesterContact: sessionUser.contact,
+      requesterName: sessionUser.username,
+      requesterNote: typeof requesterNote === 'string' ? requesterNote.slice(0, 300) : '',
+      status: 'pending' as const,
+      requestedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    const saved = await db.saveAccessRequest(accessReq);
+    res.json({ success: true, request: saved });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Failed to submit request.' });
+  }
+});
+
+app.get('/api/requests', async (req, res) => {
+  try {
+    const sessionUser = await getSessionUser(req);
+    if (!sessionUser) {
+      return res.status(401).json({ success: false, error: 'Authentication required.' });
+    }
+    const all = await db.getAllAccessRequests();
+    const userId = sessionUser.id;
+    const userContact = (sessionUser.contact || '').trim().toLowerCase();
+    const username = (sessionUser.username || '').trim().toLowerCase();
+
+    const incoming = all.filter((r) => {
+      const lid = (r.listerId || '').trim();
+      const lcontact = (r.listerContact || '').trim().toLowerCase();
+      const luser = (r.listerUsername || '').trim().toLowerCase();
+      return (userId && lid === userId) || (userContact && lcontact === userContact) || (username && luser === username);
+    });
+
+    const outgoing = all.filter((r) => {
+      const rid = (r.requesterId || '').trim();
+      const rcontact = (r.requesterContact || '').trim().toLowerCase();
+      const ruser = (r.requesterUsername || '').trim().toLowerCase();
+      return (userId && rid === userId) || (userContact && rcontact === userContact) || (username && ruser === username);
+    });
+
+    res.json({ success: true, incoming, outgoing });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Failed to fetch requests.' });
+  }
+});
+
+app.put('/api/requests/:id/approve', async (req, res) => {
+  try {
+    const sessionUser = await getSessionUser(req);
+    if (!sessionUser) {
+      return res.status(401).json({ success: false, error: 'Authentication required.' });
+    }
+    const { id } = req.params;
+    const all = await db.getAllAccessRequests();
+    const target = all.find((r) => r.id === id);
+    if (!target) {
+      return res.status(404).json({ success: false, error: 'Request not found.' });
+    }
+    const isOwner = sessionUser.isOwner || sessionUser.role === 'admin' ||
+      (target.listerId && target.listerId === sessionUser.id) ||
+      (target.listerContact && target.listerContact.toLowerCase() === (sessionUser.contact || '').toLowerCase()) ||
+      (target.listerUsername && target.listerUsername.toLowerCase() === (sessionUser.username || '').toLowerCase());
+    if (!isOwner) {
+      return res.status(403).json({ success: false, error: 'Only the property lister can approve this request.' });
+    }
+    const updated = await db.updateAccessRequestStatus(id, 'approved');
+    res.json({ success: true, request: updated });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Failed to approve request.' });
+  }
+});
+
+app.put('/api/requests/:id/decline', async (req, res) => {
+  try {
+    const sessionUser = await getSessionUser(req);
+    if (!sessionUser) {
+      return res.status(401).json({ success: false, error: 'Authentication required.' });
+    }
+    const { id } = req.params;
+    const all = await db.getAllAccessRequests();
+    const target = all.find((r) => r.id === id);
+    if (!target) {
+      return res.status(404).json({ success: false, error: 'Request not found.' });
+    }
+    const isOwner = sessionUser.isOwner || sessionUser.role === 'admin' ||
+      (target.listerId && target.listerId === sessionUser.id) ||
+      (target.listerContact && target.listerContact.toLowerCase() === (sessionUser.contact || '').toLowerCase()) ||
+      (target.listerUsername && target.listerUsername.toLowerCase() === (sessionUser.username || '').toLowerCase());
+    if (!isOwner) {
+      return res.status(403).json({ success: false, error: 'Only the property lister can decline this request.' });
+    }
+    const updated = await db.updateAccessRequestStatus(id, 'declined');
+    res.json({ success: true, request: updated });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Failed to decline request.' });
   }
 });
 

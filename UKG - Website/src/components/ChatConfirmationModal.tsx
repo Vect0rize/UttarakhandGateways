@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Property } from '../types';
 import { MessageSquare, X, Send, ShieldCheck, User } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
+import { getPropertyOwnerDisplayName, isListerNameVisible } from '../utils/propertyOwnership';
 
 interface ChatConfirmationModalProps {
   property: Property | null;
@@ -17,9 +19,13 @@ export const ChatConfirmationModal: React.FC<ChatConfirmationModalProps> = ({
   onConfirm,
 }) => {
   const { t, language, isHindi } = useLanguage();
+  const { currentUser } = useAuth();
   const [message, setMessage] = useState('');
 
   if (!isOpen || !property) return null;
+
+  const isListerVisible = property ? isListerNameVisible(property, currentUser) : false;
+  const ownerDisplayName = property ? getPropertyOwnerDisplayName(property, currentUser, isHindi) : '';
 
   const defaultMessage = language === 'hi'
     ? `नमस्ते! मैं ${property.title} (${property.city}) में रुचि रखता हूँ। क्या यह साइट विज़िट या बातचीत के लिए उपलब्ध है?`
@@ -80,15 +86,19 @@ export const ChatConfirmationModal: React.FC<ChatConfirmationModalProps> = ({
                 {property.city} • <span className="font-bold text-emerald-600 dark:text-emerald-400">{property.priceDisplay}</span>
               </p>
               <div className="flex items-center gap-1 mt-1 text-[11px] text-slate-600 dark:text-slate-300">
-                <User className="w-3 h-3 text-emerald-600" />
-                <span className="font-semibold">
-                  {(() => {
-                    const raw = property.ownerUsername || property.sellerName || '';
-                    if (raw.toLowerCase() === 'amit1986.delhi' || raw.toLowerCase() === 'amit1986.delhi@gmail.com') return 'Amit Tyagi';
-                    if (raw.includes('@')) return raw.split('@')[0];
-                    return raw;
-                  })()}
-                </span>
+                {isListerVisible ? (
+                  <>
+                    <User className="w-3 h-3 text-emerald-600" />
+                    <span className="font-semibold">{ownerDisplayName}</span>
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="font-medium text-slate-500 dark:text-slate-400">
+                      {ownerDisplayName} ({isHindi ? 'सुरक्षित' : 'Protected'})
+                    </span>
+                  </>
+                )}
               </div>
             </div>
           </div>

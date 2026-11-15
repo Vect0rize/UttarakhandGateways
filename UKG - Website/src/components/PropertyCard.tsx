@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { isPropertyOwner, canManageProperty, getPropertyOwnerDisplayName } from '../utils/propertyOwnership';
+import { isPropertyOwner, canManageProperty, getPropertyOwnerDisplayName, isListerNameVisible } from '../utils/propertyOwnership';
 import { formatLocalizedPrice, translatePropertyType } from '../utils/language';
 import { getPropertySlugPath } from '../data/programmaticSeo';
 import { formatPostTime } from '../utils/timeAgo';
@@ -61,6 +61,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
   const isDirectOwner = isPropertyOwner(property, currentUser);
   const canManage = canManageProperty(property, currentUser);
   const isOwner = canManage;
+  const isListerVisible = isListerNameVisible(property, currentUser);
   const ownerDisplayName = getPropertyOwnerDisplayName(property, currentUser, isHindi);
   const cardRef = useRef<HTMLElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -444,15 +445,31 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
             <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-300">
               {ownerDisplayName ? (
                 <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200 font-bold text-[10px] flex items-center justify-center shrink-0 uppercase">
-                    {ownerDisplayName.charAt(0)}
-                  </span>
-                  <span className="truncate">
-                    <span className="text-slate-400 dark:text-slate-400 mr-1">
-                      {property.sellerType === 'Broker' ? (isHindi ? 'ब्रोकर:' : 'Broker:') : (isHindi ? 'मालिक:' : 'Owner:')}
-                    </span>
-                    <strong className="text-slate-800 dark:text-white font-semibold">{ownerDisplayName}</strong>
-                  </span>
+                  {isListerVisible ? (
+                    <>
+                      <span className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200 font-bold text-[10px] flex items-center justify-center shrink-0 uppercase">
+                        {ownerDisplayName.charAt(0)}
+                      </span>
+                      <span className="truncate">
+                        <span className="text-slate-400 dark:text-slate-400 mr-1">
+                          {property.sellerType === 'Broker' ? (isHindi ? 'ब्रोकर:' : 'Broker:') : (isHindi ? 'मालिक:' : 'Owner:')}
+                        </span>
+                        <strong className="text-slate-800 dark:text-white font-semibold">{ownerDisplayName}</strong>
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0">
+                        <ShieldCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                      </span>
+                      <span className="truncate">
+                        <strong className="text-slate-800 dark:text-white font-semibold">
+                          {property.sellerType === 'Broker' ? (isHindi ? 'सत्यापित ब्रोकर' : 'Verified Broker') : (isHindi ? 'सत्यापित डायरेक्ट ओनर' : 'Direct Property Owner')}
+                        </strong>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal ml-1">({isHindi ? 'नाम सुरक्षित' : 'Private'})</span>
+                      </span>
+                    </>
+                  )}
                 </div>
               ) : <span />}
               {property.reraStatus && (

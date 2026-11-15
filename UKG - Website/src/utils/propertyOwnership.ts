@@ -162,8 +162,147 @@ export const canManageProperty = (property?: Property | null, currentUser?: User
 export const isPropertyOwner = isDirectPropertyOwner;
 
 /**
+ * Checks whether the current user has sent a contact/phone access request
+ * for this property and the lister has APPROVED / ACCEPTED it.
+ */
+export const hasApprovedAccessRequest = (
+  propertyId?: string | null,
+  currentUser?: User | null
+): boolean => {
+  if (!propertyId || typeof window === 'undefined') return false;
+
+  try {
+    const raw = localStorage.getItem('uk_gateways_phone_requests');
+    if (!raw) return false;
+    const list: any[] = JSON.parse(raw);
+    if (!Array.isArray(list)) return false;
+
+    const userContact = (currentUser?.contact || (currentUser as any)?.email || '').trim().toLowerCase();
+    const userUsername = (currentUser?.username || '').trim().toLowerCase();
+    const userId = currentUser?.id;
+
+    return list.some((req) => {
+      if (req.propertyId !== propertyId) return false;
+      if (req.status !== 'approved') return false;
+
+      // Must be an outgoing request sent by this user (not an incoming request for their own listing)
+      if (req.isIncomingForUserListing) return false;
+
+      if (userId && req.requesterId && req.requesterId === userId) return true;
+      if (userContact && req.requesterContact && req.requesterContact.trim().toLowerCase() === userContact) return true;
+      if (userUsername && req.requesterName && req.requesterName.trim().toLowerCase() === userUsername) return true;
+
+      // Fallback for requests created in current browser session
+      if (!req.isIncomingForUserListing && req.status === 'approved') return true;
+
+      return false;
+    });
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Determines if the lister's real personal name and direct contact can be seen.
+ * STRICT PRIVACY RULE: People should NOT be able to see the lister's name anywhere
+ * UNLESS they send a request and the lister accepts it (or they are the lister/admin).
+ */
+export const isListerNameVisible = (
+  property?: Property | null,
+  currentUser?: User | null
+): boolean => {
+  if (!property) return false;
+  if (currentUser && isDirectPropertyOwner(property, currentUser)) return true;
+  if (currentUser && isAppOwner(currentUser)) return true;
+  if ((property as any).isListerNameVisible === true) return true;
+  return hasApprovedAccessRequest(property.id, currentUser);
+};
+
+/**
+ * Gets the verified, approved lister name if access has been granted.
+ * Returns null if the user does NOT have approved access.
+ */
+export const getApprovedListerName = (
+  property?: Property | null,
+  currentUser?: User | null
+): string | null => {
+  if (!property) return null;
+  if (!isListerNameVisible(property, currentUser)) return null;
+
+  // 1. Direct owner view
+  if (currentUser && isDirectPropertyOwner(property, currentUser)) {
+    return currentUser.username || property.sellerName || 'You (Owner)';
+  }
+
+  // 2. Check approved request record for stored lister name
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = localStorage.getItem('uk_gateways_phone_requests');
+      if (raw) {
+        const list: any[] = JSON.parse(raw);
+        if (Array.isArray(list)) {
+          const found = list.find((r) => r.propertyId === property.id && r.status === 'approved' && !r.isIncomingForUserListing);
+          if (found && (found.sellerName || found.listerName)) {
+            const rawName = (found.sellerName || found.listerName).trim();
+            if (rawName && !rawName.includes('@') && rawName.toLowerCase() !== 'amit1986.delhi') {
+              return rawName;
+            }
+          }
+        }
+      }
+    } catch {}
+  }
+
+  // 3. Fallback to property sellerName if returned from authorized server response
+  const raw = property.sellerName || property.ownerUsername;
+  if (raw && raw !== 'Direct Property Owner' && raw !== 'Verified Broker' && !raw.includes('@') && raw.toLowerCase() !== 'amit1986.delhi') {
+    return raw.trim();
+  }
+
+  return 'Verified Lister';
+};
+
+/**
+ * Gets the verified, approved phone number if access has been granted.
+ * Returns null if the user does NOT have approved access.
+ */
+export const getApprovedPhoneNumber = (
+  property?: Property | null,
+  currentUser?: User | null
+): string | null => {
+  if (!property) return null;
+  if (!isListerNameVisible(property, currentUser)) return null;
+
+  if (currentUser && isDirectPropertyOwner(property, currentUser) && currentUser.contact) {
+    return currentUser.contact;
+  }
+
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = localStorage.getItem('uk_gateways_phone_requests');
+      if (raw) {
+        const list: any[] = JSON.parse(raw);
+        if (Array.isArray(list)) {
+          const found = list.find((r) => r.propertyId === property.id && r.status === 'approved' && !r.isIncomingForUserListing);
+          if (found && (found.sellerPhone || found.listerPhone)) {
+            return found.sellerPhone || found.listerPhone;
+          }
+        }
+      }
+    } catch {}
+  }
+
+  if (property.sellerPhone && !property.sellerPhone.includes('••')) {
+    return property.sellerPhone;
+  }
+
+  return null;
+};
+
+/**
  * Resolves the display username/name for a property's owner or broker.
- * Prioritizes the actual owner's username over email handles or generic strings.
+ * STRICT PRIVACY: Unless the viewer is the direct owner or has an ACCEPTED request,
+ * this function NEVER returns the lister's personal name.
  */
 export const getPropertyOwnerDisplayName = (
   property?: Property | null,
@@ -181,10 +320,16 @@ export const getPropertyOwnerDisplayName = (
     }
   }
 
-  // 2. Hide all fake / personal seller names (e.g. Sunil Joshi). Always show verified direct ownership badge.
+  // 2. If access has been requested AND ACCEPTED by the lister, show their approved name
+  if (isListerNameVisible(property, currentUser)) {
+    const approved = getApprovedListerName(property, currentUser);
+    if (approved) return approved;
+  }
+
+  // 3. Otherwise: STRICTLY HIDE the lister's name everywhere
   return isBroker
-    ? (isHindi ? 'ब्रोकर' : 'Broker')
-    : (isHindi ? 'सत्यापित डायरेक्ट ओनर' : 'Verified Direct Owner');
+    ? (isHindi ? 'सत्यापित ब्रोकर' : 'Verified Broker')
+    : (isHindi ? 'सत्यापित डायरेक्ट ओनर' : 'Direct Property Owner');
 };
 
 /**

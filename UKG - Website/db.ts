@@ -68,6 +68,27 @@ export interface DbOtp {
   attempts: number;
 }
 
+export interface DbAccessRequest {
+  id: string;
+  propertyId: string;
+  propertyTitle?: string;
+  propertyCity?: string;
+  propertyImage?: string;
+  listerId?: string;
+  listerUsername?: string;
+  listerContact?: string;
+  listerName?: string;
+  listerPhone?: string;
+  requesterId?: string;
+  requesterUsername?: string;
+  requesterContact?: string;
+  requesterName?: string;
+  requesterNote?: string;
+  status: 'pending' | 'approved' | 'declined';
+  requestedAt: string;
+  approvedAt?: string;
+}
+
 export type DbType = 'mysql' | 'postgres' | 'file';
 
 class DatabaseService {
@@ -84,6 +105,7 @@ class DatabaseService {
   private resetsFilePath: string;
   private otpsFilePath: string;
   private reportsFilePath: string;
+  private requestsFilePath: string;
   private revokedSessionsFilePath: string;
   private revokedTokens = new Set<string>();
   private writeLocks = new Map<string, Promise<unknown>>();
@@ -129,6 +151,7 @@ class DatabaseService {
     this.resetsFilePath = path.join(this.dataDir, 'password_resets.json');
     this.otpsFilePath = path.join(this.dataDir, 'otps.json');
     this.reportsFilePath = path.join(this.dataDir, 'reports.json');
+    this.requestsFilePath = path.join(this.dataDir, 'requests.json');
     this.revokedSessionsFilePath = path.join(this.dataDir, 'revoked_sessions.json');
     try {
       const revokedList = this.readJsonFile(this.revokedSessionsFilePath);
@@ -1426,6 +1449,106 @@ class DatabaseService {
       this.writeJsonFileAtomically(this.reportsFilePath, list);
       return updated;
     });
+  }
+
+  // =================================================================
+  // PROPERTY LISTER ACCESS REQUESTS
+  // =================================================================
+
+  public async getAllAccessRequests(): Promise<DbAccessRequest[]> {
+    if (!this.initialized) await this.initialize();
+
+    if (this.dbType === 'postgres' && this.pgPool) {
+      try {
+        const res = await this.pgPool.query('SELECT data FROM ukg_access_requests ORDER BY created_at DESC');
+        return res.rows.map((r) => (typeof r.data === 'string' ? JSON.parse(r.data) : r.data));
+      } catch {}
+    }
+
+    if (this.dbType === 'mysql' && this.mysqlPool) {
+      try {
+        const [rows]: any = await this.mysqlPool.query('SELECT data FROM ukg_access_requests ORDER BY created_at DESC');
+        return rows.map((r: any) => (typeof r.data === 'string' ? JSON.parse(r.data) : r.data));
+      } catch {}
+    }
+
+    return this.readJsonFile(this.requestsFilePath);
+  }
+
+  public async saveAccessRequest(req: DbAccessRequest): Promise<DbAccessRequest> {
+    if (!this.initialized) await this.initialize();
+    return this.withLock('access_requests', async () => {
+      const json = JSON.stringify(req);
+      if (this.dbType === 'postgres' && this.pgPool) {
+        try {
+          await this.pgPool.query(
+            `INSERT INTO ukg_access_requests (id, property_id, status, data, created_at)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (id) DO UPDATE SET status = $3, data = $4`,
+            [req.id, req.propertyId, req.status, json, req.requestedAt]
+          );
+        } catch {}
+      } else if (this.dbType === 'mysql' && this.mysqlPool) {
+        try {
+          await this.mysqlPool.query(
+            `INSERT INTO ukg_access_requests (id, property_id, status, data, created_at)
+             VALUES (?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE status = VALUES(status), data = VALUES(data)`,
+            [req.id, req.propertyId, req.status, json, req.requestedAt]
+          );
+        } catch {}
+      }
+
+      const requests = this.readJsonFile(this.requestsFilePath).filter((r: any) => r.id !== req.id);
+      requests.unshift(req);
+      this.writeJsonFileAtomically(this.requestsFilePath, requests);
+      return req;
+    });
+  }
+
+  public async updateAccessRequestStatus(id: string, status: 'pending' | 'approved' | 'declined'): Promise<DbAccessRequest | null> {
+    if (!this.initialized) await this.initialize();
+    return this.withLock('access_requests', async () => {
+      const all = await this.getAllAccessRequests();
+      const target = all.find((r) => r.id === id);
+      if (!target) return null;
+      const updated: DbAccessRequest = {
+        ...target,
+        status,
+        ...(status === 'approved' ? { approvedAt: new Date().toISOString() } : {})
+      };
+      const json = JSON.stringify(updated);
+      if (this.dbType === 'postgres' && this.pgPool) {
+        try {
+          await this.pgPool.query('UPDATE ukg_access_requests SET status = $2, data = $3 WHERE id = $1', [id, status, json]);
+        } catch {}
+      } else if (this.dbType === 'mysql' && this.mysqlPool) {
+        try {
+          await this.mysqlPool.query('UPDATE ukg_access_requests SET status = ?, data = ? WHERE id = ?', [status, json, id]);
+        } catch {}
+      }
+      const list = this.readJsonFile(this.requestsFilePath).map((r: any) => (r.id === id ? updated : r));
+      this.writeJsonFileAtomically(this.requestsFilePath, list);
+      return updated;
+    });
+  }
+
+  public async getApprovedPropertyIdsForUser(userIdOrContact: string): Promise<Set<string>> {
+    if (!userIdOrContact) return new Set();
+    const cleanTarget = String(userIdOrContact).trim().toLowerCase();
+    const all = await this.getAllAccessRequests();
+    const approved = new Set<string>();
+    for (const r of all) {
+      if (r.status === 'approved') {
+        const rId = String(r.requesterId || '').trim().toLowerCase();
+        const rContact = String(r.requesterContact || '').trim().toLowerCase();
+        const rUser = String(r.requesterUsername || '').trim().toLowerCase();
+        if (rId === cleanTarget || rContact === cleanTarget || rUser === cleanTarget) {
+          approved.add(r.propertyId);
+        }
+      }
+    }
+    return approved;
   }
 }
 

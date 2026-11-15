@@ -49,7 +49,15 @@ import type { AppPageRouteKey } from '../data/seoMetadata';
 import { EmiCalculatorModal } from './EmiCalculatorModal';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { isPropertyOwner, canManageProperty, getPropertyOwnerDisplayName } from '../utils/propertyOwnership';
+import { 
+  isPropertyOwner, 
+  canManageProperty, 
+  getPropertyOwnerDisplayName,
+  isListerNameVisible,
+  getApprovedListerName,
+  getApprovedPhoneNumber,
+  hasApprovedAccessRequest
+} from '../utils/propertyOwnership';
 import { formatLocalizedPrice } from '../utils/language';
 import { formatPostTime } from '../utils/timeAgo';
 import { LegalPolicyId } from '../data/legalPolicies';
@@ -130,7 +138,19 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [localPhoneRequested, setLocalPhoneRequested] = useState(false);
+  const [localPhoneRequested, setLocalPhoneRequested] = useState(() => {
+    if (typeof window === 'undefined' || !property?.id) return false;
+    try {
+      const raw = localStorage.getItem('uk_gateways_phone_requests');
+      if (raw) {
+        const list = JSON.parse(raw);
+        if (Array.isArray(list)) {
+          return list.some((r: any) => r.propertyId === property.id && !r.isIncomingForUserListing && (r.status === 'pending' || r.status === 'approved'));
+        }
+      }
+    } catch {}
+    return false;
+  });
 
   // Optimistic Sold Status
   const [isSoldLocal, setIsSoldLocal] = useState<boolean>(Boolean(property?.isSold));
@@ -334,6 +354,63 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
     }
   };
 
+  const handleRequestAccessClick = async () => {
+    if (!currentUser) {
+      openAuthModal(
+        'login',
+        isHindi
+          ? 'मालिक का नाम और फोन नंबर देखने हेतु अनुरोध भेजने के लिए कृपया पहले लॉगिन करें।'
+          : 'Please sign in to request access to view the lister name and phone number.'
+      );
+      return;
+    }
+    setLocalPhoneRequested(true);
+
+    try {
+      const existingRaw = localStorage.getItem('uk_gateways_phone_requests');
+      const list = existingRaw ? JSON.parse(existingRaw) : [];
+      const newReq = {
+        id: `req_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        propertyId: property.id,
+        propertyTitle: property.title,
+        propertyCity: property.city || 'Uttarakhand',
+        propertyImage: property.images?.[0] || '',
+        requesterId: currentUser.id,
+        requesterName: currentUser.username || 'Interested Buyer',
+        requesterContact: currentUser.contact || '',
+        listerId: property.ownerId || '',
+        listerName: property.sellerName || '',
+        listerPhone: property.sellerPhone || '',
+        sellerName: property.sellerName || 'Direct Property Owner',
+        sellerPhone: property.sellerPhone || '',
+        status: 'pending',
+        requestedAt: 'Just now',
+        timestamp: Date.now(),
+        isIncomingForUserListing: false,
+      };
+      const filtered = Array.isArray(list) ? list.filter((r: any) => r.propertyId !== property.id || r.isIncomingForUserListing) : [];
+      filtered.unshift(newReq);
+      localStorage.setItem('uk_gateways_phone_requests', JSON.stringify(filtered));
+      window.dispatchEvent(new StorageEvent('storage', { key: 'uk_gateways_phone_requests', newValue: JSON.stringify(filtered) }));
+    } catch {}
+
+    fetch('/api/requests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ propertyId: property.id, requesterNote: 'Interested in property inspection and discussion.' }),
+    }).catch(() => {});
+
+    fetch(`/api/properties/${encodeURIComponent(property.id)}/inquiry`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'phone_access_request', propertyId: property.id, timestamp: Date.now() }),
+    }).catch(() => {});
+
+    if (onRequestPhoneNumber) {
+      onRequestPhoneNumber(property);
+    }
+  };
+
   /**
    * Universally shares the property listing without requiring user login.
    * Anyone can share any property listing at any time.
@@ -392,6 +469,9 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
 
 
 
+  const isListerVisible = property ? isListerNameVisible(property, currentUser) : false;
+  const approvedPhone = property ? (getApprovedPhoneNumber(property, currentUser) || approvedPhoneNumber) : null;
+  const approvedListerName = property ? getApprovedListerName(property, currentUser) : null;
   const sellerDisplayName = getPropertyOwnerDisplayName(property, currentUser, isHindi);
   const isForRent = property?.type === 'Rent/Lease' || property?.purpose === 'rent' || Boolean(property?.isAvailableForRent) || (Boolean(property?.priceDisplay) && property.priceDisplay.toLowerCase().includes('/ month'));
 
@@ -1051,58 +1131,110 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
               )}
 
               {sellerDisplayName && (
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-100 dark:border-emerald-900/40 space-y-2">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-black text-base flex items-center justify-center shrink-0 shadow-sm uppercase">
-                    {sellerDisplayName.charAt(0)}
-                  </div>
-                  <div className="min-w-0">
-                    <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block">
-                      {property.sellerType === 'Broker' ? (isHindi ? 'ब्रोकर:' : 'Broker:') : (isHindi ? 'मालिक:' : 'Owner:')}
-                    </span>
-                    <span className="font-extrabold text-sm text-slate-900 dark:text-white truncate block">
-                      {sellerDisplayName}
-                    </span>
-                    <div className="flex items-center gap-1.5 mt-0.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
-                      <Lock className="w-3 h-3 text-emerald-600" />
-                      <span>+91 98•••••••• ({isHindi ? 'सुरक्षित' : 'Protected'})</span>
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-100 dark:border-emerald-900/40 space-y-2.5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-black text-base flex items-center justify-center shrink-0 shadow-sm uppercase">
+                      {isListerVisible ? (
+                        (approvedListerName || sellerDisplayName).charAt(0)
+                      ) : (
+                        <ShieldCheck className="w-6 h-6 text-white" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block">
+                        {property.sellerType === 'Broker' 
+                          ? (isHindi ? 'ब्रोकर:' : 'Broker:') 
+                          : (isHindi ? 'मालिक:' : 'Owner:')}
+                      </span>
+                      <span className="font-extrabold text-sm text-slate-900 dark:text-white truncate block">
+                        {isListerVisible ? (approvedListerName || sellerDisplayName) : sellerDisplayName}
+                      </span>
+                      <div className="flex items-center gap-1.5 mt-0.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
+                        {isListerVisible && approvedPhone ? (
+                          <span className="font-mono text-emerald-700 dark:text-emerald-300 font-bold">{approvedPhone}</span>
+                        ) : (
+                          <>
+                            <Lock className="w-3 h-3 text-emerald-600" />
+                            <span>+91 98•••••••• ({isHindi ? 'सुरक्षित' : 'Protected'})</span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
+
+                  {!isListerVisible && (
+                    <div className="pt-2 border-t border-slate-200/60 dark:border-emerald-900/40 text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                      <Shield className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span>{isHindi ? 'गोपनीयता नीति: अनुरोध स्वीकृत होने पर ही मालिक का नाम व नंबर दिखाया जाता है।' : 'Privacy Protected: Lister name and contact are shown only after access request is accepted.'}</span>
+                    </div>
+                  )}
                 </div>
-              </div>
               )}
 
-              {/* Action 1: Ask Access to Owner for Phone Number */}
-              {!isDirectOwner && (
-                localPhoneRequested ? (
-                  <div className="w-full py-3 px-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 text-xs font-bold flex items-center justify-between">
+              {/* Unlocked Contact Details for Approved Requesters */}
+              {isListerVisible && !isDirectOwner && (
+                <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      <span>{isHindi ? 'अनुरोध स्वीकृत • संपर्क उपलब्ध' : 'Request Accepted • Contact Unlocked'}</span>
+                    </span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-200 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-100">
+                      {isHindi ? 'सत्यापित' : 'Verified'}
+                    </span>
+                  </div>
+
+                  {approvedPhone && (
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800">
+                      <div className="flex items-center gap-2">
+                        <Phone className="w-4 h-4 text-emerald-600" />
+                        <span className="font-mono font-bold text-sm text-slate-900 dark:text-white">
+                          {approvedPhone}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <a
+                          href={`tel:${approvedPhone.replace(/\D/g, '')}`}
+                          className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 shadow-xs cursor-pointer"
+                        >
+                          <Phone className="w-3.5 h-3.5" />
+                          <span>{isHindi ? 'कॉल करें' : 'Call'}</span>
+                        </a>
+                        <a
+                          href={`https://wa.me/91${approvedPhone.replace(/\D/g, '').slice(-10)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-1.5 rounded-lg bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-xs flex items-center gap-1 shadow-xs cursor-pointer"
+                        >
+                          <WhatsAppIcon className="w-3.5 h-3.5 fill-white" />
+                          <span>WhatsApp</span>
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Action 1: Ask Access to Lister for Name and Phone Number */}
+              {!isDirectOwner && !isListerVisible && (
+                (localPhoneRequested || phoneRequestStatus === 'pending') ? (
+                  <div className="w-full py-3.5 px-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 text-xs font-bold flex items-center justify-between">
                     <span className="flex items-center gap-2">
                       <Clock className="w-4 h-4 text-amber-600 animate-pulse" />
-                      <span>{isHindi ? 'फोन नंबर अनुरोध भेजा गया (लंबित)' : 'Phone Access Requested • Pending'}</span>
+                      <span>{isHindi ? 'मालिक को अनुरोध भेजा गया (स्वीकृति लंबित)' : 'Access Request Sent to Lister (Pending Approval)'}</span>
                     </span>
                     <span className="text-[10px] bg-amber-200 dark:bg-amber-900 text-amber-950 dark:text-amber-100 px-2 py-0.5 rounded-full font-mono font-bold">
-                      {isHindi ? 'इनबॉक्स देखें' : 'In Inbox'}
+                      {isHindi ? 'प्रतीक्षारत' : 'Pending'}
                     </span>
                   </div>
                 ) : (
                   <button
                     type="button"
-                    onClick={() => {
-                      if (!currentUser) {
-                        openAuthModal('login', isHindi ? 'मालिक के फोन नंबर का अनुरोध करने के लिए कृपया पहले लॉगिन करें।' : 'Please sign in to ask access to the owner for their phone number.');
-                        return;
-                      }
-                      setLocalPhoneRequested(true);
-                      fetch(`/api/properties/${encodeURIComponent(property.id)}/inquiry`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ type: 'phone_access_request', propertyId: property.id, timestamp: Date.now() })
-                      }).catch(() => {});
-                    }}
+                    onClick={handleRequestAccessClick}
                     className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-green-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-sm shadow-md shadow-emerald-600/25 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2"
                   >
                     <Lock className="w-4 h-4" />
-                    <span>{isHindi ? 'मालिक से फोन नंबर मांगें (Ask Access)' : 'Ask Access to Owner for Number'}</span>
+                    <span>{isHindi ? 'मालिक का नाम व नंबर देखने हेतु अनुरोध भेजें' : 'Request Access to View Lister Name & Phone'}</span>
                   </button>
                 )
               )}

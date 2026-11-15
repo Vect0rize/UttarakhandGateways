@@ -36,6 +36,7 @@ import { AuthModal } from './AuthModal';
 import { UserProfileModal } from './UserProfileModal';
 import { SeoKeywordsSection } from './SeoKeywordsSection';
 import type { AppPageRouteKey } from '../data/seoMetadata';
+import { hasApprovedAccessRequest } from '../utils/propertyOwnership';
 
 interface InboxPageProps {
   onBackToMarketplace?: () => void;
@@ -223,7 +224,7 @@ export const InboxPage: React.FC<InboxPageProps> = ({
       const ownerReply = {
         id: `msg-${Date.now() + 1}`,
         sender: 'seller' as const,
-        senderName: cleanOwnerName(currentThread.sellerName),
+        senderName: hasApprovedAccessRequest(currentThread.propertyId, currentUser) ? cleanOwnerName(currentThread.sellerName) : 'Direct Property Owner',
         text: `Namaste! Thank you for inquiring. Yes, clear title and immediate mutation are available. Would you like to schedule an in-person site visit or request my direct contact number?`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
@@ -252,6 +253,7 @@ export const InboxPage: React.FC<InboxPageProps> = ({
           : r
       )
     );
+    fetch(`/api/requests/${encodeURIComponent(requestId)}/approve`, { method: 'PUT' }).catch(() => {});
   };
 
   const handleDeclineRequest = (requestId: string) => {
@@ -262,6 +264,7 @@ export const InboxPage: React.FC<InboxPageProps> = ({
           : r
       )
     );
+    fetch(`/api/requests/${encodeURIComponent(requestId)}/decline`, { method: 'PUT' }).catch(() => {});
   };
 
   const handleReturn = () => {
@@ -572,8 +575,17 @@ export const InboxPage: React.FC<InboxPageProps> = ({
                           </div>
 
                           <div className="flex items-center gap-1.5 text-[11px] text-emerald-700 dark:text-emerald-300 font-semibold mb-1">
-                            <User className="w-3 h-3" />
-                            <span className="truncate">{cleanOwnerName(thread.sellerName)}</span>
+                            {hasApprovedAccessRequest(thread.propertyId, currentUser) ? (
+                              <>
+                                <User className="w-3 h-3" />
+                                <span className="truncate">{cleanOwnerName(thread.sellerName)}</span>
+                              </>
+                            ) : (
+                              <>
+                                <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                                <span className="truncate text-slate-600 dark:text-slate-400">Direct Property Owner</span>
+                              </>
+                            )}
                           </div>
 
                           <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
@@ -625,9 +637,24 @@ export const InboxPage: React.FC<InboxPageProps> = ({
                       </div>
 
                       <div className="text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
-                        <div>
-                          <strong>Requester:</strong> {req.requesterName}
-                        </div>
+                        {req.isIncomingForUserListing ? (
+                          <div>
+                            <strong>Requester:</strong> {req.requesterName}
+                          </div>
+                        ) : (
+                          <div>
+                            <strong>Lister:</strong>{' '}
+                            {req.status === 'approved' ? (
+                              <span className="font-semibold text-emerald-700 dark:text-emerald-300">
+                                {cleanOwnerName(req.sellerName)}
+                              </span>
+                            ) : (
+                              <span className="italic text-slate-500">
+                                Direct Property Owner (Hidden until request is accepted)
+                              </span>
+                            )}
+                          </div>
+                        )}
                         {req.requesterNote && (
                           <div className="italic text-slate-500 bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-200 dark:border-slate-800">
                             "{req.requesterNote}"
@@ -713,7 +740,9 @@ export const InboxPage: React.FC<InboxPageProps> = ({
                         </span>
                         <span>•</span>
                         <span className="text-slate-700 dark:text-slate-300 font-medium">
-                          {cleanOwnerName(currentThread.sellerName)}
+                          {hasApprovedAccessRequest(currentThread.propertyId, currentUser)
+                            ? cleanOwnerName(currentThread.sellerName)
+                            : 'Direct Property Owner (Protected)'}
                         </span>
                       </div>
                     </div>
@@ -721,7 +750,7 @@ export const InboxPage: React.FC<InboxPageProps> = ({
 
                   {/* Phone Status / Call Button */}
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    {currentThread.sellerPhone ? (
+                    {currentThread.sellerPhone && hasApprovedAccessRequest(currentThread.propertyId, currentUser) ? (
                       <a
                         href={`tel:${currentThread.sellerPhone.replace(/\s+/g, '')}`}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs"

@@ -59,7 +59,8 @@
     "sellerType": "Owner",
     "isSold": false,
     "isUserCreated": true,
-    "createdAt": "2026-11-10T07:55:05.226Z"
+    "createdAt": "2026-11-10T07:55:05.226Z",
+    "views": 8
   },
   {
     "id": "user-prop-2026-rent-249",

@@ -16,5 +16,14 @@
     "role": "user",
     "isOwner": false,
     "createdAt": "2026-11-09T05:31:30.836Z"
+  },
+  {
+    "id": "user-buyer-ravi",
+    "username": "Ravi Sharma",
+    "contact": "ravi.sharma.buyer@gmail.com",
+    "passwordHash": "$2b$10$xyz",
+    "role": "user",
+    "isOwner": false,
+    "createdAt": "2026-11-15T16:03:15.259Z"
   }
 ]

@@ -1,1 +1,12 @@
-[]
+[
+  {
+    "sessionId": "ukg_user-buyer-ravi_1794758595267_136c5b7788372ca864b3236f046fe4d4",
+    "userId": "user-buyer-ravi",
+    "expiresAt": 1797350595280
+  },
+  {
+    "sessionId": "ukg_user-owner-amit-tyagi_1794758595279_a42c5f70cdd71efd01d6201a902b5c5c",
+    "userId": "user-owner-amit-tyagi",
+    "expiresAt": 1797350595280
+  }
+]

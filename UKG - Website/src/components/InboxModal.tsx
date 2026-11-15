@@ -20,6 +20,8 @@ import {
   PhoneCall
 } from 'lucide-react';
 import { ChatThread, PhoneNumberRequest, Property } from '../types';
+import { useAuth } from '../context/AuthContext';
+import { hasApprovedAccessRequest } from '../utils/propertyOwnership';
 
 interface InboxModalProps {
   isOpen: boolean;
@@ -56,15 +58,74 @@ export const InboxModal: React.FC<InboxModalProps> = ({
   onSelectThread,
   allProperties,
 }) => {
+  const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<'chats' | 'phone-requests'>('chats');
   const [inputText, setInputText] = useState('');
   const [chatSearch, setChatSearch] = useState('');
+
+  const [localRequests, setLocalRequests] = useState<PhoneNumberRequest[]>(() => {
+    if (phoneRequests && phoneRequests.length > 0) return phoneRequests;
+    if (typeof window === 'undefined') return [];
+    try {
+      const saved = localStorage.getItem('uk_gateways_phone_requests');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+
+  useEffect(() => {
+    if (phoneRequests && phoneRequests.length > 0) {
+      setLocalRequests(phoneRequests);
+    }
+  }, [phoneRequests]);
+
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'uk_gateways_phone_requests' && e.newValue) {
+        try {
+          setLocalRequests(JSON.parse(e.newValue));
+        } catch {}
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
+  const activePhoneRequests = (phoneRequests && phoneRequests.length > 0) ? phoneRequests : localRequests;
+
+  const handleInternalApprove = (requestId: string) => {
+    const updated = activePhoneRequests.map((r) =>
+      r.id === requestId
+        ? { ...r, status: 'approved' as const, approvedAt: 'Just now' }
+        : r
+    );
+    setLocalRequests(updated);
+    try {
+      localStorage.setItem('uk_gateways_phone_requests', JSON.stringify(updated));
+    } catch {}
+    fetch(`/api/requests/${encodeURIComponent(requestId)}/approve`, { method: 'PUT' }).catch(() => {});
+    if (onApproveRequest) onApproveRequest(requestId);
+  };
+
+  const handleInternalDecline = (requestId: string) => {
+    const updated = activePhoneRequests.map((r) =>
+      r.id === requestId
+        ? { ...r, status: 'declined' as const }
+        : r
+    );
+    setLocalRequests(updated);
+    try {
+      localStorage.setItem('uk_gateways_phone_requests', JSON.stringify(updated));
+    } catch {}
+    fetch(`/api/requests/${encodeURIComponent(requestId)}/decline`, { method: 'PUT' }).catch(() => {});
+    if (onDeclineRequest) onDeclineRequest(requestId);
+  };
 
   // Selected thread
   const currentThread = chatThreads.find((t) => t.id === activeThreadId) || chatThreads[0] || null;
 
   // Pending incoming requests count
-  const pendingIncomingCount = phoneRequests.filter(
+  const pendingIncomingCount = activePhoneRequests.filter(
     (r) => r.isIncomingForUserListing && r.status === 'pending'
   ).length;
 
@@ -220,8 +281,17 @@ export const InboxModal: React.FC<InboxModalProps> = ({
                             </span>
                           </div>
                           <div className="flex items-center gap-1.5 text-[11px] text-emerald-700 dark:text-emerald-400 font-medium mb-1">
-                            <User className="w-3 h-3 flex-shrink-0" />
-                            <span className="truncate">{thread.sellerName}</span>
+                            {hasApprovedAccessRequest(thread.propertyId, currentUser) ? (
+                              <>
+                                <User className="w-3 h-3 flex-shrink-0" />
+                                <span className="truncate">{cleanOwnerName(thread.sellerName)}</span>
+                              </>
+                            ) : (
+                              <>
+                                <ShieldCheck className="w-3 h-3 flex-shrink-0 text-emerald-600" />
+                                <span className="truncate text-slate-600 dark:text-slate-400">Direct Property Owner</span>
+                              </>
+                            )}
                           </div>
                           <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
                             {thread.lastMessage}
@@ -269,7 +339,11 @@ export const InboxModal: React.FC<InboxModalProps> = ({
                         </span>
                         <span>•</span>
                         <span className="font-semibold text-slate-800 dark:text-slate-200">
-                          Owner: {cleanOwnerName(currentThread.sellerName)}
+                          {hasApprovedAccessRequest(currentThread.propertyId, currentUser) ? (
+                            `Owner: ${cleanOwnerName(currentThread.sellerName)}`
+                          ) : (
+                            'Owner: Direct Property Owner (Protected)'
+                          )}
                         </span>
                       </div>
                     </div>
@@ -309,7 +383,7 @@ export const InboxModal: React.FC<InboxModalProps> = ({
                       >
                         <div className="flex items-center gap-1.5 mb-1 px-1">
                           <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
-                            {isBuyer ? 'You' : currentThread.sellerName}
+                            {isBuyer ? 'You' : (hasApprovedAccessRequest(currentThread.propertyId, currentUser) ? cleanOwnerName(currentThread.sellerName) : 'Direct Property Owner')}
                           </span>
                           <span className="text-[9px] text-slate-400 font-mono">
                             {msg.timestamp}
@@ -428,13 +502,13 @@ export const InboxModal: React.FC<InboxModalProps> = ({
                 </h4>
               </div>
 
-              {phoneRequests.filter((r) => r.isIncomingForUserListing).length === 0 ? (
+              {activePhoneRequests.filter((r) => r.isIncomingForUserListing).length === 0 ? (
                 <div className="p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-center text-xs text-slate-500 dark:text-slate-400">
                   No incoming phone access requests for your listings yet. When buyers request your number, they will appear here for your 1-click approval.
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-3">
-                  {phoneRequests
+                  {activePhoneRequests
                     .filter((r) => r.isIncomingForUserListing)
                     .map((req) => (
                       <div 
@@ -471,14 +545,14 @@ export const InboxModal: React.FC<InboxModalProps> = ({
                           {req.status === 'pending' ? (
                             <>
                               <button
-                                onClick={() => onApproveRequest?.(req.id)}
+                                onClick={() => handleInternalApprove(req.id)}
                                 className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
                               >
                                 <Unlock className="w-3.5 h-3.5" />
                                 <span>Approve Access</span>
                               </button>
                               <button
-                                onClick={() => onDeclineRequest?.(req.id)}
+                                onClick={() => handleInternalDecline(req.id)}
                                 className="px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-slate-700 dark:text-slate-300 hover:text-rose-600 text-xs font-semibold transition-colors cursor-pointer"
                               >
                                 Decline
@@ -505,16 +579,16 @@ export const InboxModal: React.FC<InboxModalProps> = ({
             <div className="space-y-3 pt-4 border-t border-emerald-100 dark:border-slate-800">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-2">
                 <Clock className="w-4 h-4 text-emerald-600" />
-                <span>Requests You Sent to Sellers ({phoneRequests.filter(r => !r.isIncomingForUserListing).length})</span>
+                <span>Requests You Sent to Sellers ({activePhoneRequests.filter(r => !r.isIncomingForUserListing).length})</span>
               </h4>
 
-              {phoneRequests.filter((r) => !r.isIncomingForUserListing).length === 0 ? (
+              {activePhoneRequests.filter((r) => !r.isIncomingForUserListing).length === 0 ? (
                 <div className="p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-center text-xs text-slate-500 dark:text-slate-400">
                   You haven't requested any phone numbers yet. When browsing any property, click "Request Phone Number" to ask the owner for direct contact permission.
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-3">
-                  {phoneRequests
+                  {activePhoneRequests
                     .filter((r) => !r.isIncomingForUserListing)
                     .map((req) => (
                       <div 
@@ -532,7 +606,17 @@ export const InboxModal: React.FC<InboxModalProps> = ({
                               {req.propertyTitle}
                             </h5>
                             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                              Owner: <span className="font-semibold text-slate-700 dark:text-slate-300">{cleanOwnerName(req.sellerName)}</span> ({req.propertyCity})
+                              Owner:{' '}
+                              {req.status === 'approved' ? (
+                                <span className="font-semibold text-emerald-700 dark:text-emerald-300">
+                                  {cleanOwnerName(req.sellerName)}
+                                </span>
+                              ) : (
+                                <span className="font-medium text-slate-500 italic">
+                                  Direct Property Owner (Hidden until request is accepted)
+                                </span>
+                              )}{' '}
+                              ({req.propertyCity})
                             </p>
                             <span className="text-[10px] text-slate-400 font-mono">
                               Requested: {req.requestedAt}
@@ -572,7 +656,7 @@ export const InboxModal: React.FC<InboxModalProps> = ({
                               </span>
                               {/* Handy testing button for user */}
                               <button
-                                onClick={() => onApproveRequest?.(req.id)}
+                                onClick={() => handleInternalApprove(req.id)}
                                 className="text-[11px] px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-slate-700 hover:bg-emerald-200 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-slate-600 font-semibold cursor-pointer"
                                 title="Click to simulate owner granting approval"
                               >
