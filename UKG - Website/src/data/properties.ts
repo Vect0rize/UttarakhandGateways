@@ -1,8 +1,39 @@
-import seedProperties from './seed_properties.json';
 import { Property, UttarakhandCity, PropertyCategory } from '../types';
 
-// All online properties removed as requested (Empty catalog)
-export const PROPERTIES: Property[] = (seedProperties as unknown as Property[]) || [];
+// Strict Authentic Marketplace: Zero synthetic/seed properties hardcoded
+export const PROPERTIES: Property[] = [];
+
+/**
+ * Identifies any synthetic, demo, or auto-seeded fake property record so it is never displayed or cached.
+ */
+export function isSyntheticFakeProperty(p: any): boolean {
+  if (!p || typeof p !== 'object') return true;
+  const id = String(p.id || '');
+  const ownerId = String(p.ownerId || '');
+  const ownerContact = String(p.ownerContact || p.sellerEmail || '').toLowerCase();
+  const sellerName = String(p.sellerName || '').toLowerCase();
+  const ownerUsername = String(p.ownerUsername || '').toLowerCase();
+
+  return (
+    id.startsWith('user-prop-2026-') ||
+    id.startsWith('prop-seed-') ||
+    id.startsWith('prop-sale-') ||
+    id.startsWith('prop-rent-') ||
+    id.startsWith('fake-') ||
+    id.startsWith('seed-') ||
+    p.isFake === true ||
+    p.is_fake === true ||
+    p.isSeed === true ||
+    ownerId === 'user-fake-catalog-500' ||
+    ownerId === 'user-1794208094775-78b03b00' ||
+    ownerId === 'user-sunil-joshi-2026' ||
+    ownerContact === 'fakeproperties@uttarakhandgateways.com' ||
+    ownerContact === 'sunil.joshi.uk@gmail.com' ||
+    sellerName === 'ukg demo listings' ||
+    sellerName === 'sunil joshi' ||
+    ownerUsername === 'sunil joshi'
+  );
+}
 
 export const CITIES: UttarakhandCity[] = [
   'Dehradun',

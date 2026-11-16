@@ -7,23 +7,5 @@
     "role": "owner",
     "isOwner": true,
     "createdAt": "2026-10-13T06:00:00.000Z"
-  },
-  {
-    "id": "user-sunil-joshi-2026",
-    "username": "Sunil Joshi",
-    "contact": "sunil.joshi.uk@gmail.com",
-    "passwordHash": "$2b$10$MEwwETJD0fhR.tJ79uVnTe.HZNa3AxrQKLk2vlId1BStuz8CgHcoq",
-    "role": "user",
-    "isOwner": false,
-    "createdAt": "2026-11-09T05:31:30.836Z"
-  },
-  {
-    "id": "user-buyer-ravi",
-    "username": "Ravi Sharma",
-    "contact": "ravi.sharma.buyer@gmail.com",
-    "passwordHash": "$2b$10$xyz",
-    "role": "user",
-    "isOwner": false,
-    "createdAt": "2026-11-15T16:03:15.259Z"
   }
 ]

@@ -257,6 +257,29 @@ class DatabaseService {
           this.dbType = 'postgres';
           this.initialized = true;
 
+          // Automatically purge all synthetic / fake demo properties & demo accounts
+          try {
+            const purgeRes = await client.query(`
+              DELETE FROM ukg_properties
+              WHERE id LIKE 'user-prop-2026-%'
+                 OR id LIKE 'prop-seed-%'
+                 OR id LIKE 'prop-sale-%'
+                 OR id LIKE 'prop-rent-%'
+                 OR id LIKE 'fake-%'
+                 OR id LIKE 'seed-%'
+            `);
+            if (purgeRes.rowCount && purgeRes.rowCount > 0) {
+              console.log(`[UKG DB] Purged ${purgeRes.rowCount} synthetic/fake properties from PostgreSQL.`);
+            }
+            await client.query(`
+              DELETE FROM ukg_users
+              WHERE id IN ('user-fake-catalog-500', 'user-sunil-joshi-2026')
+                 OR contact IN ('fakeproperties@uttarakhandgateways.com', 'sunil.joshi.uk@gmail.com')
+            `);
+          } catch (purgeErr) {
+            console.warn('[UKG DB] PostgreSQL fake property purge warning:', purgeErr);
+          }
+
           const countRes = await client.query('SELECT COUNT(*) FROM ukg_properties');
           const count = parseInt(countRes.rows[0].count, 10);
           if (count === 0) {
@@ -366,6 +389,29 @@ class DatabaseService {
           this.dbType = 'mysql';
           this.initialized = true;
 
+          // Automatically purge all synthetic / fake demo properties & demo accounts
+          try {
+            const [purgeRes]: any = await conn.query(`
+              DELETE FROM ukg_properties
+              WHERE id LIKE 'user-prop-2026-%'
+                 OR id LIKE 'prop-seed-%'
+                 OR id LIKE 'prop-sale-%'
+                 OR id LIKE 'prop-rent-%'
+                 OR id LIKE 'fake-%'
+                 OR id LIKE 'seed-%'
+            `);
+            if (purgeRes?.affectedRows > 0) {
+              console.log(`[UKG DB] Purged ${purgeRes.affectedRows} synthetic/fake properties from MySQL.`);
+            }
+            await conn.query(`
+              DELETE FROM ukg_users
+              WHERE id IN ('user-fake-catalog-500', 'user-sunil-joshi-2026')
+                 OR contact IN ('fakeproperties@uttarakhandgateways.com', 'sunil.joshi.uk@gmail.com')
+            `);
+          } catch (purgeErr) {
+            console.warn('[UKG DB] MySQL fake property purge warning:', purgeErr);
+          }
+
           const [rows]: any = await conn.query('SELECT COUNT(*) as cnt FROM ukg_properties');
           const count = rows[0]?.cnt || 0;
           if (count === 0) {
@@ -386,23 +432,48 @@ class DatabaseService {
     this.dbType = 'file';
     this.initialized = true;
 
-    // Safe one-time initial seeding: only if properties file does not exist or is completely empty
-    if (!fs.existsSync(this.propertiesFilePath) || this.readJsonFile(this.propertiesFilePath).length === 0) {
-      const seedCandidate = fs.existsSync(this.seedFilePath)
-        ? this.seedFilePath
-        : path.join(this.dataDir, 'seed_properties.json');
-      if (fs.existsSync(seedCandidate)) {
-        try {
-          const seeds = this.readJsonFile(seedCandidate);
-          if (seeds.length > 0) {
-            console.log(`[UKG DB] Initializing file database with ${seeds.length} seed properties from ${seedCandidate}`);
-            this.writeJsonFileAtomically(this.propertiesFilePath, seeds);
-          }
-        } catch (seedErr) {
-          console.warn('[UKG DB] Could not initialize from seed file:', seedErr);
+    // Ensure any synthetic/fake properties are stripped from file storage
+    if (fs.existsSync(this.propertiesFilePath)) {
+      try {
+        const existing = this.readJsonFile(this.propertiesFilePath);
+        const filtered = existing.filter((p) => !this.isFakePropertyRecord(p));
+        if (filtered.length !== existing.length) {
+          console.log(`[UKG DB] Purged ${existing.length - filtered.length} synthetic/fake properties from file storage.`);
+          this.writeJsonFileAtomically(this.propertiesFilePath, filtered);
         }
-      }
+      } catch {}
+    } else {
+      this.writeJsonFileAtomically(this.propertiesFilePath, []);
     }
+  }
+
+  public isFakePropertyRecord(p: any): boolean {
+    if (!p || typeof p !== 'object') return true;
+    const id = String(p.id || '');
+    const ownerId = String(p.ownerId || '');
+    const ownerContact = String(p.ownerContact || p.sellerEmail || '').toLowerCase();
+    const sellerName = String(p.sellerName || '').toLowerCase();
+    const ownerUsername = String(p.ownerUsername || '').toLowerCase();
+
+    return (
+      id.startsWith('user-prop-2026-') ||
+      id.startsWith('prop-seed-') ||
+      id.startsWith('prop-sale-') ||
+      id.startsWith('prop-rent-') ||
+      id.startsWith('fake-') ||
+      id.startsWith('seed-') ||
+      p.isFake === true ||
+      p.is_fake === true ||
+      p.isSeed === true ||
+      ownerId === 'user-fake-catalog-500' ||
+      ownerId === 'user-1794208094775-78b03b00' ||
+      ownerId === 'user-sunil-joshi-2026' ||
+      ownerContact === 'fakeproperties@uttarakhandgateways.com' ||
+      ownerContact === 'sunil.joshi.uk@gmail.com' ||
+      sellerName === 'ukg demo listings' ||
+      sellerName === 'sunil joshi' ||
+      ownerUsername === 'sunil joshi'
+    );
   }
 
   public getDatabaseType(): DbType {
@@ -411,15 +482,9 @@ class DatabaseService {
 
   // --- Seeding Helpers ---
   private async seedFromDiskToPg(client: any): Promise<void> {
-    let local = this.readJsonFile(this.propertiesFilePath);
-    if (local.length === 0) {
-      const seedCandidate = fs.existsSync(this.seedFilePath) ? this.seedFilePath : path.join(this.dataDir, 'seed_properties.json');
-      if (fs.existsSync(seedCandidate)) {
-        local = this.readJsonFile(seedCandidate);
-      }
-    }
+    const local = this.readJsonFile(this.propertiesFilePath).filter((p) => !this.isFakePropertyRecord(p));
     if (local.length === 0) return;
-    console.log(`[UKG DB] Seeding ${local.length} initial properties to PostgreSQL...`);
+    console.log(`[UKG DB] Seeding ${local.length} genuine properties to PostgreSQL...`);
     for (const p of local) {
       if (!p || !p.id) continue;
       const json = JSON.stringify(p);
@@ -433,15 +498,9 @@ class DatabaseService {
   }
 
   private async seedFromDiskToMysql(conn: any): Promise<void> {
-    let local = this.readJsonFile(this.propertiesFilePath);
-    if (local.length === 0) {
-      const seedCandidate = fs.existsSync(this.seedFilePath) ? this.seedFilePath : path.join(this.dataDir, 'seed_properties.json');
-      if (fs.existsSync(seedCandidate)) {
-        local = this.readJsonFile(seedCandidate);
-      }
-    }
+    const local = this.readJsonFile(this.propertiesFilePath).filter((p) => !this.isFakePropertyRecord(p));
     if (local.length === 0) return;
-    console.log(`[UKG DB] Seeding ${local.length} initial properties to MySQL...`);
+    console.log(`[UKG DB] Seeding ${local.length} genuine properties to MySQL...`);
     for (const p of local) {
       if (!p || !p.id) continue;
       const json = JSON.stringify(p);
@@ -493,7 +552,9 @@ class DatabaseService {
     if (this.dbType === 'postgres' && this.pgPool) {
       try {
         const res = await this.pgPool.query('SELECT data FROM ukg_properties ORDER BY created_at DESC');
-        return res.rows.map((r) => (typeof r.data === 'string' ? JSON.parse(r.data) : r.data));
+        return res.rows
+          .map((r) => (typeof r.data === 'string' ? JSON.parse(r.data) : r.data))
+          .filter((p) => !this.isFakePropertyRecord(p));
       } catch (err) {
         console.error('[UKG DB] Error fetching properties from PostgreSQL:', err);
       }
@@ -502,24 +563,28 @@ class DatabaseService {
     if (this.dbType === 'mysql' && this.mysqlPool) {
       try {
         const [rows]: any = await this.mysqlPool.query('SELECT data FROM ukg_properties ORDER BY created_at DESC');
-        return rows.map((r: any) => (typeof r.data === 'string' ? JSON.parse(r.data) : r.data));
+        return rows
+          .map((r: any) => (typeof r.data === 'string' ? JSON.parse(r.data) : r.data))
+          .filter((p: any) => !this.isFakePropertyRecord(p));
       } catch (err) {
         console.error('[UKG DB] Error fetching properties from MySQL:', err);
       }
     }
 
-    return this.readJsonFile(this.propertiesFilePath);
+    return this.readJsonFile(this.propertiesFilePath).filter((p) => !this.isFakePropertyRecord(p));
   }
 
   public async getPropertyById(id: string): Promise<any | null> {
     if (!this.initialized) await this.initialize();
+    if (this.isFakePropertyRecord({ id })) return null;
 
     if (this.dbType === 'postgres' && this.pgPool) {
       try {
         const res = await this.pgPool.query('SELECT data FROM ukg_properties WHERE id = $1', [id]);
         if (res.rows.length > 0) {
           const r = res.rows[0];
-          return typeof r.data === 'string' ? JSON.parse(r.data) : r.data;
+          const parsed = typeof r.data === 'string' ? JSON.parse(r.data) : r.data;
+          return this.isFakePropertyRecord(parsed) ? null : parsed;
         }
         return null;
       } catch (err) {
@@ -532,7 +597,8 @@ class DatabaseService {
         const [rows]: any = await this.mysqlPool.query('SELECT data FROM ukg_properties WHERE id = ?', [id]);
         if (rows.length > 0) {
           const r = rows[0];
-          return typeof r.data === 'string' ? JSON.parse(r.data) : r.data;
+          const parsed = typeof r.data === 'string' ? JSON.parse(r.data) : r.data;
+          return this.isFakePropertyRecord(parsed) ? null : parsed;
         }
         return null;
       } catch (err) {
@@ -541,7 +607,8 @@ class DatabaseService {
     }
 
     const all = this.readJsonFile(this.propertiesFilePath);
-    return all.find((p) => p.id === id) || null;
+    const found = all.find((p) => p.id === id) || null;
+    return found && !this.isFakePropertyRecord(found) ? found : null;
   }
 
   public async saveProperty(property: any): Promise<any> {

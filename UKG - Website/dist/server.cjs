@@ -66,6 +66,7 @@ var DatabaseService = class {
     this.resetsFilePath = import_path.default.join(this.dataDir, "password_resets.json");
     this.otpsFilePath = import_path.default.join(this.dataDir, "otps.json");
     this.reportsFilePath = import_path.default.join(this.dataDir, "reports.json");
+    this.requestsFilePath = import_path.default.join(this.dataDir, "requests.json");
     this.revokedSessionsFilePath = import_path.default.join(this.dataDir, "revoked_sessions.json");
     try {
       const revokedList = this.readJsonFile(this.revokedSessionsFilePath);
@@ -177,6 +178,27 @@ var DatabaseService = class {
           console.log("[UKG DB] PostgreSQL schema ready.");
           this.dbType = "postgres";
           this.initialized = true;
+          try {
+            const purgeRes = await client.query(`
+              DELETE FROM ukg_properties
+              WHERE id LIKE 'user-prop-2026-%'
+                 OR id LIKE 'prop-seed-%'
+                 OR id LIKE 'prop-sale-%'
+                 OR id LIKE 'prop-rent-%'
+                 OR id LIKE 'fake-%'
+                 OR id LIKE 'seed-%'
+            `);
+            if (purgeRes.rowCount && purgeRes.rowCount > 0) {
+              console.log(`[UKG DB] Purged ${purgeRes.rowCount} synthetic/fake properties from PostgreSQL.`);
+            }
+            await client.query(`
+              DELETE FROM ukg_users
+              WHERE id IN ('user-fake-catalog-500', 'user-sunil-joshi-2026')
+                 OR contact IN ('fakeproperties@uttarakhandgateways.com', 'sunil.joshi.uk@gmail.com')
+            `);
+          } catch (purgeErr) {
+            console.warn("[UKG DB] PostgreSQL fake property purge warning:", purgeErr);
+          }
           const countRes = await client.query("SELECT COUNT(*) FROM ukg_properties");
           const count = parseInt(countRes.rows[0].count, 10);
           if (count === 0) {
@@ -276,6 +298,27 @@ var DatabaseService = class {
           console.log("[UKG DB] MySQL schema ready.");
           this.dbType = "mysql";
           this.initialized = true;
+          try {
+            const [purgeRes] = await conn.query(`
+              DELETE FROM ukg_properties
+              WHERE id LIKE 'user-prop-2026-%'
+                 OR id LIKE 'prop-seed-%'
+                 OR id LIKE 'prop-sale-%'
+                 OR id LIKE 'prop-rent-%'
+                 OR id LIKE 'fake-%'
+                 OR id LIKE 'seed-%'
+            `);
+            if (purgeRes?.affectedRows > 0) {
+              console.log(`[UKG DB] Purged ${purgeRes.affectedRows} synthetic/fake properties from MySQL.`);
+            }
+            await conn.query(`
+              DELETE FROM ukg_users
+              WHERE id IN ('user-fake-catalog-500', 'user-sunil-joshi-2026')
+                 OR contact IN ('fakeproperties@uttarakhandgateways.com', 'sunil.joshi.uk@gmail.com')
+            `);
+          } catch (purgeErr) {
+            console.warn("[UKG DB] MySQL fake property purge warning:", purgeErr);
+          }
           const [rows] = await conn.query("SELECT COUNT(*) as cnt FROM ukg_properties");
           const count = rows[0]?.cnt || 0;
           if (count === 0) {
@@ -293,35 +336,37 @@ var DatabaseService = class {
     console.log(`[UKG DB] Using persistent file storage at: ${this.propertiesFilePath}`);
     this.dbType = "file";
     this.initialized = true;
-    if (!import_fs.default.existsSync(this.propertiesFilePath) || this.readJsonFile(this.propertiesFilePath).length === 0) {
-      const seedCandidate = import_fs.default.existsSync(this.seedFilePath) ? this.seedFilePath : import_path.default.join(this.dataDir, "seed_properties.json");
-      if (import_fs.default.existsSync(seedCandidate)) {
-        try {
-          const seeds = this.readJsonFile(seedCandidate);
-          if (seeds.length > 0) {
-            console.log(`[UKG DB] Initializing file database with ${seeds.length} seed properties from ${seedCandidate}`);
-            this.writeJsonFileAtomically(this.propertiesFilePath, seeds);
-          }
-        } catch (seedErr) {
-          console.warn("[UKG DB] Could not initialize from seed file:", seedErr);
+    if (import_fs.default.existsSync(this.propertiesFilePath)) {
+      try {
+        const existing = this.readJsonFile(this.propertiesFilePath);
+        const filtered = existing.filter((p) => !this.isFakePropertyRecord(p));
+        if (filtered.length !== existing.length) {
+          console.log(`[UKG DB] Purged ${existing.length - filtered.length} synthetic/fake properties from file storage.`);
+          this.writeJsonFileAtomically(this.propertiesFilePath, filtered);
         }
+      } catch {
       }
+    } else {
+      this.writeJsonFileAtomically(this.propertiesFilePath, []);
     }
+  }
+  isFakePropertyRecord(p) {
+    if (!p || typeof p !== "object") return true;
+    const id = String(p.id || "");
+    const ownerId = String(p.ownerId || "");
+    const ownerContact = String(p.ownerContact || p.sellerEmail || "").toLowerCase();
+    const sellerName = String(p.sellerName || "").toLowerCase();
+    const ownerUsername = String(p.ownerUsername || "").toLowerCase();
+    return id.startsWith("user-prop-2026-") || id.startsWith("prop-seed-") || id.startsWith("prop-sale-") || id.startsWith("prop-rent-") || id.startsWith("fake-") || id.startsWith("seed-") || p.isFake === true || p.is_fake === true || p.isSeed === true || ownerId === "user-fake-catalog-500" || ownerId === "user-1794208094775-78b03b00" || ownerId === "user-sunil-joshi-2026" || ownerContact === "fakeproperties@uttarakhandgateways.com" || ownerContact === "sunil.joshi.uk@gmail.com" || sellerName === "ukg demo listings" || sellerName === "sunil joshi" || ownerUsername === "sunil joshi";
   }
   getDatabaseType() {
     return this.dbType;
   }
   // --- Seeding Helpers ---
   async seedFromDiskToPg(client) {
-    let local = this.readJsonFile(this.propertiesFilePath);
-    if (local.length === 0) {
-      const seedCandidate = import_fs.default.existsSync(this.seedFilePath) ? this.seedFilePath : import_path.default.join(this.dataDir, "seed_properties.json");
-      if (import_fs.default.existsSync(seedCandidate)) {
-        local = this.readJsonFile(seedCandidate);
-      }
-    }
+    const local = this.readJsonFile(this.propertiesFilePath).filter((p) => !this.isFakePropertyRecord(p));
     if (local.length === 0) return;
-    console.log(`[UKG DB] Seeding ${local.length} initial properties to PostgreSQL...`);
+    console.log(`[UKG DB] Seeding ${local.length} genuine properties to PostgreSQL...`);
     for (const p of local) {
       if (!p || !p.id) continue;
       const json = JSON.stringify(p);
@@ -334,15 +379,9 @@ var DatabaseService = class {
     }
   }
   async seedFromDiskToMysql(conn) {
-    let local = this.readJsonFile(this.propertiesFilePath);
-    if (local.length === 0) {
-      const seedCandidate = import_fs.default.existsSync(this.seedFilePath) ? this.seedFilePath : import_path.default.join(this.dataDir, "seed_properties.json");
-      if (import_fs.default.existsSync(seedCandidate)) {
-        local = this.readJsonFile(seedCandidate);
-      }
-    }
+    const local = this.readJsonFile(this.propertiesFilePath).filter((p) => !this.isFakePropertyRecord(p));
     if (local.length === 0) return;
-    console.log(`[UKG DB] Seeding ${local.length} initial properties to MySQL...`);
+    console.log(`[UKG DB] Seeding ${local.length} genuine properties to MySQL...`);
     for (const p of local) {
       if (!p || !p.id) continue;
       const json = JSON.stringify(p);
@@ -389,7 +428,7 @@ var DatabaseService = class {
     if (this.dbType === "postgres" && this.pgPool) {
       try {
         const res = await this.pgPool.query("SELECT data FROM ukg_properties ORDER BY created_at DESC");
-        return res.rows.map((r) => typeof r.data === "string" ? JSON.parse(r.data) : r.data);
+        return res.rows.map((r) => typeof r.data === "string" ? JSON.parse(r.data) : r.data).filter((p) => !this.isFakePropertyRecord(p));
       } catch (err) {
         console.error("[UKG DB] Error fetching properties from PostgreSQL:", err);
       }
@@ -397,21 +436,23 @@ var DatabaseService = class {
     if (this.dbType === "mysql" && this.mysqlPool) {
       try {
         const [rows] = await this.mysqlPool.query("SELECT data FROM ukg_properties ORDER BY created_at DESC");
-        return rows.map((r) => typeof r.data === "string" ? JSON.parse(r.data) : r.data);
+        return rows.map((r) => typeof r.data === "string" ? JSON.parse(r.data) : r.data).filter((p) => !this.isFakePropertyRecord(p));
       } catch (err) {
         console.error("[UKG DB] Error fetching properties from MySQL:", err);
       }
     }
-    return this.readJsonFile(this.propertiesFilePath);
+    return this.readJsonFile(this.propertiesFilePath).filter((p) => !this.isFakePropertyRecord(p));
   }
   async getPropertyById(id) {
     if (!this.initialized) await this.initialize();
+    if (this.isFakePropertyRecord({ id })) return null;
     if (this.dbType === "postgres" && this.pgPool) {
       try {
         const res = await this.pgPool.query("SELECT data FROM ukg_properties WHERE id = $1", [id]);
         if (res.rows.length > 0) {
           const r = res.rows[0];
-          return typeof r.data === "string" ? JSON.parse(r.data) : r.data;
+          const parsed = typeof r.data === "string" ? JSON.parse(r.data) : r.data;
+          return this.isFakePropertyRecord(parsed) ? null : parsed;
         }
         return null;
       } catch (err) {
@@ -423,7 +464,8 @@ var DatabaseService = class {
         const [rows] = await this.mysqlPool.query("SELECT data FROM ukg_properties WHERE id = ?", [id]);
         if (rows.length > 0) {
           const r = rows[0];
-          return typeof r.data === "string" ? JSON.parse(r.data) : r.data;
+          const parsed = typeof r.data === "string" ? JSON.parse(r.data) : r.data;
+          return this.isFakePropertyRecord(parsed) ? null : parsed;
         }
         return null;
       } catch (err) {
@@ -431,7 +473,8 @@ var DatabaseService = class {
       }
     }
     const all = this.readJsonFile(this.propertiesFilePath);
-    return all.find((p) => p.id === id) || null;
+    const found = all.find((p) => p.id === id) || null;
+    return found && !this.isFakePropertyRecord(found) ? found : null;
   }
   async saveProperty(property) {
     if (!this.initialized) await this.initialize();
@@ -1227,6 +1270,103 @@ var DatabaseService = class {
       this.writeJsonFileAtomically(this.reportsFilePath, list);
       return updated;
     });
+  }
+  // =================================================================
+  // PROPERTY LISTER ACCESS REQUESTS
+  // =================================================================
+  async getAllAccessRequests() {
+    if (!this.initialized) await this.initialize();
+    if (this.dbType === "postgres" && this.pgPool) {
+      try {
+        const res = await this.pgPool.query("SELECT data FROM ukg_access_requests ORDER BY created_at DESC");
+        return res.rows.map((r) => typeof r.data === "string" ? JSON.parse(r.data) : r.data);
+      } catch {
+      }
+    }
+    if (this.dbType === "mysql" && this.mysqlPool) {
+      try {
+        const [rows] = await this.mysqlPool.query("SELECT data FROM ukg_access_requests ORDER BY created_at DESC");
+        return rows.map((r) => typeof r.data === "string" ? JSON.parse(r.data) : r.data);
+      } catch {
+      }
+    }
+    return this.readJsonFile(this.requestsFilePath);
+  }
+  async saveAccessRequest(req) {
+    if (!this.initialized) await this.initialize();
+    return this.withLock("access_requests", async () => {
+      const json = JSON.stringify(req);
+      if (this.dbType === "postgres" && this.pgPool) {
+        try {
+          await this.pgPool.query(
+            `INSERT INTO ukg_access_requests (id, property_id, status, data, created_at)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (id) DO UPDATE SET status = $3, data = $4`,
+            [req.id, req.propertyId, req.status, json, req.requestedAt]
+          );
+        } catch {
+        }
+      } else if (this.dbType === "mysql" && this.mysqlPool) {
+        try {
+          await this.mysqlPool.query(
+            `INSERT INTO ukg_access_requests (id, property_id, status, data, created_at)
+             VALUES (?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE status = VALUES(status), data = VALUES(data)`,
+            [req.id, req.propertyId, req.status, json, req.requestedAt]
+          );
+        } catch {
+        }
+      }
+      const requests = this.readJsonFile(this.requestsFilePath).filter((r) => r.id !== req.id);
+      requests.unshift(req);
+      this.writeJsonFileAtomically(this.requestsFilePath, requests);
+      return req;
+    });
+  }
+  async updateAccessRequestStatus(id, status) {
+    if (!this.initialized) await this.initialize();
+    return this.withLock("access_requests", async () => {
+      const all = await this.getAllAccessRequests();
+      const target = all.find((r) => r.id === id);
+      if (!target) return null;
+      const updated = {
+        ...target,
+        status,
+        ...status === "approved" ? { approvedAt: (/* @__PURE__ */ new Date()).toISOString() } : {}
+      };
+      const json = JSON.stringify(updated);
+      if (this.dbType === "postgres" && this.pgPool) {
+        try {
+          await this.pgPool.query("UPDATE ukg_access_requests SET status = $2, data = $3 WHERE id = $1", [id, status, json]);
+        } catch {
+        }
+      } else if (this.dbType === "mysql" && this.mysqlPool) {
+        try {
+          await this.mysqlPool.query("UPDATE ukg_access_requests SET status = ?, data = ? WHERE id = ?", [status, json, id]);
+        } catch {
+        }
+      }
+      const list = this.readJsonFile(this.requestsFilePath).map((r) => r.id === id ? updated : r);
+      this.writeJsonFileAtomically(this.requestsFilePath, list);
+      return updated;
+    });
+  }
+  async getApprovedPropertyIdsForUser(userIdOrContact) {
+    if (!userIdOrContact) return /* @__PURE__ */ new Set();
+    const cleanTarget = String(userIdOrContact).trim().toLowerCase();
+    const all = await this.getAllAccessRequests();
+    const approved = /* @__PURE__ */ new Set();
+    for (const r of all) {
+      if (r.status === "approved") {
+        const rId = String(r.requesterId || "").trim().toLowerCase();
+        const rContact = String(r.requesterContact || "").trim().toLowerCase();
+        const rUser = String(r.requesterUsername || "").trim().toLowerCase();
+        if (rId === cleanTarget || rContact === cleanTarget || rUser === cleanTarget) {
+          approved.add(r.propertyId);
+        }
+      }
+    }
+    return approved;
   }
 };
 var db = new DatabaseService();
@@ -3415,12 +3555,19 @@ app.get("/api/health", async (req, res) => {
     });
   }
 });
-function sanitizePublicProperty(prop, sessionUser) {
+function sanitizePublicProperty(prop, sessionUser, approvedPropertyIds) {
   if (!prop || typeof prop !== "object") return prop;
   if (sessionUser && canUserManageProperty(prop, sessionUser)) {
-    return prop;
+    return { ...prop, isListerNameVisible: true };
   }
-  const { ownerContact, sellerEmail, ...safeProp } = prop;
+  if (approvedPropertyIds && approvedPropertyIds.has(prop.id)) {
+    const { ownerContact: ownerContact2, sellerEmail: sellerEmail2, ...safeProp2 } = prop;
+    return { ...safeProp2, isListerNameVisible: true };
+  }
+  const isBroker = prop.sellerType === "Broker";
+  const { ownerContact, sellerEmail, sellerPhone, ownerUsername, ...safeProp } = prop;
+  safeProp.sellerName = isBroker ? "Verified Broker" : "Direct Property Owner";
+  safeProp.isListerNameVisible = false;
   return safeProp;
 }
 app.get("/api/properties", async (req, res) => {
@@ -3432,10 +3579,15 @@ app.get("/api/properties", async (req, res) => {
   });
   try {
     const sessionUser = await getSessionUser(req).catch(() => null);
+    let approvedSet;
+    if (sessionUser) {
+      const userTarget = sessionUser.id || sessionUser.contact || sessionUser.username;
+      approvedSet = await db.getApprovedPropertyIdsForUser(userTarget);
+    }
     const list = await db.getAllProperties();
     res.json({
       success: true,
-      properties: list.map((p) => sanitizePublicProperty(p, sessionUser))
+      properties: list.map((p) => sanitizePublicProperty(p, sessionUser, approvedSet))
     });
   } catch (err) {
     console.error("Error fetching properties from db:", err);
@@ -3485,13 +3637,18 @@ app.get("/api/properties/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const sessionUser = await getSessionUser(req).catch(() => null);
+    let approvedSet;
+    if (sessionUser) {
+      const userTarget = sessionUser.id || sessionUser.contact || sessionUser.username;
+      approvedSet = await db.getApprovedPropertyIdsForUser(userTarget);
+    }
     let prop = await db.getPropertyById(id);
     if (!prop) {
       const allProps = await db.getAllProperties();
       prop = findPropertyBySlugOrId(id, allProps);
     }
     if (prop) {
-      return res.json({ success: true, property: sanitizePublicProperty(prop, sessionUser) });
+      return res.json({ success: true, property: sanitizePublicProperty(prop, sessionUser, approvedSet) });
     }
     return res.status(404).json({ success: false, error: "Property not found" });
   } catch (err) {
@@ -3757,9 +3914,163 @@ app.post("/api/properties/:id/inquiry", async (req, res) => {
   try {
     const { id } = req.params;
     const updated = await db.incrementPropertyMetric(id, "inquiries");
+    if (req.body?.type === "phone_access_request") {
+      try {
+        const sessionUser = await getSessionUser(req).catch(() => null);
+        let prop = await db.getPropertyById(id);
+        if (!prop) {
+          const all = await db.getAllProperties();
+          prop = findPropertyBySlugOrId(id, all);
+        }
+        if (prop && sessionUser) {
+          const accessReq = {
+            id: `req-${Date.now()}-${import_crypto2.default.randomBytes(3).toString("hex")}`,
+            propertyId: prop.id,
+            propertyTitle: prop.title,
+            propertyCity: prop.city,
+            propertyImage: prop.images?.[0] || "",
+            listerId: prop.ownerId,
+            listerUsername: prop.ownerUsername,
+            listerContact: prop.ownerContact || prop.sellerPhone,
+            listerName: prop.sellerName || prop.ownerUsername || "Direct Property Owner",
+            listerPhone: prop.sellerPhone || "",
+            requesterId: sessionUser.id,
+            requesterUsername: sessionUser.username,
+            requesterContact: sessionUser.contact,
+            requesterName: sessionUser.username,
+            requesterNote: req.body?.requesterNote || "",
+            status: "pending",
+            requestedAt: (/* @__PURE__ */ new Date()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+          };
+          await db.saveAccessRequest(accessReq);
+        }
+      } catch {
+      }
+    }
     res.json({ success: true, inquiries: updated?.inquiries || 1 });
   } catch (err) {
     res.status(500).json({ success: false, error: err?.message });
+  }
+});
+app.post("/api/requests", async (req, res) => {
+  try {
+    const sessionUser = await getSessionUser(req);
+    if (!sessionUser) {
+      return res.status(401).json({ success: false, error: "Please sign in to request lister details." });
+    }
+    const { propertyId, requesterNote } = req.body || {};
+    if (!propertyId || typeof propertyId !== "string") {
+      return res.status(400).json({ success: false, error: "propertyId is required." });
+    }
+    let prop = await db.getPropertyById(propertyId);
+    if (!prop) {
+      const all = await db.getAllProperties();
+      prop = findPropertyBySlugOrId(propertyId, all);
+    }
+    if (!prop) {
+      return res.status(404).json({ success: false, error: "Property not found." });
+    }
+    const allRequests = await db.getAllAccessRequests();
+    const existing = allRequests.find(
+      (r) => r.propertyId === prop.id && (r.requesterId === sessionUser.id || r.requesterContact === sessionUser.contact || r.requesterUsername === sessionUser.username)
+    );
+    if (existing) {
+      return res.json({ success: true, request: existing, message: "Request already submitted." });
+    }
+    const accessReq = {
+      id: `req-${Date.now()}-${import_crypto2.default.randomBytes(3).toString("hex")}`,
+      propertyId: prop.id,
+      propertyTitle: prop.title,
+      propertyCity: prop.city,
+      propertyImage: prop.images?.[0] || "",
+      listerId: prop.ownerId,
+      listerUsername: prop.ownerUsername,
+      listerContact: prop.ownerContact || prop.sellerPhone,
+      listerName: prop.sellerName || prop.ownerUsername || "Direct Property Owner",
+      listerPhone: prop.sellerPhone || "",
+      requesterId: sessionUser.id,
+      requesterUsername: sessionUser.username,
+      requesterContact: sessionUser.contact,
+      requesterName: sessionUser.username,
+      requesterNote: typeof requesterNote === "string" ? requesterNote.slice(0, 300) : "",
+      status: "pending",
+      requestedAt: (/* @__PURE__ */ new Date()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    };
+    const saved = await db.saveAccessRequest(accessReq);
+    res.json({ success: true, request: saved });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err?.message || "Failed to submit request." });
+  }
+});
+app.get("/api/requests", async (req, res) => {
+  try {
+    const sessionUser = await getSessionUser(req);
+    if (!sessionUser) {
+      return res.status(401).json({ success: false, error: "Authentication required." });
+    }
+    const all = await db.getAllAccessRequests();
+    const userId = sessionUser.id;
+    const userContact = (sessionUser.contact || "").trim().toLowerCase();
+    const username = (sessionUser.username || "").trim().toLowerCase();
+    const incoming = all.filter((r) => {
+      const lid = (r.listerId || "").trim();
+      const lcontact = (r.listerContact || "").trim().toLowerCase();
+      const luser = (r.listerUsername || "").trim().toLowerCase();
+      return userId && lid === userId || userContact && lcontact === userContact || username && luser === username;
+    });
+    const outgoing = all.filter((r) => {
+      const rid = (r.requesterId || "").trim();
+      const rcontact = (r.requesterContact || "").trim().toLowerCase();
+      const ruser = (r.requesterUsername || "").trim().toLowerCase();
+      return userId && rid === userId || userContact && rcontact === userContact || username && ruser === username;
+    });
+    res.json({ success: true, incoming, outgoing });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err?.message || "Failed to fetch requests." });
+  }
+});
+app.put("/api/requests/:id/approve", async (req, res) => {
+  try {
+    const sessionUser = await getSessionUser(req);
+    if (!sessionUser) {
+      return res.status(401).json({ success: false, error: "Authentication required." });
+    }
+    const { id } = req.params;
+    const all = await db.getAllAccessRequests();
+    const target = all.find((r) => r.id === id);
+    if (!target) {
+      return res.status(404).json({ success: false, error: "Request not found." });
+    }
+    const isOwner = sessionUser.isOwner || sessionUser.role === "admin" || target.listerId && target.listerId === sessionUser.id || target.listerContact && target.listerContact.toLowerCase() === (sessionUser.contact || "").toLowerCase() || target.listerUsername && target.listerUsername.toLowerCase() === (sessionUser.username || "").toLowerCase();
+    if (!isOwner) {
+      return res.status(403).json({ success: false, error: "Only the property lister can approve this request." });
+    }
+    const updated = await db.updateAccessRequestStatus(id, "approved");
+    res.json({ success: true, request: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err?.message || "Failed to approve request." });
+  }
+});
+app.put("/api/requests/:id/decline", async (req, res) => {
+  try {
+    const sessionUser = await getSessionUser(req);
+    if (!sessionUser) {
+      return res.status(401).json({ success: false, error: "Authentication required." });
+    }
+    const { id } = req.params;
+    const all = await db.getAllAccessRequests();
+    const target = all.find((r) => r.id === id);
+    if (!target) {
+      return res.status(404).json({ success: false, error: "Request not found." });
+    }
+    const isOwner = sessionUser.isOwner || sessionUser.role === "admin" || target.listerId && target.listerId === sessionUser.id || target.listerContact && target.listerContact.toLowerCase() === (sessionUser.contact || "").toLowerCase() || target.listerUsername && target.listerUsername.toLowerCase() === (sessionUser.username || "").toLowerCase();
+    if (!isOwner) {
+      return res.status(403).json({ success: false, error: "Only the property lister can decline this request." });
+    }
+    const updated = await db.updateAccessRequestStatus(id, "declined");
+    res.json({ success: true, request: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err?.message || "Failed to decline request." });
   }
 });
 app.post("/api/properties/clear-all", async (req, res) => {

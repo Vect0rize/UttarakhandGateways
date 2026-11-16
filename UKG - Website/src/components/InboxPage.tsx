@@ -37,6 +37,7 @@ import { UserProfileModal } from './UserProfileModal';
 import { SeoKeywordsSection } from './SeoKeywordsSection';
 import type { AppPageRouteKey } from '../data/seoMetadata';
 import { hasApprovedAccessRequest } from '../utils/propertyOwnership';
+import { isSyntheticFakeProperty } from '../data/properties';
 
 interface InboxPageProps {
   onBackToMarketplace?: () => void;
@@ -83,7 +84,7 @@ export const InboxPage: React.FC<InboxPageProps> = ({
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.filter((p: Property) => p.id && p.id.startsWith('user-prop-'));
+          return parsed.filter((p: Property) => p.id && !isSyntheticFakeProperty(p));
         }
       }
     } catch {}

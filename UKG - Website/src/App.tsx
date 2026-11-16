@@ -1,6 +1,6 @@
 import React, { Suspense, lazy, useState, useMemo, useEffect } from 'react';
 import { Property, FilterState } from './types';
-import { PROPERTIES } from './data/properties';
+import { PROPERTIES, isSyntheticFakeProperty } from './data/properties';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { SearchBar } from './components/SearchBar';
@@ -330,7 +330,8 @@ export default function App() {
   const [favorites, setFavorites] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('uk_gateways_favorites');
-      return saved ? JSON.parse(saved) : [];
+      const parsed: string[] = saved ? JSON.parse(saved) : [];
+      return Array.isArray(parsed) ? parsed.filter((id) => !isSyntheticFakeProperty({ id })) : [];
     } catch {
       return [];
     }
@@ -495,14 +496,29 @@ export default function App() {
   useEffect(() => {
     let active = true;
 
+    // Purge any stale fake properties cached in localStorage on startup
+    try {
+      const cachedRaw = localStorage.getItem('uk_gateways_uploaded_properties');
+      if (cachedRaw) {
+        const cachedList = JSON.parse(cachedRaw);
+        if (Array.isArray(cachedList)) {
+          const cleanCached = cachedList.filter((p) => !isSyntheticFakeProperty(p));
+          if (cleanCached.length !== cachedList.length) {
+            localStorage.setItem('uk_gateways_uploaded_properties', JSON.stringify(cleanCached));
+          }
+        }
+      }
+    } catch {}
+
     const refreshFromServer = async () => {
       try {
         const res = await fetch('/api/properties', { cache: 'no-store' });
         if (!res.ok) return;
         const data = await res.json();
-        const serverProps: Property[] = Array.isArray(data)
+        const rawProps: Property[] = Array.isArray(data)
           ? data
           : (Array.isArray(data.properties) ? data.properties : []);
+        const serverProps = rawProps.filter((p) => !isSyntheticFakeProperty(p));
         if (active) {
           setProperties((prev) => {
             if (prev.length === serverProps.length && JSON.stringify(prev) === JSON.stringify(serverProps)) {
