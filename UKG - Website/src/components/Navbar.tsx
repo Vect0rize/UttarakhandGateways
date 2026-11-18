@@ -410,23 +410,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>{isHindi ? 'ऐप डाउनलोड करें' : 'Download App'}</span>
             </a>
 
-            {/* Unified Menu Button across all screens */}
+            {/* Unified Menu Button across all screens — Just 3 Lines */}
             <button
               id="main-nav-menu-btn"
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className={`flex items-center justify-center p-2 sm:p-2.5 rounded-full border transition-all shadow-xs active:scale-95 cursor-pointer select-none ${
-                mobileMenuOpen
-                  ? 'bg-emerald-600 text-white border-emerald-500 shadow-emerald-700/20'
-                  : 'bg-emerald-50/90 dark:bg-[#0a271d] hover:bg-emerald-100 dark:hover:bg-[#0f3427] text-slate-800 dark:text-emerald-100 border-emerald-300/80 dark:border-emerald-800'
-              }`}
+              className="flex items-center justify-center p-1.5 sm:p-2 rounded-lg hover:bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 transition-colors active:scale-95 cursor-pointer select-none"
               aria-label="Toggle Navigation Menu"
               title={isHindi ? "मेनू" : "Menu"}
             >
               {mobileMenuOpen ? (
-                <X className="w-5 h-5 text-current transition-transform duration-200" />
+                <X className="w-6 h-6 text-current stroke-[2.25] transition-transform duration-200" />
               ) : (
-                <Menu className="w-5 h-5 text-emerald-700 dark:text-emerald-400" />
+                <Menu className="w-6 h-6 text-emerald-700 dark:text-emerald-400 stroke-[2.25]" />
               )}
             </button>
 

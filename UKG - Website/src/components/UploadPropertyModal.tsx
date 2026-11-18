@@ -249,19 +249,11 @@ export const UploadPropertyModal: React.FC<UploadPropertyModalProps> = ({
   const currentUnitConversion = AREA_UNITS.find((u) => u.value === areaUnit)?.toSqFt || 1;
   const numericAreaSqFt = Math.round(enteredAreaNum * currentUnitConversion);
 
-  // Automatically calculate rate per unit whenever total price, area value, or unit changes
-  useEffect(() => {
-    const totalNum = parseFloat(totalPriceInput);
-    const areaNum = parseFloat(areaValue);
-    if (!isNaN(totalNum) && totalNum > 0 && !isNaN(areaNum) && areaNum > 0) {
-      const calculatedRate = Math.round(totalNum / areaNum);
-      setRatePerUnitInput(calculatedRate.toString());
-    } else if (!totalPriceInput.trim()) {
-      setRatePerUnitInput('');
-    }
-  }, [totalPriceInput, areaValue, areaUnit]);
+  const ratePerUnitInputRef = useRef<HTMLInputElement>(null);
+  const [lastPriceSource, setLastPriceSource] = useState<'total' | 'rate'>('total');
 
   const handleTotalPriceChange = (val: string) => {
+    setLastPriceSource('total');
     setTotalPriceInput(val);
     const totalNum = parseFloat(val);
     const areaNum = parseFloat(areaValue);
@@ -276,29 +268,48 @@ export const UploadPropertyModal: React.FC<UploadPropertyModalProps> = ({
   const handleAreaValueChange = (val: string) => {
     setAreaValue(val);
     const areaNum = parseFloat(val);
-    const totalNum = parseFloat(totalPriceInput);
-    if (!isNaN(totalNum) && totalNum > 0 && !isNaN(areaNum) && areaNum > 0) {
-      const autoRate = Math.round(totalNum / areaNum);
-      setRatePerUnitInput(autoRate.toString());
+    if (!isNaN(areaNum) && areaNum > 0) {
+      if (lastPriceSource === 'rate') {
+        const rateNum = parseFloat(ratePerUnitInput);
+        if (!isNaN(rateNum) && rateNum > 0) {
+          setTotalPriceInput(Math.round(rateNum * areaNum).toString());
+        }
+      } else {
+        const totalNum = parseFloat(totalPriceInput);
+        if (!isNaN(totalNum) && totalNum > 0) {
+          setRatePerUnitInput(Math.round(totalNum / areaNum).toString());
+        }
+      }
     }
   };
 
   const handleAreaUnitChange = (newUnit: AreaUnit) => {
     setAreaUnit(newUnit);
-    const totalNum = parseFloat(totalPriceInput);
     const areaNum = parseFloat(areaValue);
-    if (!isNaN(totalNum) && totalNum > 0 && !isNaN(areaNum) && areaNum > 0) {
-      const autoRate = Math.round(totalNum / areaNum);
-      setRatePerUnitInput(autoRate.toString());
+    if (!isNaN(areaNum) && areaNum > 0) {
+      if (lastPriceSource === 'rate') {
+        const rateNum = parseFloat(ratePerUnitInput);
+        if (!isNaN(rateNum) && rateNum > 0) {
+          setTotalPriceInput(Math.round(rateNum * areaNum).toString());
+        }
+      } else {
+        const totalNum = parseFloat(totalPriceInput);
+        if (!isNaN(totalNum) && totalNum > 0) {
+          setRatePerUnitInput(Math.round(totalNum / areaNum).toString());
+        }
+      }
     }
   };
 
   const handleRatePerUnitChange = (val: string) => {
+    setLastPriceSource('rate');
     setRatePerUnitInput(val);
     const numRate = parseFloat(val);
     const areaNum = parseFloat(areaValue);
     if (!isNaN(numRate) && numRate > 0 && !isNaN(areaNum) && areaNum > 0) {
       setTotalPriceInput(Math.round(numRate * areaNum).toString());
+    } else if (!val.trim()) {
+      setTotalPriceInput('');
     }
   };
 
@@ -970,13 +981,18 @@ export const UploadPropertyModal: React.FC<UploadPropertyModalProps> = ({
                       <label className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
                         {isHindi ? `दर प्रति ${getAreaUnitShortLabel(areaUnit, true)}` : `Rate Per ${getAreaUnitShortLabel(areaUnit, false)}`}
                       </label>
-                      <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-bold bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded-md border border-emerald-300 dark:border-emerald-800">
-                        Auto-calculated
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => ratePerUnitInputRef.current?.focus()}
+                        className="text-[10px] text-emerald-700 dark:text-emerald-300 font-bold bg-emerald-50 dark:bg-emerald-950 hover:bg-emerald-100 dark:hover:bg-emerald-900 px-2 py-0.5 rounded-md border border-emerald-300 dark:border-emerald-800 cursor-pointer"
+                      >
+                        {isHindi ? 'ऑटो कैलकुलेट' : 'Auto Calculate'}
+                      </button>
                     </div>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">₹</span>
                       <input
+                        ref={ratePerUnitInputRef}
                         type="number"
                         value={ratePerUnitInput}
                         onChange={(e) => handleRatePerUnitChange(e.target.value)}

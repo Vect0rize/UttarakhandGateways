@@ -223,12 +223,53 @@ export const PropertyCalculator: React.FC<PropertyCalculatorProps> = ({
   const [toUnit, setToUnit] = useState<LandUnitKey>('gaj');
   const [copiedFormula, setCopiedFormula] = useState(false);
 
+  // Auto Price Calculator State (Value per Unit <-> Total Price)
+  const [showAutoPriceCalc, setShowAutoPriceCalc] = useState(false);
+  const [valuePerUnit, setValuePerUnit] = useState<string>('');
+  const [totalPriceCalc, setTotalPriceCalc] = useState<string>('');
+  const [priceCalcSource, setPriceCalcSource] = useState<'rate' | 'total'>('rate');
+
   // Unit calculations
   const fromUnitObj = LAND_UNITS.find((u) => u.key === fromUnit) || LAND_UNITS[0];
   const toUnitObj = LAND_UNITS.find((u) => u.key === toUnit) || LAND_UNITS[1];
 
   const currentSqFtBase = (inputValue || 0) * fromUnitObj.sqFtMultiplier;
   const convertedResult = currentSqFtBase / toUnitObj.sqFtMultiplier;
+
+  const handleInputQuantityChange = (nextQty: number) => {
+    setInputValue(nextQty);
+    if (nextQty > 0) {
+      if (priceCalcSource === 'rate') {
+        const r = parseFloat(valuePerUnit);
+        if (!isNaN(r) && r > 0) setTotalPriceCalc(Math.round(r * nextQty).toString());
+      } else {
+        const t = parseFloat(totalPriceCalc);
+        if (!isNaN(t) && t > 0) setValuePerUnit(Math.round(t / nextQty).toString());
+      }
+    }
+  };
+
+  const handleValuePerUnitChange = (val: string) => {
+    setPriceCalcSource('rate');
+    setValuePerUnit(val);
+    const r = parseFloat(val);
+    if (!isNaN(r) && r > 0 && inputValue > 0) {
+      setTotalPriceCalc(Math.round(r * inputValue).toString());
+    } else if (!val.trim()) {
+      setTotalPriceCalc('');
+    }
+  };
+
+  const handleTotalPriceCalcChange = (val: string) => {
+    setPriceCalcSource('total');
+    setTotalPriceCalc(val);
+    const t = parseFloat(val);
+    if (!isNaN(t) && t > 0 && inputValue > 0) {
+      setValuePerUnit(Math.round(t / inputValue).toString());
+    } else if (!val.trim()) {
+      setValuePerUnit('');
+    }
+  };
 
   // Swap Units
   const handleSwapUnits = () => {
@@ -298,7 +339,7 @@ export const PropertyCalculator: React.FC<PropertyCalculatorProps> = ({
                   min="0"
                   step="any"
                   value={inputValue || ''}
-                  onChange={(e) => setInputValue(Math.max(0, parseFloat(e.target.value) || 0))}
+                  onChange={(e) => handleInputQuantityChange(Math.max(0, parseFloat(e.target.value) || 0))}
                   className="w-1/2 px-3.5 py-3 text-base font-black rounded-xl border border-slate-300 dark:border-emerald-700/70 bg-white dark:bg-[#04160f] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-xs"
                   placeholder="1"
                 />
@@ -383,6 +424,18 @@ export const PropertyCalculator: React.FC<PropertyCalculatorProps> = ({
               </span>
               <button
                 type="button"
+                onClick={() => setShowAutoPriceCalc((prev) => !prev)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 shadow-xs ${
+                  showAutoPriceCalc
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-emerald-100 dark:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-200 dark:hover:bg-emerald-800'
+                }`}
+              >
+                <Calculator className="w-3.5 h-3.5" />
+                <span>{isHindi ? 'ऑटो कीमत कैलकुलेट' : 'Auto Calculate Price'}</span>
+              </button>
+              <button
+                type="button"
                 onClick={handleCopyResult}
                 className="px-2.5 py-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-200 dark:hover:bg-emerald-800 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
                 title="Copy conversion formula"
@@ -401,6 +454,72 @@ export const PropertyCalculator: React.FC<PropertyCalculatorProps> = ({
               </button>
             </div>
           </div>
+
+          {showAutoPriceCalc && (
+            <div className="mt-4 p-4 rounded-xl bg-emerald-50/90 dark:bg-[#051a12] border border-emerald-200 dark:border-emerald-800/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5">
+                  <Calculator className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <span>
+                    {isHindi
+                      ? `प्रति ${fromUnitObj.hindiLabel} मूल्य लिखें — कुल कीमत ऑटो-कैलकुलेट होगी`
+                      : `Enter Value per ${fromUnitObj.label.split(' (')[0]} — Auto-Calculates Total Price`}
+                  </span>
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-emerald-200 mb-1">
+                    {isHindi
+                      ? `मूल्य प्रति ${fromUnitObj.hindiLabel} (₹):`
+                      : `Value per ${fromUnitObj.label.split(' (')[0]} (₹):`}
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-600 font-bold text-sm">₹</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={valuePerUnit}
+                      onChange={(e) => handleValuePerUnitChange(e.target.value)}
+                      placeholder={isHindi ? 'जैसे 25000' : 'e.g. 25000'}
+                      className="w-full pl-8 pr-3.5 py-2.5 rounded-xl border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-[#04160f] text-sm font-black text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-slate-700 dark:text-emerald-200">
+                      {isHindi ? 'ऑटो-कैलकुलेटेड कुल कीमत (₹):' : 'Auto-Calculated Total Price (₹):'}
+                    </label>
+                    {Number(totalPriceCalc) > 0 && (
+                      <span className="text-[11px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-white dark:bg-emerald-950 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                        {Number(totalPriceCalc) >= 10000000
+                          ? `₹${(Number(totalPriceCalc) / 10000000).toFixed(2)} Cr`
+                          : Number(totalPriceCalc) >= 100000
+                          ? `₹${(Number(totalPriceCalc) / 100000).toFixed(2)} Lakh`
+                          : `₹${Number(totalPriceCalc).toLocaleString('en-IN')}`}
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-600 font-bold text-sm">₹</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={totalPriceCalc}
+                      onChange={(e) => handleTotalPriceCalcChange(e.target.value)}
+                      placeholder={isHindi ? 'कुल कीमत' : 'Total Price'}
+                      className="w-full pl-8 pr-3.5 py-2.5 rounded-xl border-2 border-emerald-500/70 bg-white dark:bg-[#04160f] text-sm font-black text-emerald-950 dark:text-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
         </div>
       </div>

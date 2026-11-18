@@ -398,16 +398,16 @@ export const InboxPage: React.FC<InboxPageProps> = ({
             {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-emerald-700" />}
           </button>
 
-          {/* Menu Option Dropdown in Inbox */}
+          {/* Menu Option Dropdown in Inbox — Just 3 Lines */}
           <div className="relative">
             <button
               type="button"
               onClick={() => setMenuOpen(!menuOpen)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition-all cursor-pointer select-none"
+              className="flex items-center justify-center p-1.5 sm:p-2 rounded-lg hover:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 transition-colors active:scale-95 cursor-pointer select-none"
               aria-label="Toggle Menu"
+              title={t('nav.menu')}
             >
-              {menuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
-              <span>{t('nav.menu')}</span>
+              {menuOpen ? <X className="w-6 h-6 stroke-[2.25]" /> : <Menu className="w-6 h-6 stroke-[2.25]" />}
             </button>
 
             {menuOpen && (
