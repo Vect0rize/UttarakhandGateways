@@ -970,7 +970,7 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
         preferredTenants: transactionType === 'rent' ? tenantPreferences : undefined,
         createdAt: property?.createdAt || new Date().toISOString(),
         postedAt: property?.postedAt || 'Just now',
-        views: property?.views ?? 1,
+        views: property?.views ?? 0,
         shares: property?.shares ?? 0,
         inquiries: property?.inquiries ?? 0,
       };

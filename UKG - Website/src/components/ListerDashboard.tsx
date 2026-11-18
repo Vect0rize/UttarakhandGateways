@@ -380,9 +380,9 @@ export const ListerDashboard: React.FC<ListerDashboardProps> = ({
           ) : (
             <div className="space-y-3.5">
               {filteredList.map((prop) => {
-                const propViews = prop.views || Math.max(24, Math.floor(((prop.price || 500000) % 1000) / 4) + 32);
-                const propInquiries = prop.inquiries || Math.max(3, Math.floor(propViews / 7));
-                const propShares = prop.shares || Math.max(2, Math.floor(propViews / 10));
+                const propViews = Math.max(0, Math.floor(Number(prop.views) || 0));
+                const propInquiries = Math.max(0, Math.floor(Number(prop.inquiries) || 0));
+                const propShares = Math.max(0, Math.floor(Number(prop.shares) || 0));
 
                 return (
                   <div

@@ -12,6 +12,7 @@ export type AppPageRouteKey =
   | 'register'
   | 'inbox'
   | 'dashboard'
+  | 'admin'
   | 'about'
   | 'contact'
   | 'privacy'
@@ -82,6 +83,7 @@ export const ROUTE_PATH_MAP: Record<
   register: '/register',
   inbox: '/inbox',
   dashboard: '/dashboard',
+  admin: '/admin',
 };
 
 export interface PageSeoMetadata {
@@ -253,6 +255,13 @@ export function getPageSeoMeta(
           'The requested page or property listing could not be found. Browse active properties across Dehradun, Rishikesh, Haridwar, Nainital & Uttarakhand.',
         keywords: 'uttarakhand gateways 404, browse uttarakhand properties',
         canonicalPath: '/properties-in-uttarakhand',
+      };
+    case 'admin':
+      return {
+        title: 'Admin Dashboard | Uttarakhand Gateways',
+        description: 'Uttarakhand Gateways Platform Administration Console.',
+        keywords: 'uttarakhand gateways admin',
+        canonicalPath: '/admin',
       };
     case 'home':
     default:

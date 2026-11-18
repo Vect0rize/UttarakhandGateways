@@ -26,11 +26,24 @@ export interface DbUser {
   passwordHash: string; // bcrypt hash
   role?: 'user' | 'owner' | 'admin';
   avatar?: string;
+  phone?: string;
+  notes?: string;
   isOwner?: boolean;
+  isSuspended?: boolean;
+  suspendedAt?: string;
+  suspendedReason?: string;
   usernameChangeTimestamps?: number[];
   createdAt?: string;
   updatedAt?: string;
   data?: string;
+}
+
+export interface PlatformSettings {
+  enabledCategories: string[];
+  requireApprovalForNewListings: boolean;
+  showFeaturedSection: boolean;
+  featuredMode: 'manual_and_top' | 'manual_only';
+  updatedAt?: string;
 }
 
 export interface DbReport {
@@ -106,6 +119,8 @@ class DatabaseService {
   private otpsFilePath: string;
   private reportsFilePath: string;
   private requestsFilePath: string;
+  private viewsFilePath: string;
+  private settingsFilePath: string;
   private revokedSessionsFilePath: string;
   private revokedTokens = new Set<string>();
   private writeLocks = new Map<string, Promise<unknown>>();
@@ -152,6 +167,8 @@ class DatabaseService {
     this.otpsFilePath = path.join(this.dataDir, 'otps.json');
     this.reportsFilePath = path.join(this.dataDir, 'reports.json');
     this.requestsFilePath = path.join(this.dataDir, 'requests.json');
+    this.viewsFilePath = path.join(this.dataDir, 'property_views.json');
+    this.settingsFilePath = path.join(this.dataDir, 'platform_settings.json');
     this.revokedSessionsFilePath = path.join(this.dataDir, 'revoked_sessions.json');
     try {
       const revokedList = this.readJsonFile(this.revokedSessionsFilePath);
@@ -250,6 +267,32 @@ class DatabaseService {
               status VARCHAR(50) DEFAULT 'open',
               data TEXT NOT NULL,
               created_at VARCHAR(100)
+            );
+          `);
+
+          await client.query(`
+            CREATE TABLE IF NOT EXISTS ukg_access_requests (
+              id VARCHAR(255) PRIMARY KEY,
+              property_id VARCHAR(255) NOT NULL,
+              status VARCHAR(50) DEFAULT 'pending',
+              data TEXT NOT NULL,
+              created_at VARCHAR(100)
+            );
+          `);
+
+          await client.query(`
+            CREATE TABLE IF NOT EXISTS ukg_property_views (
+              view_key VARCHAR(255) PRIMARY KEY,
+              property_id VARCHAR(255) NOT NULL,
+              created_at BIGINT NOT NULL
+            );
+          `);
+
+          await client.query(`
+            CREATE TABLE IF NOT EXISTS ukg_settings (
+              id VARCHAR(100) PRIMARY KEY,
+              data TEXT NOT NULL,
+              updated_at VARCHAR(100)
             );
           `);
 
@@ -382,6 +425,32 @@ class DatabaseService {
               status VARCHAR(50) DEFAULT 'open',
               data LONGTEXT NOT NULL,
               created_at VARCHAR(100)
+            );
+          `);
+
+          await conn.query(`
+            CREATE TABLE IF NOT EXISTS ukg_access_requests (
+              id VARCHAR(255) PRIMARY KEY,
+              property_id VARCHAR(255) NOT NULL,
+              status VARCHAR(50) DEFAULT 'pending',
+              data LONGTEXT NOT NULL,
+              created_at VARCHAR(100)
+            );
+          `);
+
+          await conn.query(`
+            CREATE TABLE IF NOT EXISTS ukg_property_views (
+              view_key VARCHAR(255) PRIMARY KEY,
+              property_id VARCHAR(255) NOT NULL,
+              created_at BIGINT NOT NULL
+            );
+          `);
+
+          await conn.query(`
+            CREATE TABLE IF NOT EXISTS ukg_settings (
+              id VARCHAR(100) PRIMARY KEY,
+              data LONGTEXT NOT NULL,
+              updated_at VARCHAR(100)
             );
           `);
 
@@ -716,6 +785,76 @@ class DatabaseService {
       const current = typeof existing[metric] === 'number' ? existing[metric] : 0;
       const nextVal = current + 1;
       return await this.updatePropertyUnlocked(id, { [metric]: nextVal });
+    });
+  }
+
+  public async recordUniquePropertyView(
+    propertyId: string,
+    viewerFingerprint: string,
+    windowMs: number = 6 * 60 * 60 * 1000
+  ): Promise<{ counted: boolean; views: number } | null> {
+    if (!this.initialized) await this.initialize();
+    return this.withLock('properties', async () => {
+      const existing = await this.getPropertyById(propertyId);
+      if (!existing) return null;
+
+      const currentViews = Math.max(0, Math.floor(Number(existing.views) || 0));
+      const now = Date.now();
+      const viewKey = crypto.createHash('sha256').update(`${propertyId}:${viewerFingerprint}`).digest('hex');
+
+      if (this.dbType === 'postgres' && this.pgPool) {
+        try {
+          const checkRes = await this.pgPool.query(
+            'SELECT created_at FROM ukg_property_views WHERE view_key = $1',
+            [viewKey]
+          );
+          if (checkRes.rows.length > 0 && now - Number(checkRes.rows[0].created_at) < windowMs) {
+            return { counted: false, views: currentViews };
+          }
+          await this.pgPool.query(
+            `INSERT INTO ukg_property_views (view_key, property_id, created_at)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (view_key) DO UPDATE SET created_at = $3`,
+            [viewKey, propertyId, now]
+          );
+        } catch (err) {
+          console.error('[UKG DB] PostgreSQL recordUniquePropertyView error:', err);
+        }
+      } else if (this.dbType === 'mysql' && this.mysqlPool) {
+        try {
+          const [rows]: any = await this.mysqlPool.query(
+            'SELECT created_at FROM ukg_property_views WHERE view_key = ?',
+            [viewKey]
+          );
+          if (rows && rows.length > 0 && now - Number(rows[0].created_at) < windowMs) {
+            return { counted: false, views: currentViews };
+          }
+          await this.mysqlPool.query(
+            `INSERT INTO ukg_property_views (view_key, property_id, created_at)
+             VALUES (?, ?, ?)
+             ON DUPLICATE KEY UPDATE created_at = VALUES(created_at)`,
+            [viewKey, propertyId, now]
+          );
+        } catch (err) {
+          console.error('[UKG DB] MySQL recordUniquePropertyView error:', err);
+        }
+      } else {
+        const records = this.readJsonFile(this.viewsFilePath);
+        const found = records.find((r: any) => r && r.viewKey === viewKey);
+        if (found && now - Number(found.createdAt) < windowMs) {
+          return { counted: false, views: currentViews };
+        }
+        const retentionCutoff = now - Math.max(windowMs * 4, 48 * 60 * 60 * 1000);
+        const pruned = records.filter(
+          (r: any) => r && r.viewKey && r.viewKey !== viewKey && Number(r.createdAt) >= retentionCutoff
+        );
+        pruned.push({ viewKey, propertyId, createdAt: now });
+        this.writeJsonFileAtomically(this.viewsFilePath, pruned);
+      }
+
+      const nextViews = currentViews + 1;
+      await this.updatePropertyUnlocked(propertyId, { views: nextViews });
+      return { counted: true, views: nextViews };
     });
   }
 
@@ -1515,6 +1654,128 @@ class DatabaseService {
       const list = this.readJsonFile(this.reportsFilePath).map((r: any) => (r.id === id ? updated : r));
       this.writeJsonFileAtomically(this.reportsFilePath, list);
       return updated;
+    });
+  }
+
+  public async deleteReport(id: string): Promise<boolean> {
+    if (!this.initialized) await this.initialize();
+    return this.withLock('reports', async () => {
+      if (this.dbType === 'postgres' && this.pgPool) {
+        try {
+          await this.pgPool.query('DELETE FROM ukg_reports WHERE id = $1', [id]);
+        } catch (err) {
+          console.error('[UKG DB] PostgreSQL deleteReport error:', err);
+        }
+      } else if (this.dbType === 'mysql' && this.mysqlPool) {
+        try {
+          await this.mysqlPool.query('DELETE FROM ukg_reports WHERE id = ?', [id]);
+        } catch (err) {
+          console.error('[UKG DB] MySQL deleteReport error:', err);
+        }
+      }
+      const list = this.readJsonFile(this.reportsFilePath).filter((r: any) => r.id !== id);
+      this.writeJsonFileAtomically(this.reportsFilePath, list);
+      return true;
+    });
+  }
+
+  // =================================================================
+  // PLATFORM SETTINGS & VISIBILITY CONTROLS
+  // =================================================================
+
+  private getDefaultPlatformSettings(): PlatformSettings {
+    return {
+      enabledCategories: ['Residential', 'Commercial', 'Agriculture'],
+      requireApprovalForNewListings: false,
+      showFeaturedSection: true,
+      featuredMode: 'manual_and_top',
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  public async getPlatformSettings(): Promise<PlatformSettings> {
+    if (!this.initialized) await this.initialize();
+    const defaults = this.getDefaultPlatformSettings();
+
+    if (this.dbType === 'postgres' && this.pgPool) {
+      try {
+        const res = await this.pgPool.query('SELECT data FROM ukg_settings WHERE id = $1', ['platform']);
+        if (res.rows.length > 0) {
+          const parsed = typeof res.rows[0].data === 'string' ? JSON.parse(res.rows[0].data) : res.rows[0].data;
+          return { ...defaults, ...parsed };
+        }
+      } catch {}
+    } else if (this.dbType === 'mysql' && this.mysqlPool) {
+      try {
+        const [rows]: any = await this.mysqlPool.query('SELECT data FROM ukg_settings WHERE id = ?', ['platform']);
+        if (rows && rows.length > 0) {
+          const parsed = typeof rows[0].data === 'string' ? JSON.parse(rows[0].data) : rows[0].data;
+          return { ...defaults, ...parsed };
+        }
+      } catch {}
+    }
+
+    const list = this.readJsonFile(this.settingsFilePath);
+    if (list.length > 0 && list[0] && typeof list[0] === 'object') {
+      return { ...defaults, ...list[0] };
+    }
+    return defaults;
+  }
+
+  public async savePlatformSettings(updates: Partial<PlatformSettings>): Promise<PlatformSettings> {
+    if (!this.initialized) await this.initialize();
+    return this.withLock('settings', async () => {
+      const current = await this.getPlatformSettings();
+      const allowedCategories = ['Residential', 'Commercial', 'Agriculture'];
+      const enabledCategories = Array.isArray(updates.enabledCategories)
+        ? updates.enabledCategories.filter((c) => allowedCategories.includes(c))
+        : current.enabledCategories;
+
+      const merged: PlatformSettings = {
+        ...current,
+        enabledCategories: enabledCategories.length > 0 ? enabledCategories : allowedCategories,
+        requireApprovalForNewListings:
+          typeof updates.requireApprovalForNewListings === 'boolean'
+            ? updates.requireApprovalForNewListings
+            : current.requireApprovalForNewListings,
+        showFeaturedSection:
+          typeof updates.showFeaturedSection === 'boolean'
+            ? updates.showFeaturedSection
+            : current.showFeaturedSection,
+        featuredMode:
+          updates.featuredMode === 'manual_only' || updates.featuredMode === 'manual_and_top'
+            ? updates.featuredMode
+            : current.featuredMode,
+        updatedAt: new Date().toISOString(),
+      };
+
+      const json = JSON.stringify(merged);
+      if (this.dbType === 'postgres' && this.pgPool) {
+        try {
+          await this.pgPool.query(
+            `INSERT INTO ukg_settings (id, data, updated_at)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (id) DO UPDATE SET data = $2, updated_at = $3`,
+            ['platform', json, merged.updatedAt]
+          );
+        } catch (err) {
+          console.error('[UKG DB] PostgreSQL savePlatformSettings error:', err);
+        }
+      } else if (this.dbType === 'mysql' && this.mysqlPool) {
+        try {
+          await this.mysqlPool.query(
+            `INSERT INTO ukg_settings (id, data, updated_at)
+             VALUES (?, ?, ?)
+             ON DUPLICATE KEY UPDATE data = VALUES(data), updated_at = VALUES(updated_at)`,
+            ['platform', json, merged.updatedAt]
+          );
+        } catch (err) {
+          console.error('[UKG DB] MySQL savePlatformSettings error:', err);
+        }
+      }
+
+      this.writeJsonFileAtomically(this.settingsFilePath, [merged]);
+      return merged;
     });
   }
 

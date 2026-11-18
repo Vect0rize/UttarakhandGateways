@@ -12,14 +12,15 @@ import {
   Edit3,
   Tag,
   Trash2,
-  X
+  X,
+  Eye
 } from 'lucide-react';
 import { Property } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { formatLocalizedPrice } from '../utils/language';
 import { isLandOrPlotProperty } from '../utils/areaUnits';
-import { isPropertyOwner } from '../utils/propertyOwnership';
+import { isPropertyOwner, canManageProperty, getPropertyOwnerDisplayName, formatPropertyViewsCount } from '../utils/propertyOwnership';
 
 interface LandPlotsSectionProps {
   properties: Property[];
@@ -144,7 +145,8 @@ export const LandPlotsSection: React.FC<LandPlotsSectionProps> = ({
       >
         {landListings.map((property, idx) => {
           const isFav = favorites.includes(property.id);
-          const isOwner = isPropertyOwner(property, currentUser);
+          const isOwner = canManageProperty(property, currentUser) || isPropertyOwner(property, currentUser);
+          const ownerLabel = getPropertyOwnerDisplayName(property, currentUser, isHindi);
           const primaryImage = Array.isArray(property.images) && property.images.length > 0 
             ? property.images[0] 
             : '/logo.png';
@@ -381,18 +383,28 @@ export const LandPlotsSection: React.FC<LandPlotsSectionProps> = ({
                   </div>
                 </div>
 
-                {/* Land Area Specs & Badge */}
-                <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-emerald-950 text-[10.5px]">
-                  <div className="flex items-center gap-1 font-bold text-emerald-700 dark:text-emerald-400 shrink-0">
-                    <Maximize2 className="w-3 h-3 shrink-0" />
-                    <span className="truncate max-w-[120px]">{property.areaDisplay || `${property.areaSqFt} Sq.Ft`}</span>
+                {/* Land Area Specs, Owner & Genuine View Counter */}
+                <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-emerald-950 text-[10.5px]">
+                  <div className="flex items-center justify-between gap-1.5">
+                    <div className="flex items-center gap-1 font-bold text-emerald-700 dark:text-emerald-400 shrink-0">
+                      <Maximize2 className="w-3 h-3 shrink-0" />
+                      <span className="truncate max-w-[110px]">{property.areaDisplay || `${property.areaSqFt} Sq.Ft`}</span>
+                    </div>
+
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 dark:text-emerald-200/80 tabular-nums shrink-0">
+                      <Eye className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      <span>{formatPropertyViewsCount(property.views, isHindi)}</span>
+                    </span>
                   </div>
 
-                  {(property.reraStatus || property.reraId || property.facing) && (
-                    <span className="text-[9.5px] font-bold text-teal-800 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/70 px-2 py-0.5 rounded border border-teal-200/60 dark:border-teal-800/60 truncate max-w-[100px] shrink-0">
-                      {property.reraStatus === 'RERA Approved' || property.reraId ? 'RERA Approved' : `${property.facing} Facing`}
-                    </span>
-                  )}
+                  <div className="flex items-center justify-between gap-1.5 text-[10px] text-slate-500 dark:text-slate-400">
+                    <span className="truncate font-medium text-slate-700 dark:text-slate-200">{ownerLabel}</span>
+                    {(property.reraStatus || property.reraId || property.facing) && (
+                      <span className="text-[9.5px] font-bold text-teal-800 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/70 px-1.5 py-0.5 rounded border border-teal-200/60 dark:border-teal-800/60 truncate max-w-[92px] shrink-0">
+                        {property.reraStatus === 'RERA Approved' || property.reraId ? 'RERA Approved' : `${property.facing} Facing`}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
               </div>

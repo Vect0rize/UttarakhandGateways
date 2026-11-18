@@ -218,6 +218,82 @@ export const isListerNameVisible = (
   return hasApprovedAccessRequest(property.id, currentUser);
 };
 
+const GENERIC_OWNER_PLACEHOLDERS = new Set([
+  'direct property owner',
+  'verified direct owner',
+  'direct owner',
+  'verified broker',
+  'property owner',
+  'property broker',
+  'सत्यापित डायरेक्ट ओनर',
+  'सीधे मालिक',
+  'सत्यापित ब्रोकर',
+]);
+
+export const cleanRawOwnerName = (rawName?: string | null): string => {
+  if (!rawName || typeof rawName !== 'string') return '';
+  const trimmed = rawName.trim();
+  if (!trimmed) return '';
+  const lower = trimmed.toLowerCase();
+  if (GENERIC_OWNER_PLACEHOLDERS.has(lower)) return '';
+  if (lower === 'amit1986.delhi' || lower === 'amit1986.delhi@gmail.com') {
+    return 'Amit Tyagi';
+  }
+  if (trimmed.includes('@')) {
+    const localPart = trimmed.split('@')[0].replace(/[._-]+/g, ' ').trim();
+    if (!localPart) return '';
+    return localPart
+      .split(/\s+/)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ');
+  }
+  return trimmed;
+};
+
+/**
+ * Partially masks an owner's full name for public display:
+ * - Shows the first two words of the owner's name.
+ * - Replaces everything after the first two words with "***".
+ * - 1 or 2 words are displayed without masking.
+ */
+export const maskPublicOwnerName = (rawName?: string | null, fallback = 'Property Owner'): string => {
+  if (rawName && rawName.includes('***')) {
+    return rawName.trim();
+  }
+  const cleaned = cleanRawOwnerName(rawName);
+  const words = cleaned.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return fallback;
+  if (words.length <= 2) return words.join(' ');
+  return `${words[0]} ${words[1]} ***`;
+};
+
+/**
+ * Formats genuine property view counts (never random or fabricated).
+ */
+export const formatPropertyViewsCount = (views?: number | null, isHindi: boolean = false): string => {
+  const count = Math.max(0, Math.floor(Number(views) || 0));
+  const formatted = count.toLocaleString('en-IN');
+  return isHindi ? `${formatted} व्यूज` : `${formatted} ${count === 1 ? 'view' : 'views'}`;
+};
+
+/**
+ * Returns a persistent visitor ID stored in localStorage for duplicate-view protection.
+ */
+export const getOrCreateVisitorId = (): string => {
+  if (typeof window === 'undefined') return '';
+  try {
+    const existing = localStorage.getItem('ukg_visitor_id');
+    if (existing && /^[a-zA-Z0-9_-]{8,80}$/.test(existing)) {
+      return existing;
+    }
+    const generated = `vid_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 12)}`;
+    localStorage.setItem('ukg_visitor_id', generated);
+    return generated;
+  } catch {
+    return '';
+  }
+};
+
 /**
  * Gets the verified, approved lister name if access has been granted.
  * Returns null if the user does NOT have approved access.
@@ -229,9 +305,18 @@ export const getApprovedListerName = (
   if (!property) return null;
   if (!isListerNameVisible(property, currentUser)) return null;
 
+  // 0. Platform Admin sees complete unmasked owner name
+  if (currentUser && isAppOwner(currentUser)) {
+    const full =
+      cleanRawOwnerName((property as any).fullSellerName) ||
+      cleanRawOwnerName(property.ownerUsername) ||
+      cleanRawOwnerName(property.sellerName);
+    if (full) return full;
+  }
+
   // 1. Direct owner view
   if (currentUser && isDirectPropertyOwner(property, currentUser)) {
-    return currentUser.username || property.sellerName || 'You (Owner)';
+    return cleanRawOwnerName(currentUser.username) || cleanRawOwnerName(property.sellerName) || 'You (Owner)';
   }
 
   // 2. Check approved request record for stored lister name
@@ -243,23 +328,24 @@ export const getApprovedListerName = (
         if (Array.isArray(list)) {
           const found = list.find((r) => r.propertyId === property.id && r.status === 'approved' && !r.isIncomingForUserListing);
           if (found && (found.sellerName || found.listerName)) {
-            const rawName = (found.sellerName || found.listerName).trim();
-            if (rawName && !rawName.includes('@') && rawName.toLowerCase() !== 'amit1986.delhi') {
-              return rawName;
-            }
+            const cleaned = cleanRawOwnerName(found.sellerName || found.listerName);
+            if (cleaned) return cleaned;
           }
         }
       }
     } catch {}
   }
 
-  // 3. Fallback to property sellerName if returned from authorized server response
-  const raw = property.sellerName || property.ownerUsername;
-  if (raw && raw !== 'Direct Property Owner' && raw !== 'Verified Broker' && !raw.includes('@') && raw.toLowerCase() !== 'amit1986.delhi') {
-    return raw.trim();
+  // 3. Fallback to property fullSellerName or sellerName if returned from authorized server response
+  const authorizedName =
+    cleanRawOwnerName((property as any).fullSellerName) ||
+    cleanRawOwnerName(property.sellerName) ||
+    cleanRawOwnerName(property.ownerUsername);
+  if (authorizedName) {
+    return authorizedName;
   }
 
-  return 'Verified Lister';
+  return 'Property Owner';
 };
 
 /**
@@ -274,7 +360,7 @@ export const getApprovedPhoneNumber = (
   if (!isListerNameVisible(property, currentUser)) return null;
 
   if (currentUser && isDirectPropertyOwner(property, currentUser) && currentUser.contact) {
-    return currentUser.contact;
+    return property.sellerPhone || currentUser.contact;
   }
 
   if (typeof window !== 'undefined') {
@@ -300,9 +386,10 @@ export const getApprovedPhoneNumber = (
 };
 
 /**
- * Resolves the display username/name for a property's owner or broker.
- * STRICT PRIVACY: Unless the viewer is the direct owner or has an ACCEPTED request,
- * this function NEVER returns the lister's personal name.
+ * Resolves the display name for a property's owner or broker:
+ * - Admin & Direct Owner & Approved Requester: complete unmasked name.
+ * - Public visitors: partially masked owner name (first two words + "***", or 1-2 words unmasked).
+ * - Never returns "Verified Direct Owner" or "Direct Property Owner".
  */
 export const getPropertyOwnerDisplayName = (
   property?: Property | null,
@@ -313,23 +400,34 @@ export const getPropertyOwnerDisplayName = (
 
   const isBroker = property.sellerType === 'Broker';
 
-  // 1. If currentUser is the DIRECT author/owner of this property, show their username
+  // 1. Platform Administrator sees the complete unmasked owner name
+  if (currentUser && isAppOwner(currentUser)) {
+    const adminViewName =
+      cleanRawOwnerName((property as any).fullSellerName) ||
+      cleanRawOwnerName(property.ownerUsername) ||
+      cleanRawOwnerName(property.sellerName);
+    if (adminViewName) return adminViewName;
+  }
+
+  // 2. Direct author/owner of this property sees their full name
   if (currentUser && currentUser.username && !isBroker) {
     if (isDirectPropertyOwner(property, currentUser)) {
-      return currentUser.username;
+      return cleanRawOwnerName(currentUser.username) || currentUser.username;
     }
   }
 
-  // 2. If access has been requested AND ACCEPTED by the lister, show their approved name
+  // 3. Approved contact access requester sees complete owner name
   if (isListerNameVisible(property, currentUser)) {
     const approved = getApprovedListerName(property, currentUser);
     if (approved) return approved;
   }
 
-  // 3. Otherwise: STRICTLY HIDE the lister's name everywhere
-  return isBroker
-    ? (isHindi ? 'सत्यापित ब्रोकर' : 'Verified Broker')
-    : (isHindi ? 'सत्यापित डायरेक्ट ओनर' : 'Direct Property Owner');
+  // 4. Public display: partially masked owner name (first two words + "***")
+  const fallback = isBroker
+    ? (isHindi ? 'प्रॉपर्टी ब्रोकर' : 'Property Broker')
+    : (isHindi ? 'प्रॉपर्टी मालिक' : 'Property Owner');
+
+  return maskPublicOwnerName(property.sellerName || property.ownerUsername, fallback);
 };
 
 /**

@@ -36,7 +36,7 @@ import { AuthModal } from './AuthModal';
 import { UserProfileModal } from './UserProfileModal';
 import { SeoKeywordsSection } from './SeoKeywordsSection';
 import type { AppPageRouteKey } from '../data/seoMetadata';
-import { hasApprovedAccessRequest } from '../utils/propertyOwnership';
+import { hasApprovedAccessRequest, maskPublicOwnerName } from '../utils/propertyOwnership';
 import { isSyntheticFakeProperty } from '../data/properties';
 
 interface InboxPageProps {
@@ -225,7 +225,7 @@ export const InboxPage: React.FC<InboxPageProps> = ({
       const ownerReply = {
         id: `msg-${Date.now() + 1}`,
         sender: 'seller' as const,
-        senderName: hasApprovedAccessRequest(currentThread.propertyId, currentUser) ? cleanOwnerName(currentThread.sellerName) : 'Direct Property Owner',
+        senderName: hasApprovedAccessRequest(currentThread.propertyId, currentUser) ? cleanOwnerName(currentThread.sellerName) : maskPublicOwnerName(currentThread.sellerName),
         text: `Namaste! Thank you for inquiring. Yes, clear title and immediate mutation are available. Would you like to schedule an in-person site visit or request my direct contact number?`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
@@ -583,8 +583,8 @@ export const InboxPage: React.FC<InboxPageProps> = ({
                               </>
                             ) : (
                               <>
-                                <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                                <span className="truncate text-slate-600 dark:text-slate-400">Direct Property Owner</span>
+                                <User className="w-3 h-3 text-emerald-600" />
+                                <span className="truncate text-slate-600 dark:text-slate-400">{maskPublicOwnerName(thread.sellerName)}</span>
                               </>
                             )}
                           </div>
@@ -650,8 +650,8 @@ export const InboxPage: React.FC<InboxPageProps> = ({
                                 {cleanOwnerName(req.sellerName)}
                               </span>
                             ) : (
-                              <span className="italic text-slate-500">
-                                Direct Property Owner (Hidden until request is accepted)
+                              <span className="font-medium text-slate-600 dark:text-slate-300">
+                                {maskPublicOwnerName(req.sellerName)}
                               </span>
                             )}
                           </div>

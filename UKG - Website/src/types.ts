@@ -116,6 +116,10 @@ export interface Property {
   ownerId?: string;
   ownerContact?: string;
   ownerUsername?: string;
+  fullSellerName?: string;
+  isListerNameVisible?: boolean;
+  approvalStatus?: 'approved' | 'pending' | 'rejected';
+  isHidden?: boolean;
   isSold?: boolean;
   isAvailableForRent?: boolean;
   purpose?: 'sale' | 'rent';

@@ -50,6 +50,7 @@ interface NavbarProps {
   onRentClick?: () => void;
   onOpenInbox?: () => void;
   onOpenAdminAccounts?: () => void;
+  onOpenAdminDashboard?: () => void;
   unreadInboxCount?: number;
   favoriteCount: number;
   onToggleFavoritesOnly?: () => void;
@@ -91,6 +92,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenEmiCalculator,
   onOpenDashboard,
   onOpenAdminAccounts,
+  onOpenAdminDashboard,
   unreadInboxCount = 0,
   favoriteCount,
   onToggleFavoritesOnly,
@@ -297,16 +299,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
             </button>
 
-            {/* Owner All Accounts Directory Button (Only for Platform Owner) */}
-            {isOwner && onOpenAdminAccounts && (
+            {/* Admin Console Button (Only for Platform Administrator) */}
+            {isOwner && (onOpenAdminDashboard || onOpenAdminAccounts) && (
               <button
                 type="button"
-                onClick={onOpenAdminAccounts}
-                className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 text-xs font-black shadow-sm transition-all cursor-pointer active:scale-95 whitespace-nowrap"
-                title={isHindi ? 'प्लेटफॉर्म के सभी खाते देखें (Owner Directory)' : 'All Registered Accounts (Platform Owner Directory)'}
+                onClick={() => {
+                  if (onOpenAdminDashboard) onOpenAdminDashboard();
+                  else if (onOpenAdminAccounts) onOpenAdminAccounts();
+                }}
+                className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 text-xs font-black shadow-sm transition-all cursor-pointer active:scale-95 whitespace-nowrap"
+                title={isHindi ? 'एडमिन कंट्रोल पैनल खोलें' : 'Open Admin Dashboard'}
               >
                 <Crown className="w-3.5 h-3.5" />
-                <span>{isHindi ? 'खाते' : 'Accounts'}</span>
+                <span>{isHindi ? 'एडमिन पैनल' : 'Admin Panel'}</span>
               </button>
             )}
 
@@ -576,22 +581,23 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             </div>
 
-            {/* Mobile Owner All Accounts Button */}
-            {isOwner && onOpenAdminAccounts && (
+            {/* Mobile Admin Dashboard Button */}
+            {isOwner && (onOpenAdminDashboard || onOpenAdminAccounts) && (
               <button
                 type="button"
                 onClick={() => {
                   setMobileMenuOpen(false);
-                  onOpenAdminAccounts();
+                  if (onOpenAdminDashboard) onOpenAdminDashboard();
+                  else if (onOpenAdminAccounts) onOpenAdminAccounts();
                 }}
                 className="w-full p-2.5 bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-black rounded-xl text-xs flex items-center justify-between shadow-xs cursor-pointer"
               >
                 <div className="flex items-center gap-2">
                   <Crown className="w-4 h-4 text-slate-950" />
-                  <span>{isHindi ? 'सभी पंजीकृत खाते (Owner Directory)' : 'All Registered Accounts (Owner Directory)'}</span>
+                  <span>{isHindi ? 'एडमिन कंट्रोल डैशबोर्ड (Full Admin)' : 'Admin Dashboard (Full Marketplace Control)'}</span>
                 </div>
                 <span className="text-[10px] bg-slate-950 text-amber-300 px-2 py-0.5 rounded-full font-bold">
-                  View
+                  Open
                 </span>
               </button>
             )}
@@ -926,6 +932,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         onOpenSellModal={onOpenSellModal}
         onOpenRentalModal={onOpenRentalModal}
         onOpenDashboard={onOpenDashboard}
+        onOpenAdminDashboard={onOpenAdminDashboard}
         onOpenSwitchAccount={() => {
           setShowProfileModal(false);
           setShowSwitchAccountModal(true);

@@ -15,12 +15,12 @@ import {
   Share2,
   Eye,
   Compass,
-  ShieldCheck,
+  Sparkles,
   Phone
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { isPropertyOwner, canManageProperty, getPropertyOwnerDisplayName, isListerNameVisible } from '../utils/propertyOwnership';
+import { isPropertyOwner, canManageProperty, getPropertyOwnerDisplayName, formatPropertyViewsCount } from '../utils/propertyOwnership';
 import { formatLocalizedPrice, translatePropertyType } from '../utils/language';
 import { getPropertySlugPath } from '../data/programmaticSeo';
 import { formatPostTime } from '../utils/timeAgo';
@@ -61,7 +61,6 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
   const isDirectOwner = isPropertyOwner(property, currentUser);
   const canManage = canManageProperty(property, currentUser);
   const isOwner = canManage;
-  const isListerVisible = isListerNameVisible(property, currentUser);
   const ownerDisplayName = getPropertyOwnerDisplayName(property, currentUser, isHindi);
   const cardRef = useRef<HTMLElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -188,6 +187,13 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
           <span className="bg-slate-950/75 backdrop-blur-md border border-white/20 text-white text-[11px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider shadow-xs">
             {translatePropertyType(property.type, isHindi ? 'hi' : 'en')}
           </span>
+
+          {property.featured && (
+            <span className="bg-amber-500/95 backdrop-blur-md border border-amber-300 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider shadow-xs flex items-center gap-1">
+              <Sparkles className="w-2.5 h-2.5 fill-slate-950" />
+              <span>{isHindi ? 'फीचर्ड' : 'Featured'}</span>
+            </span>
+          )}
         </div>
 
         {/* Top-Right: Bookmark & Owner Action Menu */}
@@ -432,9 +438,12 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                 <span>🏔️ {isHindi ? 'होमस्टे सब्सिडी' : 'Homestay Subsidy'}</span>
               </span>
             )}
-            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400 ml-auto">
-              <Eye className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-              <span>{property.views || Math.max(18, Math.floor(((property.price || 500000) % 1000) / 5) + 24)} {isHindi ? 'व्यूज' : 'views'}</span>
+            <span
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 dark:text-emerald-200/85 bg-slate-100/90 dark:bg-emerald-950/70 px-2 py-0.5 rounded-full border border-slate-200/80 dark:border-emerald-800/70 ml-auto tabular-nums"
+              title={isHindi ? 'कुल वास्तविक व्यूज' : 'Total property views'}
+            >
+              <Eye className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span>{formatPropertyViewsCount(property.views, isHindi)}</span>
             </span>
           </div>
         </div>
@@ -445,31 +454,15 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
             <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-300">
               {ownerDisplayName ? (
                 <div className="flex items-center gap-1.5 min-w-0">
-                  {isListerVisible ? (
-                    <>
-                      <span className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200 font-bold text-[10px] flex items-center justify-center shrink-0 uppercase">
-                        {ownerDisplayName.charAt(0)}
-                      </span>
-                      <span className="truncate">
-                        <span className="text-slate-400 dark:text-slate-400 mr-1">
-                          {property.sellerType === 'Broker' ? (isHindi ? 'ब्रोकर:' : 'Broker:') : (isHindi ? 'मालिक:' : 'Owner:')}
-                        </span>
-                        <strong className="text-slate-800 dark:text-white font-semibold">{ownerDisplayName}</strong>
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0">
-                        <ShieldCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                      </span>
-                      <span className="truncate">
-                        <strong className="text-slate-800 dark:text-white font-semibold">
-                          {property.sellerType === 'Broker' ? (isHindi ? 'सत्यापित ब्रोकर' : 'Verified Broker') : (isHindi ? 'सत्यापित डायरेक्ट ओनर' : 'Direct Property Owner')}
-                        </strong>
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal ml-1">({isHindi ? 'नाम सुरक्षित' : 'Private'})</span>
-                      </span>
-                    </>
-                  )}
+                  <span className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200 font-bold text-[10px] flex items-center justify-center shrink-0 uppercase">
+                    {ownerDisplayName.charAt(0)}
+                  </span>
+                  <span className="truncate">
+                    <span className="text-slate-400 dark:text-slate-400 mr-1">
+                      {property.sellerType === 'Broker' ? (isHindi ? 'ब्रोकर:' : 'Broker:') : (isHindi ? 'मालिक:' : 'Owner:')}
+                    </span>
+                    <strong className="text-slate-800 dark:text-white font-semibold">{ownerDisplayName}</strong>
+                  </span>
                 </div>
               ) : <span />}
               {property.reraStatus && (

@@ -30,7 +30,7 @@ import {
 import { resolveApiUrl } from '../config/apiConfig';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { isPropertyOwner, canManageProperty, getPropertyOwnerDisplayName } from '../utils/propertyOwnership';
+import { isPropertyOwner, canManageProperty, getPropertyOwnerDisplayName, formatPropertyViewsCount, isAppOwner, getOrCreateVisitorId } from '../utils/propertyOwnership';
 import { formatLocalizedPrice, translatePropertyType } from '../utils/language';
 import { formatPropertyArea, formatPropertyRate, isLandOrPlotProperty } from '../utils/areaUnits';
 import { getPropertyShareUrl, sharePropertyListing } from '../utils/propertyShare';
@@ -76,10 +76,17 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
   const isForRent = property ? (property.type === 'Rent/Lease' || Boolean(property.isAvailableForRent) || (Boolean(property.priceDisplay) && property.priceDisplay.toLowerCase().includes('/ month'))) : false;
 
   useEffect(() => {
-    if (property?.id) {
-      fetch(`/api/properties/${encodeURIComponent(property.id)}/view`, { method: 'POST' }).catch(() => {});
+    if (property?.id && !(currentUser && (isAppOwner(currentUser) || isDirectOwner))) {
+      const visitorId = getOrCreateVisitorId();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (visitorId) headers['X-Visitor-Id'] = visitorId;
+      fetch(`/api/properties/${encodeURIComponent(property.id)}/view`, {
+        method: 'POST',
+        credentials: 'include',
+        headers,
+      }).catch(() => {});
     }
-  }, [property?.id]);
+  }, [property?.id, currentUser, isDirectOwner]);
 
   if (!property) return null;
 
@@ -384,8 +391,8 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                     <Compass className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                     <span>{isHindi ? 'उत्तराखंड पहाड़ी इन्फ्रास्ट्रक्चर व भू-कानून' : 'Uttarakhand Land Law & Hill Infrastructure'}</span>
                   </h4>
-                  <span className="text-[11px] font-bold text-slate-500 dark:text-emerald-300/80">
-                    👁️ {property.views || 48} {isHindi ? 'व्यूज' : 'views'} • 🔄 {property.shares || 12} {isHindi ? 'शेयर' : 'shares'}
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-emerald-300/80 tabular-nums">
+                    👁️ {formatPropertyViewsCount(property.views, isHindi)} • 🔄 {Math.max(0, Number(property.shares) || 0)} {isHindi ? 'शेयर' : 'shares'}
                   </span>
                 </div>
 
@@ -506,7 +513,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-bold uppercase tracking-wider text-[#0a271c] dark:text-white flex items-center gap-1.5">
                     <User className="w-4 h-4 text-emerald-600" />
-                    <span>{getPropertyOwnerDisplayName(property, currentUser, isHindi) || (isHindi ? 'सीधे संपत्ति मालिक' : 'Direct Property Owner')}</span>
+                    <span>{getPropertyOwnerDisplayName(property, currentUser, isHindi) || (isHindi ? 'प्रॉपर्टी मालिक' : 'Property Owner')}</span>
                   </h3>
                   {property.sellerType === 'Broker' ? (
                     <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">

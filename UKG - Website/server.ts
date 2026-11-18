@@ -87,8 +87,8 @@ app.use((req, res, next) => {
   } else {
     res.setHeader('Access-Control-Allow-Origin', 'https://uttarakhandgateways.com');
   }
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Session-Token');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Session-Token, X-Visitor-Id, X-Internal-Test, X-Admin-Preview, X-User-Contact, X-User-Id');
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200);
   }
@@ -154,6 +154,15 @@ app.use((req, res, next) => {
   return publicStaticMiddleware(req, res, next);
 });
 
+function isPlatformAdmin(u: any): boolean {
+  if (!u || typeof u !== 'object') return false;
+  const adminEmail = (process.env.ADMIN_EMAIL || 'amit1986.delhi@gmail.com').trim().toLowerCase();
+  const contact = String(u.contact || u.email || '').trim().toLowerCase();
+  if (contact === adminEmail) return true;
+  if (u.isSuspended === true) return false;
+  return Boolean(u.isOwner === true || u.role === 'owner' || u.role === 'admin');
+}
+
 // Safe user serializer
 function formatSafeUser(u: any) {
   if (!u) return null;
@@ -166,11 +175,12 @@ function formatSafeUser(u: any) {
       username = contact.split('@')[0];
     }
   }
+  const adminEmail = (process.env.ADMIN_EMAIL || 'amit1986.delhi@gmail.com').toLowerCase();
   const isOwner = Boolean(
     u.isOwner === true ||
     u.role === 'owner' ||
     u.role === 'admin' ||
-    contact === (process.env.ADMIN_EMAIL || 'amit1986.delhi@gmail.com').toLowerCase()
+    contact === adminEmail
   );
   return {
     id: u.id,
@@ -178,10 +188,15 @@ function formatSafeUser(u: any) {
     name: username,
     contact,
     email: contact,
+    phone: u.phone || undefined,
+    notes: u.notes || undefined,
     contactType: 'email' as const,
     avatar: u.avatar || undefined,
     role: isOwner ? 'owner' : (u.role || 'user'),
     isOwner,
+    isSuspended: contact === adminEmail ? false : Boolean(u.isSuspended),
+    suspendedAt: u.suspendedAt || undefined,
+    suspendedReason: u.suspendedReason || undefined,
     usernameChangeTimestamps: Array.isArray(u.usernameChangeTimestamps) ? u.usernameChangeTimestamps : undefined,
     createdAt: u.createdAt || new Date().toISOString(),
   };
@@ -229,7 +244,10 @@ async function getSessionUser(req: express.Request): Promise<any | null> {
     const session = await db.findSession(sessionId);
     if (session && Number(session.expiresAt) >= Date.now()) {
       const user = await db.findUserById(session.userId);
-      if (user) return user;
+      if (user) {
+        if ((user as any).isSuspended === true && !isPlatformAdmin(user)) return null;
+        return user;
+      }
     }
 
     // 2. Cryptographic signature verification fallback
@@ -237,6 +255,7 @@ async function getSessionUser(req: express.Request): Promise<any | null> {
     if (verified.valid && verified.userId) {
       const user = await db.findUserById(verified.userId);
       if (user) {
+        if ((user as any).isSuspended === true && !isPlatformAdmin(user)) return null;
         const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
         await db.createSession(sessionId, user.id, expiresAt);
         return user;
@@ -283,28 +302,124 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+const GENERIC_OWNER_PLACEHOLDERS = new Set([
+  'direct property owner',
+  'verified direct owner',
+  'direct owner',
+  'verified broker',
+  'property owner',
+  'property broker',
+  'सत्यापित डायरेक्ट ओनर',
+  'सीधे मालिक',
+]);
+
+function resolveCleanOwnerFullName(prop: any): string {
+  const candidates = [prop?.sellerName, prop?.ownerUsername];
+  for (const raw of candidates) {
+    if (typeof raw !== 'string') continue;
+    const trimmed = raw.trim();
+    if (!trimmed) continue;
+    const lower = trimmed.toLowerCase();
+    if (GENERIC_OWNER_PLACEHOLDERS.has(lower)) continue;
+    if (lower === 'amit1986.delhi' || lower === 'amit1986.delhi@gmail.com') {
+      return 'Amit Tyagi';
+    }
+    if (trimmed.includes('@')) {
+      const localPart = trimmed.split('@')[0].replace(/[._-]+/g, ' ').trim();
+      if (localPart) {
+        return localPart
+          .split(/\s+/)
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(' ');
+      }
+      continue;
+    }
+    return trimmed;
+  }
+  return prop?.sellerType === 'Broker' ? 'Property Broker' : 'Property Owner';
+}
+
+function maskOwnerNamePublic(fullName: string, fallback = 'Property Owner'): string {
+  const words = String(fullName || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (words.length === 0) return fallback;
+  if (words.length <= 2) return words.join(' ');
+  return `${words[0]} ${words[1]} ***`;
+}
+
+function isPropertyPubliclyVisible(prop: any, settings?: { enabledCategories?: string[] }): boolean {
+  if (!prop || typeof prop !== 'object') return false;
+  if (prop.isDeleted === true || prop.status === 'deleted') return false;
+  if (prop.isHidden === true) return false;
+  const approvalStatus = prop.approvalStatus || 'approved';
+  if (approvalStatus !== 'approved') return false;
+  if (
+    settings &&
+    Array.isArray(settings.enabledCategories) &&
+    settings.enabledCategories.length > 0 &&
+    prop.category &&
+    !settings.enabledCategories.includes(prop.category)
+  ) {
+    return false;
+  }
+  return true;
+}
+
 function sanitizePublicProperty(prop: any, sessionUser: any, approvedPropertyIds?: Set<string>): any {
   if (!prop || typeof prop !== 'object') return prop;
 
-  // 1. If sessionUser owns or can manage this listing, return full property details
-  if (sessionUser && canUserManageProperty(prop, sessionUser)) {
-    return { ...prop, isListerNameVisible: true };
+  const normalizedViews = Math.max(0, Math.floor(Number(prop.views) || 0));
+  const fullOwnerName = resolveCleanOwnerFullName(prop);
+
+  // 1. Platform Administrator or Direct Property Owner receives complete unmasked details
+  if (sessionUser && (isPlatformAdmin(sessionUser) || canUserManageProperty(prop, sessionUser))) {
+    return {
+      ...prop,
+      views: normalizedViews,
+      sellerName: fullOwnerName,
+      fullSellerName: fullOwnerName,
+      isListerNameVisible: true,
+    };
   }
 
-  // 2. If sessionUser sent a request and the lister ACCEPTED it, reveal real lister name & phone
+  // 2. Approved contact access requester receives complete owner name & phone
   if (approvedPropertyIds && approvedPropertyIds.has(prop.id)) {
     const { ownerContact, sellerEmail, ...safeProp } = prop;
-    return { ...safeProp, isListerNameVisible: true };
+    return {
+      ...safeProp,
+      views: normalizedViews,
+      sellerName: fullOwnerName,
+      isListerNameVisible: true,
+    };
   }
 
-  // 3. STRICT PRIVACY: People should NOT be able to see the lister's name anywhere
-  // unless they send a request and the lister accepts.
-  const isBroker = prop.sellerType === 'Broker';
-  const { ownerContact, sellerEmail, sellerPhone, ownerUsername, ...safeProp } = prop;
-  safeProp.sellerName = isBroker ? 'Verified Broker' : 'Direct Property Owner';
+  // 3. Public-facing data layer: mask owner name to first two words + "***" (never leak 3rd+ words, phone, or email)
+  const fallbackLabel = prop.sellerType === 'Broker' ? 'Property Broker' : 'Property Owner';
+  const { ownerContact, sellerEmail, sellerPhone, ownerUsername, fullSellerName, ...safeProp } = prop;
+  safeProp.views = normalizedViews;
+  safeProp.sellerName = maskOwnerNamePublic(fullOwnerName, fallbackLabel);
   safeProp.isListerNameVisible = false;
   return safeProp;
 }
+
+app.get('/api/platform-config', async (_req, res) => {
+  try {
+    const settings = await db.getPlatformSettings();
+    res.json({
+      success: true,
+      settings: {
+        enabledCategories: settings.enabledCategories,
+        showFeaturedSection: settings.showFeaturedSection,
+        featuredMode: settings.featuredMode,
+        requireApprovalForNewListings: settings.requireApprovalForNewListings,
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Failed to load platform config' });
+  }
+});
 
 // SHARED PROPERTIES CRUD APIS (Open to all visitors, logged in or logged out)
 app.get('/api/properties', async (req, res) => {
@@ -321,10 +436,11 @@ app.get('/api/properties', async (req, res) => {
       const userTarget = sessionUser.id || sessionUser.contact || sessionUser.username;
       approvedSet = await db.getApprovedPropertyIdsForUser(userTarget);
     }
-    const list = await db.getAllProperties();
+    const [list, settings] = await Promise.all([db.getAllProperties(), db.getPlatformSettings()]);
+    const visibleList = list.filter((p) => isPropertyPubliclyVisible(p, settings));
     res.json({
       success: true,
-      properties: list.map((p) => sanitizePublicProperty(p, sessionUser, approvedSet))
+      properties: visibleList.map((p) => sanitizePublicProperty(p, sessionUser, approvedSet))
     });
   } catch (err: any) {
     console.error('Error fetching properties from db:', err);
@@ -393,6 +509,11 @@ app.get('/api/properties/:id', async (req, res) => {
       prop = findPropertyBySlugOrId(id, allProps);
     }
     if (prop) {
+      const settings = await db.getPlatformSettings();
+      const canManage = Boolean(sessionUser && (isPlatformAdmin(sessionUser) || canUserManageProperty(prop, sessionUser)));
+      if (!isPropertyPubliclyVisible(prop, settings) && !canManage) {
+        return res.status(404).json({ success: false, error: 'Property not found or unavailable' });
+      }
       return res.json({ success: true, property: sanitizePublicProperty(prop, sessionUser, approvedSet) });
     }
     return res.status(404).json({ success: false, error: 'Property not found' });
@@ -510,6 +631,22 @@ app.post('/api/properties', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Description exceeds maximum allowed length of 10000 characters.' });
     }
 
+    const settings = await db.getPlatformSettings();
+    const isAdmin = isPlatformAdmin(sessionUser);
+
+    if (
+      !isAdmin &&
+      raw.category &&
+      Array.isArray(settings.enabledCategories) &&
+      settings.enabledCategories.length > 0 &&
+      !settings.enabledCategories.includes(raw.category)
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: `Listings in the "${raw.category}" category are currently disabled by the administrator.`,
+      });
+    }
+
     // Build sanitized listing without allowing client-side metric/privilege mass-assignment
     const {
       views: _v,
@@ -517,6 +654,8 @@ app.post('/api/properties', async (req, res) => {
       inquiries: _inq,
       isSold: _sold,
       featured: _feat,
+      approvalStatus: _appStat,
+      isHidden: _isHid,
       isOwner: _iso,
       role: _role,
       ownerId: _oid,
@@ -529,7 +668,15 @@ app.post('/api/properties', async (req, res) => {
     property.views = 0;
     property.shares = 0;
     property.inquiries = 0;
-    property.isSold = false;
+    property.isSold = isAdmin ? Boolean(raw.isSold) : false;
+    property.featured = isAdmin ? Boolean(raw.featured) : false;
+    property.isHidden = isAdmin ? Boolean(raw.isHidden) : false;
+    property.approvalStatus =
+      isAdmin && ['approved', 'pending', 'rejected'].includes(raw.approvalStatus)
+        ? raw.approvalStatus
+        : settings.requireApprovalForNewListings
+          ? 'pending'
+          : 'approved';
 
     // Sanitize user-supplied strings and URLs before storing, then bind owner identity
     sanitizePropertyInput(property);
@@ -628,7 +775,9 @@ app.put('/api/properties/:id', async (req, res) => {
       }
     }
 
-    // Strip immutable ownership and analytics counter fields to prevent tampering
+    const isAdmin = isPlatformAdmin(sessionUser);
+
+    // Strip immutable ownership and analytics counter fields to prevent tampering by regular users
     const {
       id: _dropId,
       ownerId: _dropOwnerId,
@@ -638,11 +787,21 @@ app.put('/api/properties/:id', async (req, res) => {
       views: _dropViews,
       shares: _dropShares,
       inquiries: _dropInquiries,
-      featured: _dropFeatured,
+      featured: rawFeatured,
+      approvalStatus: rawApprovalStatus,
+      isHidden: rawIsHidden,
       isOwner: _dropIsOwner,
       role: _dropRole,
       ...safeUpdates
     } = updates || {};
+
+    if (isAdmin) {
+      if (typeof rawFeatured === 'boolean') safeUpdates.featured = rawFeatured;
+      if (typeof rawIsHidden === 'boolean') safeUpdates.isHidden = rawIsHidden;
+      if (['approved', 'pending', 'rejected'].includes(rawApprovalStatus)) {
+        safeUpdates.approvalStatus = rawApprovalStatus;
+      }
+    }
 
     // Preserve/backfill existing owner fields only if missing
     if (!existing.ownerId && sessionUser.id) safeUpdates.ownerId = sessionUser.id;
@@ -654,7 +813,7 @@ app.put('/api/properties/:id', async (req, res) => {
 
     const updated = await db.updateProperty(id, safeUpdates);
     console.log(`[UKG Properties] Updated property "${updated.title}" (${id})`);
-    res.json({ success: true, property: updated });
+    res.json({ success: true, property: sanitizePublicProperty(updated, sessionUser) });
   } catch (err: any) {
     console.error('Error updating property in db:', err);
     res.status(500).json({ success: false, error: err?.message || 'Failed to update property' });
@@ -689,14 +848,86 @@ app.delete('/api/properties/:id', async (req, res) => {
   }
 });
 
-// Analytics Tracking Endpoints for Lister Dashboard
+// Analytics Tracking Endpoints (Genuine Duplicate-Protected View Counter)
 app.post('/api/properties/:id/view', async (req, res) => {
   try {
-    const { id } = req.params;
-    const updated = await db.incrementPropertyMetric(id, 'views');
-    res.json({ success: true, views: updated?.views || 1 });
+    const rawId = decodeURIComponent(req.params.id || '').trim();
+    if (!rawId) {
+      return res.status(400).json({ success: false, error: 'Property ID is required.' });
+    }
+
+    let prop = await db.getPropertyById(rawId);
+    if (!prop) {
+      const allProps = await db.getAllProperties();
+      prop = findPropertyBySlugOrId(rawId, allProps);
+    }
+    if (!prop) {
+      return res.status(404).json({ success: false, error: 'Property not found.' });
+    }
+
+    const currentViews = Math.max(0, Math.floor(Number(prop.views) || 0));
+    const sessionUser = await getSessionUser(req).catch(() => null);
+
+    // Exclude admin previews, direct owner previews, automated crawlers, and internal test requests
+    const isInternalOrPreview =
+      req.headers['x-internal-test'] === 'true' ||
+      req.headers['x-admin-preview'] === 'true' ||
+      req.query.preview === 'admin' ||
+      req.body?.preview === true;
+
+    const ua = String(req.headers['user-agent'] || '');
+    const isBot = /\b(bot|crawl|spider|slurp|lighthouse|headlesschrome|facebookexternalhit|whatsapp|telegrambot)\b/i.test(ua);
+    const isAdminOrOwner = Boolean(
+      sessionUser && (isPlatformAdmin(sessionUser) || canUserManageProperty(prop, sessionUser))
+    );
+
+    if (isInternalOrPreview || isBot || isAdminOrOwner) {
+      return res.json({
+        success: true,
+        counted: false,
+        reason: isAdminOrOwner ? 'admin_or_owner' : 'excluded',
+        views: currentViews,
+      });
+    }
+
+    // Build stable visitor fingerprint for duplicate-view protection across page refreshes
+    const cookieVid = typeof req.cookies?.ukg_vid === 'string' ? req.cookies.ukg_vid.trim() : '';
+    const headerVid = typeof req.headers['x-visitor-id'] === 'string' ? req.headers['x-visitor-id'].trim() : '';
+    const candidateVid = cookieVid || headerVid;
+    const validVid = /^[a-zA-Z0-9_-]{8,80}$/.test(candidateVid) ? candidateVid : '';
+
+    if (validVid && cookieVid !== validVid) {
+      const isHttps = Boolean(req.secure || req.headers['x-forwarded-proto'] === 'https');
+      res.cookie('ukg_vid', validVid, {
+        httpOnly: true,
+        secure: isHttps,
+        sameSite: 'lax',
+        maxAge: 365 * 24 * 60 * 60 * 1000,
+        path: '/',
+      });
+    }
+
+    const forwardedFor = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+    const clientIp = forwardedFor || req.ip || req.socket.remoteAddress || 'unknown';
+
+    const viewerFingerprint = sessionUser?.id
+      ? `uid:${sessionUser.id}`
+      : validVid
+        ? `vid:${validVid}`
+        : `ipua:${clientIp}|${ua.slice(0, 200)}`;
+
+    const result = await db.recordUniquePropertyView(prop.id, viewerFingerprint);
+    if (!result) {
+      return res.status(404).json({ success: false, error: 'Property not found.' });
+    }
+
+    return res.json({
+      success: true,
+      counted: result.counted,
+      views: result.views,
+    });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message });
+    res.status(500).json({ success: false, error: err?.message || 'Failed to record view' });
   }
 });
 
@@ -1093,6 +1324,12 @@ app.post('/api/auth/login', async (req, res) => {
     if (!user) {
       return res.status(401).json({ success: false, error: 'Invalid email or password. Please check your credentials.' });
     }
+    if ((user as any).isSuspended === true && !isPlatformAdmin(user)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Your account has been suspended by the administrator. Please contact support.',
+      });
+    }
 
     // Verify password hash
     let passwordValid = false;
@@ -1196,6 +1433,13 @@ app.post('/api/auth/google', async (req, res) => {
     let user = await db.findUserByEmail(trimmedEmail);
     const adminEmail = (process.env.ADMIN_EMAIL || 'amit1986.delhi@gmail.com').toLowerCase();
     const isOwner = trimmedEmail === adminEmail;
+
+    if (user && (user as any).isSuspended === true && !isOwner) {
+      return res.status(403).json({
+        success: false,
+        error: 'Your account has been suspended by the administrator. Please contact support.',
+      });
+    }
 
     if (!user) {
       const randomPass = crypto.randomBytes(32).toString('hex');
@@ -1795,8 +2039,10 @@ app.get('/api/reports', async (req, res) => {
 app.patch('/api/reports/:id', async (req, res) => {
   try {
     const sessionUser = await getSessionUser(req);
-    const isPlatformAdmin = Boolean(sessionUser && (sessionUser.isOwner || sessionUser.role === 'admin' || sessionUser.role === 'owner'));
-    if (!isPlatformAdmin) {
+    if (!sessionUser) {
+      return res.status(401).json({ success: false, error: 'Authentication required.' });
+    }
+    if (!isPlatformAdmin(sessionUser)) {
       return res.status(403).json({ success: false, error: 'Access denied. Administrator privileges required.' });
     }
     const { status } = req.body || {};
@@ -1810,6 +2056,497 @@ app.patch('/api/reports/:id', async (req, res) => {
     return res.json({ success: true, report: updated });
   } catch (err: any) {
     res.status(500).json({ success: false, error: 'Failed to update report.' });
+  }
+});
+
+// =================================================================
+// PLATFORM ADMINISTRATOR POWER SUITE (/api/admin/*)
+// Strictly enforced on backend via verified cryptographic session
+// =================================================================
+
+async function requirePlatformAdmin(req: express.Request, res: express.Response, next: express.NextFunction) {
+  try {
+    const sessionUser = await getSessionUser(req);
+    if (!sessionUser) {
+      return res.status(401).json({
+        success: false,
+        error: 'Authentication required. Administrator credentials needed.',
+      });
+    }
+    if (!isPlatformAdmin(sessionUser)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied. Administrator privileges required.',
+      });
+    }
+    (req as any).adminUser = sessionUser;
+    return next();
+  } catch (err) {
+    return res.status(500).json({ success: false, error: 'Authorization check failed.' });
+  }
+}
+
+function formatAdminProperty(prop: any): any {
+  const fullOwnerName = resolveCleanOwnerFullName(prop);
+  return {
+    ...prop,
+    views: Math.max(0, Math.floor(Number(prop.views) || 0)),
+    shares: Math.max(0, Math.floor(Number(prop.shares) || 0)),
+    inquiries: Math.max(0, Math.floor(Number(prop.inquiries) || 0)),
+    approvalStatus: prop.approvalStatus || 'approved',
+    isHidden: Boolean(prop.isHidden),
+    featured: Boolean(prop.featured),
+    isSold: Boolean(prop.isSold),
+    sellerName: prop.sellerName || fullOwnerName,
+    fullSellerName: fullOwnerName,
+    publicMaskedSellerName: maskOwnerNamePublic(fullOwnerName, prop.sellerType === 'Broker' ? 'Property Broker' : 'Property Owner'),
+    isListerNameVisible: true,
+  };
+}
+
+function propertyBelongsToUser(prop: any, u: any): boolean {
+  if (!prop || !u) return false;
+  const uid = String(u.id || '').trim();
+  const uContact = String(u.contact || u.email || '').trim().toLowerCase();
+  const uPhone = normalizePhone(u.phone || u.contact);
+  const pOwnerId = String(prop.ownerId || '').trim();
+  const pContact = String(prop.ownerContact || '').trim().toLowerCase();
+  const pSellerEmail = String(prop.sellerEmail || '').trim().toLowerCase();
+  const pPhone = normalizePhone(prop.sellerPhone || prop.ownerContact);
+
+  if (uid && pOwnerId && uid === pOwnerId) return true;
+  if (uContact && pContact && uContact === pContact) return true;
+  if (uContact && pSellerEmail && uContact === pSellerEmail) return true;
+  if (uPhone && uPhone.length === 10 && pPhone && uPhone === pPhone) return true;
+  return false;
+}
+
+app.get('/api/admin/overview', requirePlatformAdmin, async (_req, res) => {
+  try {
+    const [rawProperties, rawUsers, rawReports, settings] = await Promise.all([
+      db.getAllProperties(),
+      db.getAllUsers(),
+      db.getAllReports(),
+      db.getPlatformSettings(),
+    ]);
+
+    const adminProperties = rawProperties.map((p) => formatAdminProperty(p));
+    const propMap = new Map<string, any>();
+    for (const p of adminProperties) {
+      if (p?.id) propMap.set(p.id, p);
+    }
+
+    const enrichedUsers = rawUsers.map((u: any) => {
+      const safe = formatSafeUser(u)!;
+      const owned = adminProperties.filter((p) => propertyBelongsToUser(p, u));
+      return {
+        ...safe,
+        propertiesCount: owned.length,
+        totalViews: owned.reduce((acc, p) => acc + (Number(p.views) || 0), 0),
+        ownedProperties: owned.map((p) => ({
+          id: p.id,
+          title: p.title,
+          city: p.city,
+          type: p.type,
+          category: p.category,
+          price: p.price,
+          priceDisplay: p.priceDisplay,
+          views: p.views,
+          approvalStatus: p.approvalStatus,
+          isHidden: p.isHidden,
+          featured: p.featured,
+          isSold: p.isSold,
+          createdAt: p.createdAt,
+        })),
+      };
+    });
+
+    const enrichedReports = rawReports.map((r: any) => {
+      const matched = propMap.get(r.propertyId);
+      return {
+        ...r,
+        reporterContact: r.reporterEmail || r.reporterContact || 'Anonymous',
+        propertyExists: Boolean(matched),
+        propertyOwnerName: matched?.fullSellerName || undefined,
+        propertyCity: matched?.city || undefined,
+        propertyViews: matched?.views ?? 0,
+        propertyApprovalStatus: matched?.approvalStatus || undefined,
+        propertyIsHidden: matched?.isHidden ?? false,
+      };
+    });
+
+    const categoriesBreakdown: Record<string, number> = {
+      Residential: 0,
+      Commercial: 0,
+      Agriculture: 0,
+    };
+    for (const p of adminProperties) {
+      const cat = p.category || 'Residential';
+      categoriesBreakdown[cat] = (categoriesBreakdown[cat] || 0) + 1;
+    }
+
+    const stats = {
+      totalProperties: adminProperties.length,
+      activeListings: adminProperties.filter(
+        (p) => p.approvalStatus === 'approved' && !p.isHidden && !p.isSold
+      ).length,
+      pendingApprovals: adminProperties.filter((p) => p.approvalStatus === 'pending').length,
+      rejectedListings: adminProperties.filter((p) => p.approvalStatus === 'rejected').length,
+      hiddenListings: adminProperties.filter((p) => p.isHidden).length,
+      featuredListings: adminProperties.filter((p) => p.featured).length,
+      soldListings: adminProperties.filter((p) => p.isSold).length,
+      registeredUsers: enrichedUsers.length,
+      suspendedUsers: enrichedUsers.filter((u) => u.isSuspended).length,
+      openReports: enrichedReports.filter((r) => r.status === 'open').length,
+      totalReports: enrichedReports.length,
+      totalPropertyViews: adminProperties.reduce((sum, p) => sum + (Number(p.views) || 0), 0),
+      totalInquiries: adminProperties.reduce((sum, p) => sum + (Number(p.inquiries) || 0), 0),
+      totalShares: adminProperties.reduce((sum, p) => sum + (Number(p.shares) || 0), 0),
+      categoriesBreakdown,
+    };
+
+    return res.json({
+      success: true,
+      stats,
+      properties: adminProperties,
+      users: enrichedUsers,
+      reports: enrichedReports,
+      settings,
+    });
+  } catch (err: any) {
+    console.error('[UKG Admin] Overview error:', err);
+    return res.status(500).json({ success: false, error: err?.message || 'Failed to load admin overview.' });
+  }
+});
+
+app.get('/api/admin/properties', requirePlatformAdmin, async (_req, res) => {
+  try {
+    const raw = await db.getAllProperties();
+    return res.json({
+      success: true,
+      properties: raw.map((p) => formatAdminProperty(p)),
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Failed to fetch properties.' });
+  }
+});
+
+app.post('/api/admin/properties', requirePlatformAdmin, async (req, res) => {
+  try {
+    const adminUser = (req as any).adminUser;
+    const raw = req.body || {};
+    const propId = raw.id && /^[a-zA-Z0-9_-]{3,120}$/.test(String(raw.id).trim())
+      ? String(raw.id).trim()
+      : `prop-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
+
+    const existing = await db.getPropertyById(propId);
+    if (existing) {
+      return res.status(409).json({ success: false, error: 'A property with this ID already exists.' });
+    }
+    if (!raw.title || typeof raw.title !== 'string' || raw.title.trim().length < 3) {
+      return res.status(400).json({ success: false, error: 'Title must be at least 3 characters.' });
+    }
+
+    const property: any = {
+      ...raw,
+      id: propId,
+      createdAt: raw.createdAt || new Date().toISOString(),
+      views: Math.max(0, Math.floor(Number(raw.views) || 0)),
+      shares: Math.max(0, Math.floor(Number(raw.shares) || 0)),
+      inquiries: Math.max(0, Math.floor(Number(raw.inquiries) || 0)),
+      isSold: Boolean(raw.isSold),
+      featured: Boolean(raw.featured),
+      isHidden: Boolean(raw.isHidden),
+      approvalStatus: ['approved', 'pending', 'rejected'].includes(raw.approvalStatus)
+        ? raw.approvalStatus
+        : 'approved',
+      ownerId: raw.ownerId || adminUser.id,
+      ownerUsername: raw.sellerName || raw.ownerUsername || adminUser.username,
+      ownerContact: raw.ownerContact || adminUser.contact,
+      sellerName: raw.sellerName || adminUser.username,
+      sellerType: raw.sellerType === 'Broker' ? 'Broker' : 'Owner',
+    };
+
+    sanitizePropertyInput(property);
+    persistInlineVideos(property);
+
+    const saved = await db.saveProperty(property);
+    return res.status(201).json({ success: true, property: formatAdminProperty(saved) });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Failed to create property.' });
+  }
+});
+
+app.put('/api/admin/properties/:id', requirePlatformAdmin, async (req, res) => {
+  try {
+    const targetId = decodeURIComponent(req.params.id || '').trim();
+    const existing = await db.getPropertyById(targetId);
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Property not found.' });
+    }
+
+    const updates = { ...(req.body || {}) };
+    delete updates.id;
+
+    if (updates.title !== undefined && (typeof updates.title !== 'string' || updates.title.trim().length < 3)) {
+      return res.status(400).json({ success: false, error: 'Title must be at least 3 characters.' });
+    }
+    if (updates.price !== undefined && updates.price !== null) {
+      const p = Number(updates.price);
+      if (isNaN(p) || p < 0 || p > 10000000000) {
+        return res.status(400).json({ success: false, error: 'Price must be a valid positive number.' });
+      }
+      updates.price = p;
+    }
+    if (updates.approvalStatus !== undefined && !['approved', 'pending', 'rejected'].includes(updates.approvalStatus)) {
+      return res.status(400).json({ success: false, error: 'Invalid approvalStatus.' });
+    }
+    if (updates.isHidden !== undefined) updates.isHidden = Boolean(updates.isHidden);
+    if (updates.featured !== undefined) updates.featured = Boolean(updates.featured);
+    if (updates.isSold !== undefined) updates.isSold = Boolean(updates.isSold);
+    if (typeof updates.sellerName === 'string' && updates.sellerName.trim()) {
+      updates.sellerName = stripHtmlTags(updates.sellerName).trim();
+      updates.ownerUsername = updates.sellerName;
+    }
+
+    sanitizePropertyInput(updates);
+    persistInlineVideos(updates);
+
+    const saved = await db.updateProperty(targetId, updates);
+    return res.json({ success: true, property: formatAdminProperty(saved) });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Failed to update property.' });
+  }
+});
+
+app.patch('/api/admin/properties/:id/status', requirePlatformAdmin, async (req, res) => {
+  try {
+    const targetId = decodeURIComponent(req.params.id || '').trim();
+    const existing = await db.getPropertyById(targetId);
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Property not found.' });
+    }
+
+    const { approvalStatus, isHidden, featured, isSold } = req.body || {};
+    const patch: Record<string, any> = {};
+    if (approvalStatus !== undefined) {
+      if (!['approved', 'pending', 'rejected'].includes(approvalStatus)) {
+        return res.status(400).json({ success: false, error: 'Invalid approval status.' });
+      }
+      patch.approvalStatus = approvalStatus;
+    }
+    if (typeof isHidden === 'boolean') patch.isHidden = isHidden;
+    if (typeof featured === 'boolean') patch.featured = featured;
+    if (typeof isSold === 'boolean') patch.isSold = isSold;
+
+    const updated = await db.updateProperty(targetId, patch);
+    return res.json({ success: true, property: formatAdminProperty(updated) });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Failed to update property status.' });
+  }
+});
+
+app.delete('/api/admin/properties/:id', requirePlatformAdmin, async (req, res) => {
+  try {
+    const targetId = decodeURIComponent(req.params.id || '').trim();
+    const existing = await db.getPropertyById(targetId);
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Property not found.' });
+    }
+    await db.deleteProperty(targetId);
+
+    // Automatically resolve any open reports associated with the removed listing
+    const allReports = await db.getAllReports();
+    for (const rep of allReports) {
+      if (rep.propertyId === targetId && rep.status === 'open') {
+        await db.updateReportStatus(rep.id, 'resolved');
+      }
+    }
+
+    return res.json({ success: true, id: targetId, message: 'Property listing removed.' });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Failed to delete property.' });
+  }
+});
+
+app.get('/api/admin/users', requirePlatformAdmin, async (_req, res) => {
+  try {
+    const [users, properties] = await Promise.all([db.getAllUsers(), db.getAllProperties()]);
+    const result = users.map((u: any) => {
+      const safe = formatSafeUser(u)!;
+      const owned = properties.filter((p) => propertyBelongsToUser(p, u));
+      return {
+        ...safe,
+        propertiesCount: owned.length,
+        ownedPropertyIds: owned.map((p) => p.id),
+      };
+    });
+    return res.json({ success: true, users: result });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Failed to fetch users.' });
+  }
+});
+
+app.put('/api/admin/users/:id', requirePlatformAdmin, async (req, res) => {
+  try {
+    const adminUser = (req as any).adminUser;
+    const targetParam = decodeURIComponent(req.params.id || '').trim();
+    const targetUser = (await db.findUserById(targetParam)) || (await db.findUserByEmail(targetParam));
+    if (!targetUser) {
+      return res.status(404).json({ success: false, error: 'User account not found.' });
+    }
+
+    const adminEmail = (process.env.ADMIN_EMAIL || 'amit1986.delhi@gmail.com').trim().toLowerCase();
+    const isTargetFounder = String(targetUser.contact || '').trim().toLowerCase() === adminEmail || targetUser.isOwner === true;
+
+    const { username, phone, notes, isSuspended, suspendedReason, hideUserListings } = req.body || {};
+    const updatedUser: any = { ...targetUser };
+
+    if (username !== undefined) {
+      const cleaned = stripHtmlTags(String(username)).trim();
+      if (cleaned.length < 2 || cleaned.length > 80) {
+        return res.status(400).json({ success: false, error: 'Username must be between 2 and 80 characters.' });
+      }
+      updatedUser.username = cleaned;
+    }
+
+    if (phone !== undefined) {
+      updatedUser.phone = stripHtmlTags(String(phone)).trim().slice(0, 20);
+    }
+
+    if (notes !== undefined) {
+      updatedUser.notes = stripHtmlTags(String(notes)).trim().slice(0, 500);
+    }
+
+    if (typeof isSuspended === 'boolean') {
+      if (isSuspended && (isTargetFounder || targetUser.id === adminUser.id)) {
+        return res.status(403).json({ success: false, error: 'Cannot suspend the primary platform administrator account.' });
+      }
+      updatedUser.isSuspended = isSuspended;
+      if (isSuspended) {
+        updatedUser.suspendedAt = new Date().toISOString();
+        updatedUser.suspendedReason = suspendedReason
+          ? stripHtmlTags(String(suspendedReason)).trim().slice(0, 300)
+          : 'Suspended by administrator';
+        // Immediately revoke active sessions of suspended user
+        await db.deleteUserSessions(targetUser.id);
+        if (hideUserListings === true) {
+          const allProps = await db.getAllProperties();
+          for (const p of allProps) {
+            if (propertyBelongsToUser(p, targetUser)) {
+              await db.updateProperty(p.id, { isHidden: true });
+            }
+          }
+        }
+      } else {
+        delete updatedUser.suspendedAt;
+        delete updatedUser.suspendedReason;
+      }
+    }
+
+    const saved = await db.saveUser(updatedUser);
+    return res.json({ success: true, user: formatSafeUser(saved) });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Failed to update user.' });
+  }
+});
+
+app.delete('/api/admin/users/:id', requirePlatformAdmin, async (req, res) => {
+  try {
+    const adminUser = (req as any).adminUser;
+    const targetParam = decodeURIComponent(req.params.id || '').trim();
+    const targetUser = (await db.findUserById(targetParam)) || (await db.findUserByEmail(targetParam));
+    if (!targetUser) {
+      return res.status(404).json({ success: false, error: 'User account not found.' });
+    }
+
+    const adminEmail = (process.env.ADMIN_EMAIL || 'amit1986.delhi@gmail.com').trim().toLowerCase();
+    if (
+      targetUser.id === adminUser.id ||
+      targetUser.isOwner === true ||
+      String(targetUser.contact || '').trim().toLowerCase() === adminEmail
+    ) {
+      return res.status(403).json({ success: false, error: 'Cannot delete the platform administrator account.' });
+    }
+
+    const deletedListings = await db.deletePropertiesByOwner(targetUser.id, targetUser.contact);
+    await db.deleteUserSessions(targetUser.id);
+    await db.deleteUser(targetUser.id);
+
+    return res.json({
+      success: true,
+      deletedUserId: targetUser.id,
+      deletedListings,
+      message: 'User account and associated listings removed.',
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Failed to delete user.' });
+  }
+});
+
+app.get('/api/admin/reports', requirePlatformAdmin, async (_req, res) => {
+  try {
+    const reports = await db.getAllReports();
+    return res.json({ success: true, reports });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: 'Failed to fetch reports.' });
+  }
+});
+
+app.patch('/api/admin/reports/:id', requirePlatformAdmin, async (req, res) => {
+  try {
+    const reportId = decodeURIComponent(req.params.id || '').trim();
+    const { status, action } = req.body || {};
+    const allReports = await db.getAllReports();
+    const targetReport = allReports.find((r) => r.id === reportId);
+    if (!targetReport) {
+      return res.status(404).json({ success: false, error: 'Report not found.' });
+    }
+
+    if (action === 'remove_property' && targetReport.propertyId) {
+      await db.deleteProperty(targetReport.propertyId);
+    } else if (action === 'hide_property' && targetReport.propertyId) {
+      await db.updateProperty(targetReport.propertyId, { isHidden: true });
+    }
+
+    const nextStatus = ['open', 'resolved', 'dismissed'].includes(status)
+      ? status
+      : action
+        ? 'resolved'
+        : targetReport.status;
+
+    const updated = await db.updateReportStatus(reportId, nextStatus);
+    return res.json({ success: true, report: updated });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: 'Failed to update report.' });
+  }
+});
+
+app.delete('/api/admin/reports/:id', requirePlatformAdmin, async (req, res) => {
+  try {
+    const reportId = decodeURIComponent(req.params.id || '').trim();
+    await db.deleteReport(reportId);
+    return res.json({ success: true, id: reportId });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: 'Failed to delete report.' });
+  }
+});
+
+app.get('/api/admin/settings', requirePlatformAdmin, async (_req, res) => {
+  try {
+    const settings = await db.getPlatformSettings();
+    return res.json({ success: true, settings });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: 'Failed to load settings.' });
+  }
+});
+
+app.put('/api/admin/settings', requirePlatformAdmin, async (req, res) => {
+  try {
+    const saved = await db.savePlatformSettings(req.body || {});
+    return res.json({ success: true, settings: saved });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: 'Failed to update settings.' });
   }
 });
 
@@ -1833,6 +2570,14 @@ app.post('/api/send-otp', async (req, res) => {
       return res.status(400).json({
         success: false,
         error: 'Please enter a valid email address for verification.'
+      });
+    }
+
+    const existingForOtp = await db.findUserByEmail(trimmedEmail);
+    if (existingForOtp && (existingForOtp as any).isSuspended === true && !isPlatformAdmin(existingForOtp)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Your account has been suspended by the administrator. Please contact support.',
       });
     }
 
@@ -1992,6 +2737,12 @@ app.post('/api/auth/verify-otp', async (req, res) => {
 
     // Look up existing user or register new account
     let user = await db.findUserByEmail(trimmedContact);
+    if (user && (user as any).isSuspended === true && !isPlatformAdmin(user)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Your account has been suspended by the administrator. Please contact support.',
+      });
+    }
     if (!user) {
       const trimmedUsername = (username && String(username).trim()) || trimmedContact.split('@')[0];
       const randomPass = crypto.randomBytes(32).toString('hex');
@@ -2653,7 +3404,8 @@ async function generateDynamicSitemapXml(): Promise<string> {
   }
 
   try {
-    const allProps = await db.getAllProperties();
+    const [rawProps, settings] = await Promise.all([db.getAllProperties(), db.getPlatformSettings()]);
+    const allProps = rawProps.filter((p) => isPropertyPubliclyVisible(p, settings));
     const programmaticPaths = getIndexableProgrammaticPaths(allProps);
     for (const pPath of programmaticPaths) {
       const priority = pPath.startsWith('/properties-in-') ? '0.9' : '0.85';
@@ -2877,13 +3629,21 @@ async function handleSeoPageRender(req: express.Request, res: express.Response, 
 
   if (propertyId) {
     try {
-      const allProps = await db.getAllProperties();
+      const [allProps, settings, sessionUser] = await Promise.all([
+        db.getAllProperties(),
+        db.getPlatformSettings(),
+        getSessionUser(req).catch(() => null),
+      ]);
       let prop = await db.getPropertyById(propertyId);
       if (!prop) {
         prop = findPropertyBySlugOrId(propertyId, allProps);
       }
 
-      if (!prop || prop.isDeleted || prop.status === 'deleted') {
+      const canPreviewHidden = Boolean(
+        prop && sessionUser && (isPlatformAdmin(sessionUser) || canUserManageProperty(prop, sessionUser))
+      );
+
+      if (!prop || (!isPropertyPubliclyVisible(prop, settings) && !canPreviewHidden)) {
         return renderNotFound(
           'Property Listing Not Found (404)',
           'This Uttarakhand property listing may have been sold, expired, or removed.'
@@ -3090,7 +3850,11 @@ async function handleSeoPageRender(req: express.Request, res: express.Response, 
     ? `/properties-in-${getCitySlug(String(req.query.city))}`
     : normalizedPath;
 
-  const allPropsForSsr = await db.getAllProperties().catch(() => []);
+  const [rawPropsForSsr, ssrSettings] = await Promise.all([
+    db.getAllProperties().catch(() => []),
+    db.getPlatformSettings().catch(() => undefined),
+  ]);
+  const allPropsForSsr = rawPropsForSsr.filter((p) => isPropertyPubliclyVisible(p, ssrSettings));
   const progRoute = resolveProgrammaticSeoRoute(programmaticTargetPath, allPropsForSsr);
   if (progRoute) {
     const canonicalUrl = `${DOMAIN}${progRoute.canonicalPath}`;
@@ -3264,6 +4028,15 @@ async function handleSeoPageRender(req: express.Request, res: express.Response, 
   }
   if (normalizedPath === '/dashboard' || normalizedPath === '/lister-dashboard' || pageParam === 'dashboard') {
     applyRouteSeoMeta('dashboard', true);
+    return res.send(html);
+  }
+  if (normalizedPath === '/admin' || normalizedPath === '/admin-dashboard' || pageParam === 'admin') {
+    applyHeadMeta({
+      title: 'Admin Dashboard | Uttarakhand Gateways',
+      description: 'Uttarakhand Gateways Platform Administration Console.',
+      canonicalUrl: `${DOMAIN}/admin`,
+      robots: 'noindex, nofollow',
+    });
     return res.send(html);
   }
 

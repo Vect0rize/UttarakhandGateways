@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { ChatThread, PhoneNumberRequest, Property } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { hasApprovedAccessRequest } from '../utils/propertyOwnership';
+import { hasApprovedAccessRequest, maskPublicOwnerName } from '../utils/propertyOwnership';
 
 interface InboxModalProps {
   isOpen: boolean;
@@ -288,8 +288,8 @@ export const InboxModal: React.FC<InboxModalProps> = ({
                               </>
                             ) : (
                               <>
-                                <ShieldCheck className="w-3 h-3 flex-shrink-0 text-emerald-600" />
-                                <span className="truncate text-slate-600 dark:text-slate-400">Direct Property Owner</span>
+                                <User className="w-3 h-3 flex-shrink-0 text-emerald-600" />
+                                <span className="truncate text-slate-600 dark:text-slate-400">{maskPublicOwnerName(thread.sellerName)}</span>
                               </>
                             )}
                           </div>
@@ -342,7 +342,7 @@ export const InboxModal: React.FC<InboxModalProps> = ({
                           {hasApprovedAccessRequest(currentThread.propertyId, currentUser) ? (
                             `Owner: ${cleanOwnerName(currentThread.sellerName)}`
                           ) : (
-                            'Owner: Direct Property Owner (Protected)'
+                            `Owner: ${maskPublicOwnerName(currentThread.sellerName)}`
                           )}
                         </span>
                       </div>
@@ -383,7 +383,7 @@ export const InboxModal: React.FC<InboxModalProps> = ({
                       >
                         <div className="flex items-center gap-1.5 mb-1 px-1">
                           <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
-                            {isBuyer ? 'You' : (hasApprovedAccessRequest(currentThread.propertyId, currentUser) ? cleanOwnerName(currentThread.sellerName) : 'Direct Property Owner')}
+                            {isBuyer ? 'You' : (hasApprovedAccessRequest(currentThread.propertyId, currentUser) ? cleanOwnerName(currentThread.sellerName) : maskPublicOwnerName(currentThread.sellerName))}
                           </span>
                           <span className="text-[9px] text-slate-400 font-mono">
                             {msg.timestamp}
@@ -612,8 +612,8 @@ export const InboxModal: React.FC<InboxModalProps> = ({
                                   {cleanOwnerName(req.sellerName)}
                                 </span>
                               ) : (
-                                <span className="font-medium text-slate-500 italic">
-                                  Direct Property Owner (Hidden until request is accepted)
+                                <span className="font-medium text-slate-600 dark:text-slate-300">
+                                  {maskPublicOwnerName(req.sellerName)}
                                 </span>
                               )}{' '}
                               ({req.propertyCity})

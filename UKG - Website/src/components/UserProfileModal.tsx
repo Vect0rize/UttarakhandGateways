@@ -39,6 +39,7 @@ interface UserProfileModalProps {
   onOpenSellModal?: () => void;
   onOpenRentalModal?: () => void;
   onOpenDashboard?: () => void;
+  onOpenAdminDashboard?: () => void;
   onOpenSwitchAccount?: () => void;
 }
 
@@ -61,6 +62,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   onOpenSellModal,
   onOpenRentalModal,
   onOpenDashboard,
+  onOpenAdminDashboard,
   onOpenSwitchAccount,
 }) => {
   const { 
@@ -276,6 +278,19 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             <Building2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
             <span>{isHindi ? 'मेरी लिस्टिंग' : 'My Listings'} ({myProperties.length})</span>
           </button>
+          {isOwner && onOpenAdminDashboard && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenAdminDashboard();
+              }}
+              className="pb-2 px-3 text-xs font-black border-b-2 border-transparent text-amber-700 dark:text-amber-300 hover:text-amber-900 transition-colors cursor-pointer flex items-center gap-1.5 shrink-0"
+            >
+              <Crown className="w-3.5 h-3.5 text-amber-500" />
+              <span>{isHindi ? 'एडमिन कंट्रोल पैनल' : 'Admin Console'}</span>
+            </button>
+          )}
           {isOwner && (
             <button
               type="button"

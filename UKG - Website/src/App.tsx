@@ -83,6 +83,9 @@ const TrustPolicyPage = lazy(() =>
 const ProgrammaticLandingPage = lazy(() =>
   import('./components/ProgrammaticLandingPage').then((m) => ({ default: m.ProgrammaticLandingPage }))
 );
+const AdminDashboardPage = lazy(() =>
+  import('./components/AdminDashboardPage').then((m) => ({ default: m.AdminDashboardPage }))
+);
 import { LoginPage } from './components/LoginPage';
 import { EmiCalculatorModal } from './components/EmiCalculatorModal';
 import { ListChooserModal } from './components/ListChooserModal';
@@ -207,6 +210,7 @@ export default function App() {
     if (p === 'rent-gui' || p === 'rent-list' || path === '/list/rent' || path === '/rent-gui' || path === '/rent-list') return { page: 'rent-gui', cleanPath: '/list/rent' };
     if (p === 'inbox' || path === '/inbox') return { page: 'inbox', cleanPath: '/inbox' };
     if (p === 'dashboard' || path === '/dashboard' || path === '/lister-dashboard') return { page: 'dashboard', cleanPath: '/dashboard' };
+    if (p === 'admin' || path === '/admin' || path === '/admin-dashboard') return { page: 'admin', cleanPath: '/admin' };
     if (p === 'home-loan' || p === 'emi-calculator' || path === '/home-loan' || path === '/emi-calculator' || path === '/homeloan') return { page: 'home-loan', cleanPath: '/home-loan' };
     if (path.startsWith('/property/') || params.get('property')) return { page: 'home', cleanPath: path };
 
@@ -341,6 +345,15 @@ export default function App() {
   // The server is the source of truth for uploaded properties.
   // Never hardcode listings into client bundle; fetch dynamically from backend.
   const [properties, setProperties] = useState<Property[]>([]);
+  const [platformConfig, setPlatformConfig] = useState<{
+    showFeaturedSection: boolean;
+    featuredMode: 'manual_and_top' | 'manual_only';
+    enabledCategories: string[];
+  }>({
+    showFeaturedSection: true,
+    featuredMode: 'manual_and_top',
+    enabledCategories: ['Residential', 'Commercial', 'Agriculture'],
+  });
 
   // A property in the URL must be validated against the server before it is shown.
   // Modals state
@@ -460,7 +473,7 @@ export default function App() {
       return;
     }
 
-    const noIndexPages: ActivePageView[] = ['login', 'register', 'inbox', 'dashboard'];
+    const noIndexPages: ActivePageView[] = ['login', 'register', 'inbox', 'dashboard', 'admin'];
     const robotsDirective = (!selectedProperty && noIndexPages.includes(activePage))
       ? 'noindex, nofollow'
       : 'index, follow';
@@ -510,9 +523,36 @@ export default function App() {
       }
     } catch {}
 
+    const applyPropertyViewCount = (propertyId: string, views: number) => {
+      if (!propertyId || typeof views !== 'number') return;
+      setProperties((prev) =>
+        prev.map((p) => (p.id === propertyId ? { ...p, views } : p))
+      );
+      setSelectedProperty((prev) =>
+        prev && prev.id === propertyId ? { ...prev, views } : prev
+      );
+    };
+
     const refreshFromServer = async () => {
       try {
-        const res = await fetch('/api/properties', { cache: 'no-store' });
+        const headers: Record<string, string> = {};
+        try {
+          const token = localStorage.getItem('ukg_session_token');
+          if (token) headers['Authorization'] = `Bearer ${token}`;
+        } catch {}
+
+        const [res, cfgRes] = await Promise.all([
+          fetch('/api/properties', { cache: 'no-store', credentials: 'include', headers }),
+          fetch('/api/platform-config', { cache: 'no-store' }).catch(() => null),
+        ]);
+
+        if (cfgRes && cfgRes.ok) {
+          const cfgData = await cfgRes.json().catch(() => null);
+          if (active && cfgData?.settings) {
+            setPlatformConfig((prev) => ({ ...prev, ...cfgData.settings }));
+          }
+        }
+
         if (!res.ok) return;
         const data = await res.json();
         const rawProps: Property[] = Array.isArray(data)
@@ -536,13 +576,22 @@ export default function App() {
     };
 
     const handlePropsUpdate = () => { void refreshFromServer(); };
+    const handleViewEvent = (e: any) => {
+      if (e?.detail?.propertyId && typeof e.detail.views === 'number') {
+        applyPropertyViewCount(e.detail.propertyId, e.detail.views);
+      }
+    };
     window.addEventListener('uk_gateways_properties_updated', handlePropsUpdate);
+    window.addEventListener('uk_gateways_property_viewed', handleViewEvent);
 
     let bc: BroadcastChannel | null = null;
     try {
       bc = new BroadcastChannel('uk_gateways_properties_channel');
       bc.onmessage = (event) => {
         if (event.data?.type === 'PROPERTIES_UPDATED') void refreshFromServer();
+        if (event.data?.type === 'PROPERTY_VIEW_UPDATED' && event.data.propertyId) {
+          applyPropertyViewCount(event.data.propertyId, Number(event.data.views) || 0);
+        }
       };
     } catch {}
 
@@ -553,9 +602,10 @@ export default function App() {
       active = false;
       clearInterval(interval);
       window.removeEventListener('uk_gateways_properties_updated', handlePropsUpdate);
+      window.removeEventListener('uk_gateways_property_viewed', handleViewEvent);
       if (bc) bc.close();
     };
-  }, []);
+  }, [currentUser?.id]);
 
   // Listen for legal policy deep links and custom events
   useEffect(() => {
@@ -594,7 +644,16 @@ export default function App() {
       }
 
       try {
-        const res = await fetch(`/api/properties/${encodeURIComponent(propId)}`, { cache: 'no-store' });
+        const headers: Record<string, string> = {};
+        try {
+          const token = localStorage.getItem('ukg_session_token');
+          if (token) headers['Authorization'] = `Bearer ${token}`;
+        } catch {}
+        const res = await fetch(`/api/properties/${encodeURIComponent(propId)}`, {
+          cache: 'no-store',
+          credentials: 'include',
+          headers,
+        });
         if (!res.ok) {
           if (isMounted) {
             setSelectedProperty(null);
@@ -647,7 +706,16 @@ export default function App() {
       }
 
       try {
-        const res = await fetch(`/api/properties/${encodeURIComponent(propId)}`, { cache: 'no-store' });
+        const headers: Record<string, string> = {};
+        try {
+          const token = localStorage.getItem('ukg_session_token');
+          if (token) headers['Authorization'] = `Bearer ${token}`;
+        } catch {}
+        const res = await fetch(`/api/properties/${encodeURIComponent(propId)}`, {
+          cache: 'no-store',
+          credentials: 'include',
+          headers,
+        });
         if (!res.ok) {
           if (active) {
             setSelectedProperty(null);
@@ -1323,9 +1391,15 @@ export default function App() {
 
   // Curated Featured Properties for the Highlights Carousel
   const featuredProperties = useMemo(() => {
-    const list = properties.filter((p) => p.featured || (p.price && p.price > 5000000));
-    return list.length > 0 ? list : properties.slice(0, 8);
-  }, [properties]);
+    if (!platformConfig.showFeaturedSection) return [];
+    const explicitlyFeatured = properties.filter((p) => Boolean(p.featured));
+    if (platformConfig.featuredMode === 'manual_only') {
+      return explicitlyFeatured;
+    }
+    const featuredIds = new Set(explicitlyFeatured.map((p) => p.id));
+    const others = properties.filter((p) => !featuredIds.has(p.id) && !p.isSold);
+    return [...explicitlyFeatured, ...others].slice(0, Math.max(8, explicitlyFeatured.length));
+  }, [properties, platformConfig.showFeaturedSection, platformConfig.featuredMode]);
 
   // Filter and sort properties
   const filteredProperties = useMemo(() => {
@@ -1472,6 +1546,10 @@ export default function App() {
 
       return true;
     }).sort((a, b) => {
+      if (filters.sortBy === 'featured') {
+        const featDiff = (b.featured ? 1 : 0) - (a.featured ? 1 : 0);
+        if (featDiff !== 0) return featDiff;
+      }
       if (filters.sortBy === 'price-low') {
         return a.price - b.price;
       }
@@ -1623,6 +1701,27 @@ export default function App() {
             onNavigateCity={navigateToCity}
           />
         </Suspense>
+      </ErrorBoundary>
+    );
+  }
+
+  if (activePage === 'admin' && !selectedProperty) {
+    return (
+      <ErrorBoundary fallbackTitle="Unable to load Admin Dashboard" onReset={() => navigateToPage('home')}>
+        <Suspense fallback={lazyFallback}>
+          <AdminDashboardPage
+            onBackToMain={() => navigateToPage('home')}
+            onOpenAddProperty={() => navigateToPage('list')}
+            onOpenFullEditModal={(prop) => setEditingProperty(prop)}
+          />
+        </Suspense>
+        <EditPropertyModal
+          isOpen={Boolean(editingProperty)}
+          onClose={() => setEditingProperty(null)}
+          property={editingProperty}
+          onPropertyUpdated={handlePropertyUpdated}
+        />
+        <AuthModal />
       </ErrorBoundary>
     );
   }
@@ -1838,6 +1937,7 @@ export default function App() {
         onBuyClick={() => navigateToPage('buy')}
         onRentClick={() => navigateToPage('rent')}
         onOpenAdminAccounts={() => setIsAdminAccountsOpen(true)}
+        onOpenAdminDashboard={() => navigateToPage('admin')}
         onOpenInbox={() => {
           requireAuth(() => {
             navigateToPage('inbox');
@@ -1894,6 +1994,10 @@ export default function App() {
               onNavigateCity={navigateToCity}
               onNavigatePath={navigateToPath}
               onReportListing={(property) => setReportingProperty(property)}
+              onPropertyViewed={(propId, nextViews) => {
+                setProperties((prev) => prev.map((p) => (p.id === propId ? { ...p, views: nextViews } : p)));
+                setSelectedProperty((prev) => (prev && prev.id === propId ? { ...prev, views: nextViews } : prev));
+              }}
             />
           </Suspense>
         </main>

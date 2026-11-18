@@ -41,7 +41,8 @@ import {
   IndianRupee,
   ArrowRight,
   Calculator,
-  Flag
+  Flag,
+  Eye
 } from 'lucide-react';
 import { resolveApiUrl } from '../config/apiConfig';
 import { SeoKeywordsSection } from './SeoKeywordsSection';
@@ -56,7 +57,10 @@ import {
   isListerNameVisible,
   getApprovedListerName,
   getApprovedPhoneNumber,
-  hasApprovedAccessRequest
+  hasApprovedAccessRequest,
+  isAppOwner,
+  formatPropertyViewsCount,
+  getOrCreateVisitorId
 } from '../utils/propertyOwnership';
 import { formatLocalizedPrice } from '../utils/language';
 import { formatPostTime } from '../utils/timeAgo';
@@ -84,6 +88,7 @@ interface PropertyDetailPageProps {
   onNavigatePage?: (page: AppPageRouteKey) => void;
   onNavigateCity?: (city: string) => void;
   onNavigatePath?: (path: string) => void;
+  onPropertyViewed?: (propertyId: string, views: number) => void;
 }
 
 export const WhatsAppIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
@@ -120,6 +125,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
   onNavigatePage,
   onNavigateCity,
   onNavigatePath,
+  onPropertyViewed,
 }) => {
   // Safe Image & Amenities Guards to guarantee zero runtime crashes
   const safeImages = useMemo(() => {
@@ -186,13 +192,60 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
   // ONLY scroll to top once when the property ID changes (never on re-renders or polling intervals)
   const propertyId = property?.id;
   const lastScrolledPropId = useRef<string | null>(null);
+  const [liveViews, setLiveViews] = useState<number>(() => Math.max(0, Math.floor(Number(property?.views) || 0)));
+
+  useEffect(() => {
+    setLiveViews(Math.max(0, Math.floor(Number(property?.views) || 0)));
+  }, [property?.id, property?.views]);
 
   useEffect(() => {
     if (propertyId && lastScrolledPropId.current !== propertyId) {
       lastScrolledPropId.current = propertyId;
       window.scrollTo({ top: 0, behavior: 'instant' });
-      // Real-time View Metric Tracking for Lister Dashboard
-      fetch(`/api/properties/${propertyId}/view`, { method: 'POST' }).catch(() => {});
+
+      // Genuine duplicate-protected view tracking (excludes Admin, Direct Owner & ?preview=admin / internal test previews)
+      const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const isUrlPreview =
+        searchParams?.get('preview') === 'admin' || searchParams?.get('internal_test') === 'true';
+      const isAdminOrOwnerPreview = Boolean(
+        isUrlPreview || (currentUser && (isAppOwner(currentUser) || isDirectOwner))
+      );
+      if (!isAdminOrOwnerPreview) {
+        const visitorId = getOrCreateVisitorId();
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (visitorId) headers['X-Visitor-Id'] = visitorId;
+        try {
+          const token = localStorage.getItem('ukg_session_token');
+          if (token) headers['Authorization'] = `Bearer ${token}`;
+        } catch {}
+
+        fetch(`/api/properties/${encodeURIComponent(propertyId)}/view`, {
+          method: 'POST',
+          credentials: 'include',
+          headers,
+        })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((data) => {
+            if (data && typeof data.views === 'number') {
+              const updatedViews = Math.max(0, Math.floor(data.views));
+              setLiveViews(updatedViews);
+              onPropertyViewed?.(propertyId, updatedViews);
+              try {
+                window.dispatchEvent(
+                  new CustomEvent('uk_gateways_property_viewed', {
+                    detail: { propertyId, views: updatedViews },
+                  })
+                );
+              } catch {}
+              try {
+                const bc = new BroadcastChannel('uk_gateways_properties_channel');
+                bc.postMessage({ type: 'PROPERTY_VIEW_UPDATED', propertyId, views: updatedViews });
+                bc.close();
+              } catch {}
+            }
+          })
+          .catch(() => {});
+      }
     }
 
     if (property?.title) {
@@ -283,7 +336,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
               'availability': isSoldLocal ? 'https://schema.org/SoldOut' : 'https://schema.org/InStock',
               'seller': {
                 '@type': 'Person',
-                'name': property.sellerType === 'Owner' ? 'Direct Property Owner' : 'Broker'
+                'name': getPropertyOwnerDisplayName(property, null, false) || 'Property Owner'
               }
             },
             'address': {
@@ -381,7 +434,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
         listerId: property.ownerId || '',
         listerName: property.sellerName || '',
         listerPhone: property.sellerPhone || '',
-        sellerName: property.sellerName || 'Direct Property Owner',
+        sellerName: property.sellerName || 'Property Owner',
         sellerPhone: property.sellerPhone || '',
         status: 'pending',
         requestedAt: 'Just now',
@@ -667,11 +720,11 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
 
             {/* Total Views counter */}
             <span 
-              className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1.5 shadow-xs"
-              title={isHindi ? 'कुल दृश्य (Total Views)' : 'Total Verified Views'}
+              className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1.5 shadow-xs tabular-nums"
+              title={isHindi ? 'कुल दृश्य (Total Views)' : 'Total Property Views'}
             >
-              <span>👁️</span>
-              <span>{(property.views || 0) + 1} {isHindi ? 'व्यूज' : 'Views'}</span>
+              <Eye className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>{formatPropertyViewsCount(liveViews, isHindi)}</span>
             </span>
 
             {/* Mountain Feature Badges */}
@@ -1134,11 +1187,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
                 <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-100 dark:border-emerald-900/40 space-y-2.5">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-black text-base flex items-center justify-center shrink-0 shadow-sm uppercase">
-                      {isListerVisible ? (
-                        (approvedListerName || sellerDisplayName).charAt(0)
-                      ) : (
-                        <ShieldCheck className="w-6 h-6 text-white" />
-                      )}
+                      {(isListerVisible ? (approvedListerName || sellerDisplayName) : sellerDisplayName).charAt(0)}
                     </div>
                     <div className="min-w-0 flex-1">
                       <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block">
@@ -1165,7 +1214,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
                   {!isListerVisible && (
                     <div className="pt-2 border-t border-slate-200/60 dark:border-emerald-900/40 text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                       <Shield className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                      <span>{isHindi ? 'गोपनीयता नीति: अनुरोध स्वीकृत होने पर ही मालिक का नाम व नंबर दिखाया जाता है।' : 'Privacy Protected: Lister name and contact are shown only after access request is accepted.'}</span>
+                      <span>{isHindi ? 'गोपनीयता नीति: पूरा नाम और संपर्क नंबर अनुरोध स्वीकृत होने के बाद दिखाया जाता है।' : 'Owner Privacy: Full name and phone number are unlocked once your contact request is accepted.'}</span>
                     </div>
                   )}
                 </div>
@@ -1563,15 +1612,29 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                           />
                         </div>
-                        <div className="p-4 space-y-1">
-                          <div className="text-xs font-extrabold text-emerald-700 dark:text-emerald-400">
-                            {formatLocalizedPrice(rel.priceDisplay || '', isHindi ? 'hi' : 'en')}
+                        <div className="p-4 space-y-1.5 flex-1 flex flex-col justify-between">
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="text-xs font-extrabold text-emerald-700 dark:text-emerald-400">
+                                {formatLocalizedPrice(rel.priceDisplay || '', isHindi ? 'hi' : 'en')}
+                              </div>
+                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 dark:text-emerald-200/80 tabular-nums shrink-0">
+                                <Eye className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                <span>{formatPropertyViewsCount(rel.views, isHindi)}</span>
+                              </span>
+                            </div>
+                            <div className="text-sm font-bold text-slate-900 dark:text-white line-clamp-1 group-hover:text-emerald-600 transition">
+                              {rel.title}
+                            </div>
+                            <div className="text-xs text-slate-500 dark:text-emerald-200/75 truncate">
+                              {rel.location || rel.city} • {formatPropertyArea(rel, isHindi)}
+                            </div>
                           </div>
-                          <div className="text-sm font-bold text-slate-900 dark:text-white line-clamp-1 group-hover:text-emerald-600 transition">
-                            {rel.title}
-                          </div>
-                          <div className="text-xs text-slate-500 dark:text-emerald-200/75 truncate">
-                            {rel.location || rel.city} • {formatPropertyArea(rel, isHindi)}
+                          <div className="pt-1.5 border-t border-slate-100 dark:border-emerald-900/40 text-[11px] text-slate-500 dark:text-slate-300 truncate">
+                            {rel.sellerType === 'Broker' ? (isHindi ? 'ब्रोकर: ' : 'Broker: ') : (isHindi ? 'मालिक: ' : 'Owner: ')}
+                            <strong className="font-semibold text-slate-700 dark:text-white">
+                              {getPropertyOwnerDisplayName(rel, currentUser, isHindi)}
+                            </strong>
                           </div>
                         </div>
                       </a>
