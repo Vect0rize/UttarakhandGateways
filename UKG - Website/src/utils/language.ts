@@ -91,7 +91,6 @@ export const TRANSLATIONS = {
   'grid.sellListCTA': { en: '+ List Your Property', hi: '+ अपनी प्रॉपर्टी लिस्ट करें' },
   'grid.resetAllFilters': { en: 'Reset All Filters', hi: 'सभी फिल्टर हटाएं' },
   'grid.savedForLater': { en: 'Saved for Later', hi: 'सहेजी गई संपत्तियां' },
-  'grid.showAllProps': { en: 'Show All Properties', hi: 'सभी संपत्तियां देखें' },
   'grid.noPropsFound': { en: 'No Properties Match Your Current Filters', hi: 'आपके चुने गए फिल्टर के अनुसार कोई प्रॉपर्टी नहीं मिली' },
   'grid.noPropsDesc': { en: 'Try adjusting your search query, selecting "Select Your Location", or expanding the property type.', hi: 'कृपया खोज शब्द बदलें या प्रॉपर्टी प्रकार व स्थान को सामान्य रखें।' },
   'grid.noSavedProps': { en: 'No Saved Properties Yet', hi: 'अभी तक कोई प्रॉपर्टी सहेजी नहीं गई है' },

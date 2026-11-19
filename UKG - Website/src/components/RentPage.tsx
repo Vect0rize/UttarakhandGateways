@@ -17,6 +17,11 @@ import { useLanguage } from '../context/LanguageContext';
 import { CITIES } from '../data/properties';
 import { SeoKeywordsSection } from './SeoKeywordsSection';
 import { getPageSeoMeta, type AppPageRouteKey } from '../data/seoMetadata';
+import {
+  scrollToPropertyListingsStart,
+  readPageParamFromUrl,
+  syncListingsUrlParams,
+} from '../utils/scrollToListings';
 
 interface RentPageProps {
   properties: Property[];
@@ -57,16 +62,34 @@ export const RentPage: React.FC<RentPageProps> = ({
 
   const [searchQuery, setSearchQuery] = useState(() => {
     try {
-      const qType = new URLSearchParams(window.location.search).get('type');
-      return qType ? qType : '';
+      const sp = new URLSearchParams(window.location.search);
+      return sp.get('q') || sp.get('search') || sp.get('type') || '';
     } catch {
       return '';
     }
   });
-  const [selectedCity, setSelectedCity] = useState('All');
-  const [bhkConfig, setBhkConfig] = useState('all');
-  const [rentBudget, setRentBudget] = useState('all');
-  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedCity, setSelectedCity] = useState(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('city') || 'All';
+    } catch {
+      return 'All';
+    }
+  });
+  const [bhkConfig, setBhkConfig] = useState(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('bhk') || 'all';
+    } catch {
+      return 'all';
+    }
+  });
+  const [rentBudget, setRentBudget] = useState(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('budget') || 'all';
+    } catch {
+      return 'all';
+    }
+  });
+  const [currentPage, setCurrentPage] = useState<number>(() => readPageParamFromUrl());
 
   useEffect(() => {
     const seo = getPageSeoMeta('rent');
@@ -172,6 +195,26 @@ export const RentPage: React.FC<RentPageProps> = ({
   const totalPages = Math.max(1, Math.ceil(rentProperties.length / ITEMS_PER_PAGE));
   const safePage = Math.min(currentPage, totalPages);
   const displayed = rentProperties.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
+
+  useEffect(() => {
+    const effectivePage = properties.length === 0 ? currentPage : safePage;
+    syncListingsUrlParams({
+      q: searchQuery.trim() || null,
+      search: null,
+      city: selectedCity !== 'All' ? selectedCity : null,
+      bhk: bhkConfig !== 'all' ? bhkConfig : null,
+      budget: rentBudget !== 'all' ? rentBudget : null,
+      page: effectivePage > 1 ? effectivePage : null,
+    });
+  }, [searchQuery, selectedCity, bhkConfig, rentBudget, currentPage, safePage, properties.length]);
+
+  const handlePageChange = (nextPage: number) => {
+    if (nextPage >= 1 && nextPage <= totalPages) {
+      setCurrentPage(nextPage);
+      syncListingsUrlParams({ page: nextPage > 1 ? nextPage : null });
+      scrollToPropertyListingsStart('rent-listings-start');
+    }
+  };
 
   const handleReset = () => {
     setSearchQuery('');
@@ -309,7 +352,7 @@ export const RentPage: React.FC<RentPageProps> = ({
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
         
         {/* Results count header */}
-        <div className="flex items-center justify-between gap-4 mb-6 pb-3 border-b border-teal-200/80 dark:border-teal-950">
+        <div id="rent-listings-start" className="scroll-mt-24 flex items-center justify-between gap-4 mb-6 pb-3 border-b border-teal-200/80 dark:border-teal-950">
           <div>
             <h2 className="text-xl sm:text-2xl font-bold font-serif-luxury text-[#0E3A2B] dark:text-[#F4F3EF] flex items-center flex-wrap gap-2">
               {isHindi ? (
@@ -368,7 +411,7 @@ export const RentPage: React.FC<RentPageProps> = ({
                   <button
                     type="button"
                     disabled={safePage <= 1}
-                    onClick={() => setCurrentPage(safePage - 1)}
+                    onClick={() => handlePageChange(safePage - 1)}
                     className="px-3.5 py-2 rounded-xl text-xs font-bold border border-teal-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 disabled:opacity-40 cursor-pointer hover:bg-teal-50 dark:hover:bg-slate-800 shadow-xs flex items-center gap-1"
                   >
                     <ChevronLeft className="w-4 h-4" />
@@ -400,7 +443,7 @@ export const RentPage: React.FC<RentPageProps> = ({
                           <button
                             key={pageNum}
                             type="button"
-                            onClick={() => setCurrentPage(pageNum)}
+                            onClick={() => handlePageChange(pageNum)}
                             className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                               safePage === pageNum
                                 ? 'bg-teal-600 text-white shadow-md shadow-teal-600/25'
@@ -417,7 +460,7 @@ export const RentPage: React.FC<RentPageProps> = ({
                   <button
                     type="button"
                     disabled={safePage >= totalPages}
-                    onClick={() => setCurrentPage(safePage + 1)}
+                    onClick={() => handlePageChange(safePage + 1)}
                     className="px-3.5 py-2 rounded-xl text-xs font-bold border border-teal-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 disabled:opacity-40 cursor-pointer hover:bg-teal-50 dark:hover:bg-slate-800 shadow-xs flex items-center gap-1"
                   >
                     <span>{isHindi ? 'अगला' : 'Next'}</span>

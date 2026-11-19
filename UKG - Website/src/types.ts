@@ -67,6 +67,9 @@ export interface Property {
   ratePerSqFt?: string;
   ratePerGajOrNali?: string;
   location: string;
+  locality?: string;
+  address?: string;
+  district?: string;
   city: UttarakhandCity;
   region: Region;
   altitudeMsl?: string; // e.g. "7,500 ft MSL"
@@ -87,6 +90,7 @@ export interface Property {
   waterSource?: 'Jal Sansthan (Govt Tap Water)' | 'Natural Spring / Dhara' | 'Private Boring' | 'Water Tanker Supply' | string;
   homestaySubsidyEligible?: boolean;
   isVerifiedListing?: boolean;
+  verified?: boolean;
   views?: number;
   shares?: number;
   inquiries?: number;
@@ -119,8 +123,12 @@ export interface Property {
   fullSellerName?: string;
   isListerNameVisible?: boolean;
   approvalStatus?: 'approved' | 'pending' | 'rejected';
+  isPublished?: boolean;
   isHidden?: boolean;
   isSold?: boolean;
+  isDeleted?: boolean;
+  deletedAt?: string;
+  deletedBy?: string;
   isAvailableForRent?: boolean;
   purpose?: 'sale' | 'rent';
   rentPeriod?: 'monthly' | 'quarterly' | 'yearly';
@@ -130,6 +138,7 @@ export interface Property {
   availableFrom?: string;
   preferredTenants?: string[];
   createdAt?: string;
+  updatedAt?: string;
   postedAt?: string;
 }
 

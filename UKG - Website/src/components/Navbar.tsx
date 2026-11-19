@@ -218,7 +218,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   className={`relative p-1.5 xl:p-2 rounded-full hover:bg-emerald-100/70 dark:hover:bg-emerald-900/60 transition-colors cursor-pointer ${
                     showingFavoritesOnly ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300' : 'text-slate-700 dark:text-emerald-200'
                   }`}
-                  title={showingFavoritesOnly ? (isHindi ? "सभी संपत्तियां देखें" : "Show All Properties") : (isHindi ? "सहेजी गई संपत्तियां" : "Saved Properties")}
+                  title={showingFavoritesOnly ? (isHindi ? "सहेजे गए फ़िल्टर बंद करें" : "Exit Saved Filter") : (isHindi ? "सहेजी गई संपत्तियां" : "Saved Properties")}
                   aria-label="Saved properties"
                 >
                   <Bookmark className={`w-4 h-4 ${showingFavoritesOnly ? 'fill-emerald-600 text-emerald-600 dark:fill-emerald-400 dark:text-emerald-400' : 'text-slate-600 dark:text-emerald-300'}`} />
@@ -289,7 +289,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   setShowListChooserModal(true);
                 }
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-gradient-to-r from-emerald-600 via-teal-600 to-green-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-xs shadow-md shadow-emerald-600/30 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer ring-1 ring-emerald-300/40 whitespace-nowrap"
+              className={`${isPropertyViewActive ? 'hidden sm:flex' : 'flex'} items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-gradient-to-r from-emerald-600 via-teal-600 to-green-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-xs shadow-md shadow-emerald-600/30 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer ring-1 ring-emerald-300/40 whitespace-nowrap`}
               title={isHindi ? "प्रॉपर्टी बेचें" : "Sell Property"}
             >
               <span className="text-emerald-100 text-sm font-black">+</span>
@@ -376,16 +376,16 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             )}
 
-            {/* Back Option at the end of Nav Bar */}
+            {/* Back Option in Nav Bar — compact & never clipped */}
             {isPropertyViewActive && onReturnToProperties && (
               <button
                 type="button"
                 onClick={onReturnToProperties}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all cursor-pointer active:scale-95 whitespace-nowrap"
+                className="inline-flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] sm:text-xs shadow-xs transition-all cursor-pointer active:scale-95 whitespace-nowrap shrink-0"
                 title={isHindi ? 'मार्केटप्लेस पर वापस जाएं' : 'Back to Marketplace'}
               >
-                <ArrowLeft className="w-3.5 h-3.5 text-white" />
-                <span>{isHindi ? 'वापस (Back)' : 'Back'}</span>
+                <ArrowLeft className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white shrink-0" />
+                <span>{isHindi ? 'वापस' : 'Back'}</span>
               </button>
             )}
 
@@ -397,7 +397,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 if (onNavigateGuides) onNavigateGuides();
                 else window.location.href = '/guides';
               }}
-              className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/80 hover:bg-emerald-100 dark:hover:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800 text-xs font-bold shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+              className={`${isPropertyViewActive ? 'hidden 2xl:inline-flex' : 'hidden md:inline-flex'} items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/80 hover:bg-emerald-100 dark:hover:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800 text-xs font-bold shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap`}
               title={isHindi ? 'उत्तराखंड भूमि कानून व गाइड' : 'Uttarakhand Land Laws & Guides'}
             >
               <BookOpen className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
@@ -406,9 +406,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Download Android App (Direct Native APK) */}
             <a
-              href="/UKG - App.apk?v=10"
+              href="/UKG - App.apk?v=11"
               download="UKG - App.apk"
-              className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/80 hover:bg-emerald-100 dark:hover:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800 text-xs font-bold shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+              className={`${isPropertyViewActive ? 'hidden 2xl:inline-flex' : 'hidden lg:inline-flex'} items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/80 hover:bg-emerald-100 dark:hover:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800 text-xs font-bold shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap`}
               title={isHindi ? 'ऑफिशियल एंड्रॉइड ऐप डाउनलोड करें' : 'Download Official Android App (APK)'}
             >
               <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
@@ -526,7 +526,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Direct Official Android APK Download Banner */}
             <a
-              href="/UKG - App.apk?v=10"
+              href="/UKG - App.apk?v=11"
               download="UKG - App.apk"
               onClick={() => setMobileMenuOpen(false)}
               className="w-full p-2.5 bg-gradient-to-r from-[#0E3A2B] via-[#32463D] to-[#0C3628] text-[#F4F3EF] font-extrabold rounded-2xl text-xs flex items-center justify-between shadow-md shadow-[#032D1F]/25 border border-[#AA8F7C]/40 cursor-pointer active:scale-98 transition-all"

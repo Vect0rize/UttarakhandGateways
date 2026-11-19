@@ -12,6 +12,8 @@ import {
   HelpCircle, 
   ChevronDown, 
   ChevronUp, 
+  ChevronLeft,
+  ChevronRight,
   SlidersHorizontal,
   Home,
   TrendingUp,
@@ -23,6 +25,13 @@ import {
 import { useLanguage } from '../context/LanguageContext';
 import { SeoKeywordsSection } from './SeoKeywordsSection';
 import type { AppPageRouteKey } from '../data/seoMetadata';
+import {
+  scrollToPropertyListingsStart,
+  readPageParamFromUrl,
+  syncListingsUrlParams,
+} from '../utils/scrollToListings';
+
+const ITEMS_PER_PAGE = 12;
 
 interface CityPropertyLandingPageProps {
   cityName: string;
@@ -56,7 +65,14 @@ export const CityPropertyLandingPage: React.FC<CityPropertyLandingPageProps> = (
   onEditProperty,
 }) => {
   const { isHindi } = useLanguage();
-  const [filterMode, setFilterMode] = useState<'all' | 'sale' | 'rent' | 'plot' | 'flat'>('all');
+  const [filterMode, setFilterMode] = useState<'all' | 'sale' | 'rent' | 'plot' | 'flat'>(() => {
+    try {
+      const m = new URLSearchParams(window.location.search).get('filter');
+      if (m === 'sale' || m === 'rent' || m === 'plot' || m === 'flat') return m;
+    } catch {}
+    return 'all';
+  });
+  const [currentPage, setCurrentPage] = useState<number>(() => readPageParamFromUrl());
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   // Normalize city name
@@ -255,7 +271,7 @@ export const CityPropertyLandingPage: React.FC<CityPropertyLandingPageProps> = (
 
       {/* 3. INVENTORY FILTER TABS */}
       <section className="max-w-7xl mx-auto w-full px-4 sm:px-6 pt-8 pb-4">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-200 dark:border-emerald-800 pb-4">
+        <div id="city-listings-start" className="scroll-mt-24 flex flex-wrap items-center justify-between gap-3 border-b border-emerald-200 dark:border-emerald-800 pb-4">
           <div className="flex items-center gap-2">
             <h2 className="text-xl sm:text-2xl font-black text-[#0E3A2B] dark:text-[#F4F3EF] font-serif-luxury flex items-center flex-wrap gap-2">
               <span>Available Properties in {marketData.city}</span>
@@ -266,33 +282,33 @@ export const CityPropertyLandingPage: React.FC<CityPropertyLandingPageProps> = (
           </div>
 
           {/* Quick Segmented Control */}
-          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-800 text-xs font-bold">
+          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-800 text-xs font-bold flex-wrap">
             <button
-              onClick={() => setFilterMode('all')}
+              onClick={() => { setFilterMode('all'); setCurrentPage(1); syncListingsUrlParams({ filter: null, page: null }); }}
               className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${filterMode === 'all' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-700 dark:text-emerald-200 hover:text-emerald-800'}`}
             >
               All ({cityProperties.length})
             </button>
             <button
-              onClick={() => setFilterMode('sale')}
+              onClick={() => { setFilterMode('sale'); setCurrentPage(1); syncListingsUrlParams({ filter: 'sale', page: null }); }}
               className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${filterMode === 'sale' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-700 dark:text-emerald-200 hover:text-emerald-800'}`}
             >
               Buy Outright
             </button>
             <button
-              onClick={() => setFilterMode('rent')}
+              onClick={() => { setFilterMode('rent'); setCurrentPage(1); syncListingsUrlParams({ filter: 'rent', page: null }); }}
               className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${filterMode === 'rent' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-700 dark:text-emerald-200 hover:text-emerald-800'}`}
             >
               Rent / Lease
             </button>
             <button
-              onClick={() => setFilterMode('plot')}
+              onClick={() => { setFilterMode('plot'); setCurrentPage(1); syncListingsUrlParams({ filter: 'plot', page: null }); }}
               className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${filterMode === 'plot' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-700 dark:text-emerald-200 hover:text-emerald-800'}`}
             >
               Plots / Land
             </button>
             <button
-              onClick={() => setFilterMode('flat')}
+              onClick={() => { setFilterMode('flat'); setCurrentPage(1); syncListingsUrlParams({ filter: 'flat', page: null }); }}
               className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${filterMode === 'flat' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-700 dark:text-emerald-200 hover:text-emerald-800'}`}
             >
               Flats / Apts
@@ -301,36 +317,92 @@ export const CityPropertyLandingPage: React.FC<CityPropertyLandingPageProps> = (
         </div>
 
         {/* Real Properties Grid */}
-        {filteredListings.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-6">
-            {filteredListings.map((property, idx) => (
-              <PropertyCard
-                key={property.id}
-                index={idx}
-                property={property}
-                onSelect={(p) => onSelectProperty(p)}
-                isFavorite={favorites.includes(property.id)}
-                onToggleFavorite={onToggleFavorite}
-                onStartChat={onStartChat}
-                onDeleteProperty={onDeleteProperty}
-                onToggleSold={onToggleSold}
-                onEditProperty={onEditProperty}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="p-12 text-center rounded-3xl bg-white dark:bg-[#071f17] border border-emerald-200 dark:border-emerald-800 my-8 space-y-3">
-            <Building2 className="w-10 h-10 text-emerald-500 mx-auto" />
-            <h3 className="text-lg font-bold">No properties match this specific category filter in {marketData.city}.</h3>
-            <p className="text-xs text-slate-500 max-w-md mx-auto">Try selecting "All" to view all {cityProperties.length} verified listings in {marketData.city}.</p>
-            <button
-              onClick={() => setFilterMode('all')}
-              className="px-5 py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs"
-            >
-              Show All {marketData.city} Properties
-            </button>
-          </div>
-        )}
+        {(() => {
+          const totalPages = Math.max(1, Math.ceil(filteredListings.length / ITEMS_PER_PAGE));
+          const safePage = Math.min(currentPage, totalPages);
+          const displayedCityProps = filteredListings.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
+          const handleCityPageChange = (nextPage: number) => {
+            if (nextPage >= 1 && nextPage <= totalPages) {
+              setCurrentPage(nextPage);
+              syncListingsUrlParams({ page: nextPage > 1 ? nextPage : null });
+              scrollToPropertyListingsStart('city-listings-start');
+            }
+          };
+
+          return filteredListings.length > 0 ? (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-6">
+                {displayedCityProps.map((property, idx) => (
+                  <PropertyCard
+                    key={property.id}
+                    index={idx}
+                    property={property}
+                    onSelect={(p) => onSelectProperty(p)}
+                    isFavorite={favorites.includes(property.id)}
+                    onToggleFavorite={onToggleFavorite}
+                    onStartChat={onStartChat}
+                    onDeleteProperty={onDeleteProperty}
+                    onToggleSold={onToggleSold}
+                    onEditProperty={onEditProperty}
+                  />
+                ))}
+              </div>
+              {totalPages > 1 && (
+                <div className="mt-10 flex flex-col items-center justify-center gap-3 text-center">
+                  <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    Page {safePage} of {totalPages} ({filteredListings.length} properties)
+                  </div>
+                  <div className="flex items-center justify-center gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      disabled={safePage <= 1}
+                      onClick={() => handleCityPageChange(safePage - 1)}
+                      className="px-3.5 py-2 rounded-xl text-xs font-bold border border-emerald-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 disabled:opacity-40 cursor-pointer hover:bg-emerald-50 flex items-center gap-1"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      <span>{isHindi ? 'पिछला' : 'Previous'}</span>
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                      <button
+                        key={pageNum}
+                        type="button"
+                        onClick={() => handleCityPageChange(pageNum)}
+                        className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                          safePage === pageNum
+                            ? 'bg-emerald-600 text-white shadow-md'
+                            : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-emerald-200 dark:border-slate-700 hover:bg-emerald-50'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      disabled={safePage >= totalPages}
+                      onClick={() => handleCityPageChange(safePage + 1)}
+                      className="px-3.5 py-2 rounded-xl text-xs font-bold border border-emerald-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 disabled:opacity-40 cursor-pointer hover:bg-emerald-50 flex items-center gap-1"
+                    >
+                      <span>{isHindi ? 'अगला' : 'Next'}</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="p-12 text-center rounded-3xl bg-white dark:bg-[#071f17] border border-emerald-200 dark:border-emerald-800 my-8 space-y-3">
+              <Building2 className="w-10 h-10 text-emerald-500 mx-auto" />
+              <h3 className="text-lg font-bold">No properties match this specific category filter in {marketData.city}.</h3>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">Try resetting the category filter above to browse listings in {marketData.city}.</p>
+              <button
+                onClick={() => { setFilterMode('all'); setCurrentPage(1); syncListingsUrlParams({ filter: null, page: null }); }}
+                className="px-5 py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs cursor-pointer"
+              >
+                Reset Category Filter
+              </button>
+            </div>
+          );
+        })()}
       </section>
 
       {/* 4. LOCAL MARKET INSIGHTS & LEGAL OVERVIEW */}

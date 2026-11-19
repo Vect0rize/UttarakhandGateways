@@ -94,6 +94,11 @@ import { LoginSuccessAnimation } from './components/LoginSuccessAnimation';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { HomeLoanBanner } from './components/HomeLoanBanner';
 import { TrendingCarousel } from './components/TrendingCarousel';
+import {
+  scrollToPropertyListingsStart,
+  readPageParamFromUrl,
+  syncListingsUrlParams,
+} from './utils/scrollToListings';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -172,7 +177,8 @@ export default function App() {
     guideSlug?: string;
   } => {
     const params = new URLSearchParams(rawSearch);
-    const p = (params.get('page') || '').toLowerCase();
+    const rawPageParam = (params.get('page') || '').trim().toLowerCase();
+    const p = /^\d+$/.test(rawPageParam) ? '' : rawPageParam;
     const rawPath = (rawPathname || '/').toLowerCase().replace(/\/+$/, '');
     const path = rawPath === '' ? '/' : rawPath;
 
@@ -327,9 +333,37 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
-  const [filters, setFilters] = useState<FilterState>(INITIAL_FILTERS);
+  const [filters, setFilters] = useState<FilterState>(() => {
+    try {
+      const path = (window.location.pathname || '/').toLowerCase().replace(/\/+$/, '') || '/';
+      if (path !== '/') return INITIAL_FILTERS;
+      const sp = new URLSearchParams(window.location.search);
+      const sortParam = sp.get('sort');
+      const allowedSorts: FilterState['sortBy'][] = ['featured', 'price-low', 'price-high', 'area-large', 'area-small'];
+      return {
+        ...INITIAL_FILTERS,
+        searchQuery: sp.get('q') || sp.get('search') || '',
+        city: sp.get('city') || 'All Locations',
+        category: sp.get('category') || 'All Types',
+        budgetRange: sp.get('budget') || 'all',
+        bhkConfig: sp.get('bhk') || 'all',
+        sortBy: allowedSorts.includes(sortParam as FilterState['sortBy'])
+          ? (sortParam as FilterState['sortBy'])
+          : INITIAL_FILTERS.sortBy,
+      };
+    } catch {
+      return INITIAL_FILTERS;
+    }
+  });
   const [showRentFilter, setShowRentFilter] = useState<boolean>(false);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState<number>(() => {
+    try {
+      const path = (window.location.pathname || '/').toLowerCase().replace(/\/+$/, '') || '/';
+      return path === '/' ? readPageParamFromUrl() : 1;
+    } catch {
+      return 1;
+    }
+  });
 
   const [favorites, setFavorites] = useState<string[]>(() => {
     try {
@@ -1574,8 +1608,7 @@ export default function App() {
   const displayedProperties = filteredProperties.slice(startIndex, endIndex);
 
   const scrollToProperties = () => {
-    const el = document.getElementById('properties-section');
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
+    scrollToPropertyListingsStart('all-properties-heading');
   };
 
   const scrollToContact = () => {
@@ -1583,10 +1616,38 @@ export default function App() {
     if (el) el.scrollIntoView({ behavior: 'smooth' });
   };
 
+  useEffect(() => {
+    if (activePage !== 'home' || selectedProperty) return;
+    const hasPropParam = (() => {
+      try {
+        return Boolean(
+          new URLSearchParams(window.location.search).get('property') ||
+            window.location.pathname.startsWith('/property/')
+        );
+      } catch {
+        return false;
+      }
+    })();
+    if (hasPropParam) return;
+
+    const effectivePage = properties.length === 0 ? currentPage : safeCurrentPage;
+
+    syncListingsUrlParams({
+      q: filters.searchQuery.trim() || null,
+      city: filters.city !== 'All Locations' ? filters.city : null,
+      category: filters.category !== 'All Types' ? filters.category : null,
+      budget: filters.budgetRange && filters.budgetRange !== 'all' ? filters.budgetRange : null,
+      bhk: filters.bhkConfig && filters.bhkConfig !== 'all' ? filters.bhkConfig : null,
+      sort: filters.sortBy !== INITIAL_FILTERS.sortBy ? filters.sortBy : null,
+      page: effectivePage > 1 ? effectivePage : null,
+    });
+  }, [activePage, selectedProperty, filters, currentPage, safeCurrentPage, properties.length]);
+
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
       setCurrentPage(newPage);
-      scrollToProperties();
+      syncListingsUrlParams({ page: newPage > 1 ? newPage : null });
+      scrollToPropertyListingsStart('all-properties-heading');
     }
   };
 
@@ -2106,51 +2167,27 @@ export default function App() {
         
         {/* Saved for Later Indicator Bar */}
         {showingFavoritesOnly && (
-          <div className="mb-6 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 flex items-center justify-between text-emerald-800 dark:text-emerald-200 shadow-xs">
-            <div className="flex items-center gap-2 text-sm font-semibold">
-              <Bookmark className="w-4 h-4 fill-emerald-600 text-emerald-600" />
-              <span>
-                {isHindi 
-                  ? `आपकी सहेजी गई ${favorites.length} संपत्तियां दिखाई जा रही हैं` 
-                  : `Showing your ${favorites.length} properties saved for later`}
-              </span>
-            </div>
-            <button
-              onClick={() => {
-                setShowingFavoritesOnly(false);
-                setCurrentPage(1);
-              }}
-              className="text-xs bg-emerald-100 dark:bg-emerald-900/60 hover:bg-emerald-200 dark:hover:bg-emerald-800 px-3 py-1.5 rounded-lg text-emerald-900 dark:text-emerald-100 font-semibold cursor-pointer"
-            >
-              {isHindi ? 'सभी संपत्तियां देखें' : 'Show All Properties'}
-            </button>
+          <div className="mb-6 px-4 py-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 flex items-center gap-2 text-emerald-800 dark:text-emerald-200 shadow-xs text-sm font-semibold">
+            <Bookmark className="w-4 h-4 fill-emerald-600 text-emerald-600 shrink-0" />
+            <span>
+              {isHindi 
+                ? `आपकी सहेजी गई ${favorites.length} संपत्तियां दिखाई जा रही हैं` 
+                : `Showing your ${favorites.length} properties saved for later`}
+            </span>
           </div>
         )}
 
         {/* SECTION: Featured Properties Carousel (Like Mobile App) */}
         {!showingFavoritesOnly && featuredProperties.length > 0 && (
           <section className="mb-10 sm:mb-12">
-            <div className="flex items-center justify-between mb-4 px-1">
-              <div>
-                <h3 className="font-serif-luxury font-bold text-xl sm:text-2xl text-slate-900 dark:text-white flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-amber-500 fill-amber-500 shrink-0" />
-                  <span>{isHindi ? 'फीचर्ड संपत्तियां' : 'Featured Properties'}</span>
-                </h3>
-                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                  {isHindi ? 'डायरेक्ट ओनर लिस्टिंग्स • 0% ब्रोकरेज' : 'Direct owner listings • 0% brokerage'}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  const el = document.getElementById('all-properties-heading');
-                  if (el) el.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className="text-xs sm:text-sm font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 flex items-center gap-1 active:scale-95 cursor-pointer"
-              >
-                <span>{isHindi ? 'सभी देखें' : 'See all'}</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
+            <div className="mb-4 px-1">
+              <h3 className="font-serif-luxury font-bold text-xl sm:text-2xl text-slate-900 dark:text-white flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-amber-500 fill-amber-500 shrink-0" />
+                <span>{isHindi ? 'फीचर्ड संपत्तियां' : 'Featured Properties'}</span>
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                {isHindi ? 'डायरेक्ट ओनर लिस्टिंग्स • 0% ब्रोकरेज' : 'Direct owner listings • 0% brokerage'}
+              </p>
             </div>
 
             <TrendingCarousel
@@ -2248,7 +2285,7 @@ export default function App() {
         )}
 
         {/* Properties Grid Header */}
-        <div id="all-properties-heading" className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-emerald-200/80 dark:border-emerald-950/80">
+        <div id="all-properties-heading" className="scroll-mt-24 sm:scroll-mt-28 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-emerald-200/80 dark:border-emerald-950/80">
           <div>
             <h3 className="text-xl sm:text-2xl font-bold text-[#0E3A2B] dark:text-[#F4F3EF] font-serif-luxury flex items-center flex-wrap gap-2.5">
               {showingFavoritesOnly ? (
@@ -2452,7 +2489,7 @@ export default function App() {
                 onClick={handleResetFilters}
                 className="px-6 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
               >
-                {isHindi ? 'सभी संपत्तियां देखें' : 'Explore All Properties'}
+                {isHindi ? 'फ़िल्टर रीसेट करें' : 'Reset Filters'}
               </button>
             </div>
           </div>

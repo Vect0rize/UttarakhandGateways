@@ -5,7 +5,6 @@ import {
   MapPin, 
   Maximize2, 
   Bookmark, 
-  ChevronRight, 
   PlusCircle, 
   Building2,
   MoreVertical,
@@ -27,7 +26,7 @@ interface LandPlotsSectionProps {
   onSelectProperty: (property: Property) => void;
   favorites: string[];
   onToggleFavorite: (id: string) => void;
-  onViewAll: () => void;
+  onViewAll?: () => void;
   onListLandClick?: () => void;
   className?: string;
   currentUser?: any;
@@ -42,7 +41,6 @@ export const LandPlotsSection: React.FC<LandPlotsSectionProps> = ({
   onSelectProperty,
   favorites,
   onToggleFavorite,
-  onViewAll,
   onListLandClick,
   className = '',
   currentUser: propUser,
@@ -104,8 +102,8 @@ export const LandPlotsSection: React.FC<LandPlotsSectionProps> = ({
         />
       )}
 
-      {/* Header with Title & View All */}
-      <div className="px-4 flex items-center justify-between">
+      {/* Header with Title */}
+      <div className="px-4">
         <div>
           <div className="inline-flex items-center gap-1 text-[9.5px] font-extrabold uppercase tracking-wider text-emerald-700 dark:text-emerald-300 mb-0.5">
             <Compass className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
@@ -120,15 +118,6 @@ export const LandPlotsSection: React.FC<LandPlotsSectionProps> = ({
               : 'Residential, agricultural & commercial plots across Uttarakhand'}
           </p>
         </div>
-
-        <button
-          type="button"
-          onClick={onViewAll}
-          className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 active:scale-95 transition-transform cursor-pointer shrink-0"
-        >
-          <span>{isHindi ? 'सभी देखें' : 'See all'}</span>
-          <ChevronRight className="w-3.5 h-3.5" />
-        </button>
       </div>
 
       {/* Horizontal Scrolling Card Track - Designed Exclusively for Mobile App */}

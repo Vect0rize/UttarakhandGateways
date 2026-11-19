@@ -547,21 +547,22 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-[#f8faf9] dark:bg-[#071711] text-slate-900 dark:text-slate-100 transition-colors pt-20 sm:pt-24 pb-28 sm:pb-20 overflow-x-hidden relative z-10 w-full">
+    <div className="min-h-screen bg-[#f8faf9] dark:bg-[#071711] text-slate-900 dark:text-slate-100 transition-colors pt-24 sm:pt-28 pb-28 sm:pb-20 overflow-x-hidden relative z-10 w-full">
       
       {/* 1. TOP BREADCRUMB & ACTION BAR */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4 border-b border-slate-200 dark:border-emerald-900/50">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between gap-2 sm:gap-4 border-b border-slate-200 dark:border-emerald-900/50">
         
         {/* Back Link & Breadcrumb */}
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="flex items-center gap-2.5 min-w-0">
           <button
             type="button"
             onClick={onBack}
-            className="flex items-center gap-2 text-xs sm:text-sm font-bold text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 transition-colors cursor-pointer group shrink-0"
+            className="inline-flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-200/80 dark:border-emerald-800 text-[11px] sm:text-xs font-bold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/70 transition-colors cursor-pointer group shrink-0"
             title={isHindi ? 'मार्केटप्लेस पर वापस जाएं' : 'Back to Marketplace'}
           >
-            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-            <span>{isHindi ? 'वापस मार्केटप्लेस' : 'Back to Listings'}</span>
+            <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform shrink-0" />
+            <span className="sm:hidden">{isHindi ? 'वापस' : 'Back'}</span>
+            <span className="hidden sm:inline">{isHindi ? 'वापस मार्केटप्लेस' : 'Back to Listings'}</span>
           </button>
 
           <span className="text-slate-300 dark:text-emerald-800/80 hidden sm:inline">•</span>

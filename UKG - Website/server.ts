@@ -352,6 +352,7 @@ function maskOwnerNamePublic(fullName: string, fallback = 'Property Owner'): str
 function isPropertyPubliclyVisible(prop: any, settings?: { enabledCategories?: string[] }): boolean {
   if (!prop || typeof prop !== 'object') return false;
   if (prop.isDeleted === true || prop.status === 'deleted') return false;
+  if (prop.isPublished === false) return false;
   if (prop.isHidden === true) return false;
   const approvalStatus = prop.approvalStatus || 'approved';
   if (approvalStatus !== 'approved') return false;
@@ -471,14 +472,59 @@ function isSafeMediaUrl(url: unknown): boolean {
 
 function sanitizePropertyInput(obj: any): void {
   if (!obj || typeof obj !== 'object') return;
-  const textFields = ['title', 'description', 'location', 'address', 'city', 'sellerName', 'category', 'area', 'priceDisplay'];
+  const textFields = [
+    'title',
+    'tagline',
+    'description',
+    'location',
+    'address',
+    'city',
+    'district',
+    'region',
+    'altitudeMsl',
+    'area',
+    'areaDisplay',
+    'areaUnit',
+    'pricingUnit',
+    'ratePerSqFt',
+    'ratePerGajOrNali',
+    'configuration',
+    'facing',
+    'possession',
+    'reraStatus',
+    'reraId',
+    'roadAccess',
+    'bhooKanoonStatus',
+    'waterSource',
+    'peakName',
+    'legalStatus',
+    'distanceFromAirport',
+    'distanceFromRailway',
+    'sellerName',
+    'sellerPhone',
+    'sellerEmail',
+    'ownerUsername',
+    'ownerContact',
+    'availableFrom',
+    'priceDisplay',
+  ];
   for (const field of textFields) {
     if (typeof obj[field] === 'string') {
       obj[field] = stripHtmlTags(obj[field]);
     }
   }
+  const arrayTextFields = ['highlights', 'amenities', 'preferredTenants'];
+  for (const arrField of arrayTextFields) {
+    if (Array.isArray(obj[arrField])) {
+      obj[arrField] = obj[arrField]
+        .filter((v: unknown) => typeof v === 'string')
+        .map((v: string) => stripHtmlTags(v))
+        .filter(Boolean)
+        .slice(0, 40);
+    }
+  }
   if (Array.isArray(obj.images)) {
-    obj.images = obj.images.filter((img: unknown) => isSafeMediaUrl(img)).slice(0, 15);
+    obj.images = obj.images.filter((img: unknown) => isSafeMediaUrl(img)).slice(0, 20);
   }
   if (Array.isArray(obj.videos)) {
     obj.videos = obj.videos.filter((vid: unknown) => isSafeMediaUrl(vid)).slice(0, 3);
@@ -781,15 +827,17 @@ app.put('/api/properties/:id', async (req, res) => {
     const {
       id: _dropId,
       ownerId: _dropOwnerId,
-      ownerContact: _dropOwnerContact,
-      ownerUsername: _dropOwnerUsername,
+      ownerContact: rawOwnerContact,
+      ownerUsername: rawOwnerUsername,
       createdAt: _dropCreatedAt,
       views: _dropViews,
       shares: _dropShares,
       inquiries: _dropInquiries,
       featured: rawFeatured,
       approvalStatus: rawApprovalStatus,
+      isPublished: rawIsPublished,
       isHidden: rawIsHidden,
+      isDeleted: rawIsDeleted,
       isOwner: _dropIsOwner,
       role: _dropRole,
       ...safeUpdates
@@ -798,20 +846,42 @@ app.put('/api/properties/:id', async (req, res) => {
     if (isAdmin) {
       if (typeof rawFeatured === 'boolean') safeUpdates.featured = rawFeatured;
       if (typeof rawIsHidden === 'boolean') safeUpdates.isHidden = rawIsHidden;
+      if (typeof rawIsPublished === 'boolean') safeUpdates.isPublished = rawIsPublished;
+      if (typeof rawIsDeleted === 'boolean') safeUpdates.isDeleted = rawIsDeleted;
       if (['approved', 'pending', 'rejected'].includes(rawApprovalStatus)) {
         safeUpdates.approvalStatus = rawApprovalStatus;
+      }
+      if (typeof rawOwnerContact === 'string' && rawOwnerContact.trim()) {
+        safeUpdates.ownerContact = stripHtmlTags(rawOwnerContact).trim();
+      }
+      if (typeof rawOwnerUsername === 'string' && rawOwnerUsername.trim()) {
+        safeUpdates.ownerUsername = stripHtmlTags(rawOwnerUsername).trim();
+      } else if (typeof safeUpdates.sellerName === 'string' && safeUpdates.sellerName.trim()) {
+        safeUpdates.ownerUsername = stripHtmlTags(safeUpdates.sellerName).trim();
       }
     }
 
     // Preserve/backfill existing owner fields only if missing
     if (!existing.ownerId && sessionUser.id) safeUpdates.ownerId = sessionUser.id;
-    if (!existing.ownerContact && sessionUser.contact) safeUpdates.ownerContact = sessionUser.contact;
-    if (!existing.ownerUsername && sessionUser.username) safeUpdates.ownerUsername = sessionUser.username;
+    if (!existing.ownerContact && !safeUpdates.ownerContact && sessionUser.contact) safeUpdates.ownerContact = sessionUser.contact;
+    if (!existing.ownerUsername && !safeUpdates.ownerUsername && sessionUser.username) safeUpdates.ownerUsername = sessionUser.username;
 
     sanitizePropertyInput(safeUpdates);
     persistInlineVideos(safeUpdates);
 
     const updated = await db.updateProperty(id, safeUpdates);
+    if (isAdmin) {
+      await db.recordAuditLog({
+        adminId: sessionUser.id,
+        adminEmail: sessionUser.contact || '',
+        adminName: sessionUser.username || 'Administrator',
+        action: 'UPDATE_PROPERTY',
+        targetType: 'property',
+        targetId: id,
+        targetTitle: updated?.title || existing.title,
+        details: `Updated property "${updated?.title || existing.title}" via listing editor`,
+      });
+    }
     console.log(`[UKG Properties] Updated property "${updated.title}" (${id})`);
     res.json({ success: true, property: sanitizePublicProperty(updated, sessionUser) });
   } catch (err: any) {
@@ -2088,20 +2158,50 @@ async function requirePlatformAdmin(req: express.Request, res: express.Response,
 
 function formatAdminProperty(prop: any): any {
   const fullOwnerName = resolveCleanOwnerFullName(prop);
+  const isDeleted = Boolean(prop.isDeleted || prop.status === 'deleted');
   return {
     ...prop,
     views: Math.max(0, Math.floor(Number(prop.views) || 0)),
     shares: Math.max(0, Math.floor(Number(prop.shares) || 0)),
     inquiries: Math.max(0, Math.floor(Number(prop.inquiries) || 0)),
     approvalStatus: prop.approvalStatus || 'approved',
+    isPublished: prop.isPublished !== false && !isDeleted,
     isHidden: Boolean(prop.isHidden),
     featured: Boolean(prop.featured),
     isSold: Boolean(prop.isSold),
+    isDeleted,
+    deletedAt: prop.deletedAt || undefined,
+    deletedBy: prop.deletedBy || undefined,
+    updatedAt: prop.updatedAt || prop.createdAt || undefined,
     sellerName: prop.sellerName || fullOwnerName,
     fullSellerName: fullOwnerName,
     publicMaskedSellerName: maskOwnerNamePublic(fullOwnerName, prop.sellerType === 'Broker' ? 'Property Broker' : 'Property Owner'),
     isListerNameVisible: true,
   };
+}
+
+async function logAdminAction(
+  adminUser: any,
+  action: string,
+  targetType: 'property' | 'user' | 'report' | 'settings' | 'bulk',
+  targetId: string,
+  targetTitle: string | undefined,
+  details: string
+): Promise<void> {
+  try {
+    await db.recordAuditLog({
+      adminId: String(adminUser?.id || 'admin'),
+      adminEmail: String(adminUser?.contact || adminUser?.email || ''),
+      adminName: String(adminUser?.username || 'Administrator'),
+      action,
+      targetType,
+      targetId,
+      targetTitle,
+      details,
+    });
+  } catch (err) {
+    console.warn('[UKG Audit] Failed to record audit log:', err);
+  }
 }
 
 function propertyBelongsToUser(prop: any, u: any): boolean {
@@ -2123,14 +2223,16 @@ function propertyBelongsToUser(prop: any, u: any): boolean {
 
 app.get('/api/admin/overview', requirePlatformAdmin, async (_req, res) => {
   try {
-    const [rawProperties, rawUsers, rawReports, settings] = await Promise.all([
+    const [rawProperties, rawUsers, rawReports, settings, auditLogs] = await Promise.all([
       db.getAllProperties(),
       db.getAllUsers(),
       db.getAllReports(),
       db.getPlatformSettings(),
+      db.getAuditLogs(250),
     ]);
 
     const adminProperties = rawProperties.map((p) => formatAdminProperty(p));
+    const nonDeletedProperties = adminProperties.filter((p) => !p.isDeleted);
     const propMap = new Map<string, any>();
     for (const p of adminProperties) {
       if (p?.id) propMap.set(p.id, p);
@@ -2138,7 +2240,7 @@ app.get('/api/admin/overview', requirePlatformAdmin, async (_req, res) => {
 
     const enrichedUsers = rawUsers.map((u: any) => {
       const safe = formatSafeUser(u)!;
-      const owned = adminProperties.filter((p) => propertyBelongsToUser(p, u));
+      const owned = nonDeletedProperties.filter((p) => propertyBelongsToUser(p, u));
       return {
         ...safe,
         propertiesCount: owned.length,
@@ -2153,10 +2255,12 @@ app.get('/api/admin/overview', requirePlatformAdmin, async (_req, res) => {
           priceDisplay: p.priceDisplay,
           views: p.views,
           approvalStatus: p.approvalStatus,
+          isPublished: p.isPublished,
           isHidden: p.isHidden,
           featured: p.featured,
           isSold: p.isSold,
           createdAt: p.createdAt,
+          updatedAt: p.updatedAt,
         })),
       };
     });
@@ -2166,7 +2270,7 @@ app.get('/api/admin/overview', requirePlatformAdmin, async (_req, res) => {
       return {
         ...r,
         reporterContact: r.reporterEmail || r.reporterContact || 'Anonymous',
-        propertyExists: Boolean(matched),
+        propertyExists: Boolean(matched && !matched.isDeleted),
         propertyOwnerName: matched?.fullSellerName || undefined,
         propertyCity: matched?.city || undefined,
         propertyViews: matched?.views ?? 0,
@@ -2180,28 +2284,34 @@ app.get('/api/admin/overview', requirePlatformAdmin, async (_req, res) => {
       Commercial: 0,
       Agriculture: 0,
     };
-    for (const p of adminProperties) {
+    for (const p of nonDeletedProperties) {
       const cat = p.category || 'Residential';
       categoriesBreakdown[cat] = (categoriesBreakdown[cat] || 0) + 1;
     }
 
     const stats = {
-      totalProperties: adminProperties.length,
-      activeListings: adminProperties.filter(
-        (p) => p.approvalStatus === 'approved' && !p.isHidden && !p.isSold
+      totalProperties: nonDeletedProperties.length,
+      totalIncludingDeleted: adminProperties.length,
+      activeListings: nonDeletedProperties.filter(
+        (p) => p.approvalStatus === 'approved' && p.isPublished !== false && !p.isHidden && !p.isSold
       ).length,
-      pendingApprovals: adminProperties.filter((p) => p.approvalStatus === 'pending').length,
-      rejectedListings: adminProperties.filter((p) => p.approvalStatus === 'rejected').length,
-      hiddenListings: adminProperties.filter((p) => p.isHidden).length,
-      featuredListings: adminProperties.filter((p) => p.featured).length,
-      soldListings: adminProperties.filter((p) => p.isSold).length,
+      publishedListings: nonDeletedProperties.filter(
+        (p) => p.approvalStatus === 'approved' && p.isPublished !== false && !p.isHidden
+      ).length,
+      unpublishedListings: nonDeletedProperties.filter((p) => p.isPublished === false).length,
+      pendingApprovals: nonDeletedProperties.filter((p) => p.approvalStatus === 'pending').length,
+      rejectedListings: nonDeletedProperties.filter((p) => p.approvalStatus === 'rejected').length,
+      hiddenListings: nonDeletedProperties.filter((p) => p.isHidden || p.isPublished === false).length,
+      featuredListings: nonDeletedProperties.filter((p) => p.featured).length,
+      soldListings: nonDeletedProperties.filter((p) => p.isSold).length,
+      deletedListings: adminProperties.filter((p) => p.isDeleted).length,
       registeredUsers: enrichedUsers.length,
       suspendedUsers: enrichedUsers.filter((u) => u.isSuspended).length,
       openReports: enrichedReports.filter((r) => r.status === 'open').length,
       totalReports: enrichedReports.length,
-      totalPropertyViews: adminProperties.reduce((sum, p) => sum + (Number(p.views) || 0), 0),
-      totalInquiries: adminProperties.reduce((sum, p) => sum + (Number(p.inquiries) || 0), 0),
-      totalShares: adminProperties.reduce((sum, p) => sum + (Number(p.shares) || 0), 0),
+      totalPropertyViews: nonDeletedProperties.reduce((sum, p) => sum + (Number(p.views) || 0), 0),
+      totalInquiries: nonDeletedProperties.reduce((sum, p) => sum + (Number(p.inquiries) || 0), 0),
+      totalShares: nonDeletedProperties.reduce((sum, p) => sum + (Number(p.shares) || 0), 0),
       categoriesBreakdown,
     };
 
@@ -2212,10 +2322,21 @@ app.get('/api/admin/overview', requirePlatformAdmin, async (_req, res) => {
       users: enrichedUsers,
       reports: enrichedReports,
       settings,
+      auditLogs,
     });
   } catch (err: any) {
     console.error('[UKG Admin] Overview error:', err);
     return res.status(500).json({ success: false, error: err?.message || 'Failed to load admin overview.' });
+  }
+});
+
+app.get('/api/admin/audit-logs', requirePlatformAdmin, async (req, res) => {
+  try {
+    const limit = Number(req.query.limit) || 300;
+    const auditLogs = await db.getAuditLogs(limit);
+    return res.json({ success: true, auditLogs });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Failed to load audit trail.' });
   }
 });
 
@@ -2247,22 +2368,26 @@ app.post('/api/admin/properties', requirePlatformAdmin, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Title must be at least 3 characters.' });
     }
 
+    const nowIso = new Date().toISOString();
     const property: any = {
       ...raw,
       id: propId,
-      createdAt: raw.createdAt || new Date().toISOString(),
+      createdAt: raw.createdAt || nowIso,
+      updatedAt: nowIso,
       views: Math.max(0, Math.floor(Number(raw.views) || 0)),
       shares: Math.max(0, Math.floor(Number(raw.shares) || 0)),
       inquiries: Math.max(0, Math.floor(Number(raw.inquiries) || 0)),
       isSold: Boolean(raw.isSold),
       featured: Boolean(raw.featured),
       isHidden: Boolean(raw.isHidden),
+      isPublished: raw.isPublished !== false,
+      isDeleted: false,
       approvalStatus: ['approved', 'pending', 'rejected'].includes(raw.approvalStatus)
         ? raw.approvalStatus
         : 'approved',
       ownerId: raw.ownerId || adminUser.id,
-      ownerUsername: raw.sellerName || raw.ownerUsername || adminUser.username,
-      ownerContact: raw.ownerContact || adminUser.contact,
+      ownerUsername: raw.ownerUsername || raw.sellerName || adminUser.username,
+      ownerContact: raw.ownerContact || raw.sellerEmail || adminUser.contact,
       sellerName: raw.sellerName || adminUser.username,
       sellerType: raw.sellerType === 'Broker' ? 'Broker' : 'Owner',
     };
@@ -2271,6 +2396,14 @@ app.post('/api/admin/properties', requirePlatformAdmin, async (req, res) => {
     persistInlineVideos(property);
 
     const saved = await db.saveProperty(property);
+    await logAdminAction(
+      adminUser,
+      'CREATE_PROPERTY',
+      'property',
+      saved.id,
+      saved.title,
+      `Created listing "${saved.title}" in ${saved.city || 'Uttarakhand'} (${saved.priceDisplay || saved.price})`
+    );
     return res.status(201).json({ success: true, property: formatAdminProperty(saved) });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err?.message || 'Failed to create property.' });
@@ -2279,6 +2412,7 @@ app.post('/api/admin/properties', requirePlatformAdmin, async (req, res) => {
 
 app.put('/api/admin/properties/:id', requirePlatformAdmin, async (req, res) => {
   try {
+    const adminUser = (req as any).adminUser;
     const targetId = decodeURIComponent(req.params.id || '').trim();
     const existing = await db.getPropertyById(targetId);
     if (!existing) {
@@ -2287,6 +2421,9 @@ app.put('/api/admin/properties/:id', requirePlatformAdmin, async (req, res) => {
 
     const updates = { ...(req.body || {}) };
     delete updates.id;
+    delete updates.fullSellerName;
+    delete updates.publicMaskedSellerName;
+    delete updates.isListerNameVisible;
 
     if (updates.title !== undefined && (typeof updates.title !== 'string' || updates.title.trim().length < 3)) {
       return res.status(400).json({ success: false, error: 'Title must be at least 3 characters.' });
@@ -2298,21 +2435,88 @@ app.put('/api/admin/properties/:id', requirePlatformAdmin, async (req, res) => {
       }
       updates.price = p;
     }
+    const numericFields = ['areaSqFt', 'areaValue', 'landMeasureInNali', 'bedrooms', 'bathrooms', 'balconies', 'monthlyRent'];
+    for (const nf of numericFields) {
+      if (updates[nf] !== undefined && updates[nf] !== null && updates[nf] !== '') {
+        const parsedNum = Number(updates[nf]);
+        if (!isNaN(parsedNum) && parsedNum >= 0) {
+          updates[nf] = parsedNum;
+        }
+      }
+    }
+    if (updates.coordinates && typeof updates.coordinates === 'object') {
+      const lat = Number(updates.coordinates.lat);
+      const lng = Number(updates.coordinates.lng);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        updates.coordinates = { lat, lng };
+      } else {
+        delete updates.coordinates;
+      }
+    }
     if (updates.approvalStatus !== undefined && !['approved', 'pending', 'rejected'].includes(updates.approvalStatus)) {
       return res.status(400).json({ success: false, error: 'Invalid approvalStatus.' });
     }
+    if (updates.isPublished !== undefined) updates.isPublished = Boolean(updates.isPublished);
     if (updates.isHidden !== undefined) updates.isHidden = Boolean(updates.isHidden);
     if (updates.featured !== undefined) updates.featured = Boolean(updates.featured);
     if (updates.isSold !== undefined) updates.isSold = Boolean(updates.isSold);
+    if (updates.isDeleted !== undefined) {
+      updates.isDeleted = Boolean(updates.isDeleted);
+      if (updates.isDeleted) {
+        updates.deletedAt = new Date().toISOString();
+        updates.deletedBy = adminUser.contact || adminUser.username;
+      } else {
+        updates.deletedAt = null;
+        updates.deletedBy = null;
+        if (existing.status === 'deleted') updates.status = null;
+      }
+    }
+    if (updates.homestaySubsidyEligible !== undefined) {
+      updates.homestaySubsidyEligible = Boolean(updates.homestaySubsidyEligible);
+    }
+    if (updates.himalayanPeakView !== undefined) {
+      updates.himalayanPeakView = Boolean(updates.himalayanPeakView);
+    }
+
     if (typeof updates.sellerName === 'string' && updates.sellerName.trim()) {
       updates.sellerName = stripHtmlTags(updates.sellerName).trim();
-      updates.ownerUsername = updates.sellerName;
+      if (!updates.ownerUsername) {
+        updates.ownerUsername = updates.sellerName;
+      }
+    }
+    if (typeof updates.sellerEmail === 'string' && updates.sellerEmail.trim() && !updates.ownerContact) {
+      updates.ownerContact = stripHtmlTags(updates.sellerEmail).trim().toLowerCase();
     }
 
     sanitizePropertyInput(updates);
     persistInlineVideos(updates);
 
+    // Build human-readable summary of modified fields for the audit trail
+    const trackedKeys = [
+      'title', 'tagline', 'description', 'price', 'priceDisplay', 'type', 'category', 'purpose',
+      'location', 'address', 'district', 'city', 'region', 'areaDisplay', 'areaValue', 'areaUnit',
+      'areaSqFt', 'bedrooms', 'bathrooms', 'balconies', 'configuration', 'furnishing', 'facing',
+      'possession', 'reraStatus', 'roadAccess', 'bhooKanoonStatus', 'sellerName', 'sellerPhone',
+      'sellerEmail', 'ownerContact', 'sellerType', 'images', 'approvalStatus', 'isPublished',
+      'isHidden', 'featured', 'isSold', 'isDeleted',
+    ];
+    const changedFields = trackedKeys.filter((k) => {
+      if (updates[k] === undefined) return false;
+      return JSON.stringify(updates[k]) !== JSON.stringify(existing[k]);
+    });
+
     const saved = await db.updateProperty(targetId, updates);
+    await logAdminAction(
+      adminUser,
+      'UPDATE_PROPERTY',
+      'property',
+      targetId,
+      saved?.title || existing.title,
+      changedFields.length > 0
+        ? `Edited fields [${changedFields.join(', ')}] on "${saved?.title || existing.title}"`
+        : `Saved property "${saved?.title || existing.title}"`
+    );
+
     return res.json({ success: true, property: formatAdminProperty(saved) });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err?.message || 'Failed to update property.' });
@@ -2321,39 +2525,241 @@ app.put('/api/admin/properties/:id', requirePlatformAdmin, async (req, res) => {
 
 app.patch('/api/admin/properties/:id/status', requirePlatformAdmin, async (req, res) => {
   try {
+    const adminUser = (req as any).adminUser;
     const targetId = decodeURIComponent(req.params.id || '').trim();
     const existing = await db.getPropertyById(targetId);
     if (!existing) {
       return res.status(404).json({ success: false, error: 'Property not found.' });
     }
 
-    const { approvalStatus, isHidden, featured, isSold } = req.body || {};
+    const { approvalStatus, isPublished, isHidden, featured, isSold, isDeleted } = req.body || {};
     const patch: Record<string, any> = {};
+    const changes: string[] = [];
+
     if (approvalStatus !== undefined) {
       if (!['approved', 'pending', 'rejected'].includes(approvalStatus)) {
         return res.status(400).json({ success: false, error: 'Invalid approval status.' });
       }
       patch.approvalStatus = approvalStatus;
+      changes.push(`approval=${approvalStatus}`);
     }
-    if (typeof isHidden === 'boolean') patch.isHidden = isHidden;
-    if (typeof featured === 'boolean') patch.featured = featured;
-    if (typeof isSold === 'boolean') patch.isSold = isSold;
+    if (typeof isPublished === 'boolean') {
+      patch.isPublished = isPublished;
+      if (isPublished) patch.isHidden = false;
+      changes.push(isPublished ? 'published' : 'unpublished');
+    }
+    if (typeof isHidden === 'boolean') {
+      patch.isHidden = isHidden;
+      changes.push(isHidden ? 'hidden' : 'unhidden');
+    }
+    if (typeof featured === 'boolean') {
+      patch.featured = featured;
+      changes.push(featured ? 'featured' : 'unfeatured');
+    }
+    if (typeof isSold === 'boolean') {
+      patch.isSold = isSold;
+      changes.push(isSold ? 'marked_sold' : 'marked_available');
+    }
+    if (typeof isDeleted === 'boolean') {
+      patch.isDeleted = isDeleted;
+      if (isDeleted) {
+        patch.deletedAt = new Date().toISOString();
+        patch.deletedBy = adminUser.contact || adminUser.username;
+        changes.push('archived');
+      } else {
+        patch.deletedAt = null;
+        patch.deletedBy = null;
+        if (existing.status === 'deleted') patch.status = null;
+        changes.push('restored');
+      }
+    }
 
     const updated = await db.updateProperty(targetId, patch);
+    await logAdminAction(
+      adminUser,
+      'UPDATE_PROPERTY_STATUS',
+      'property',
+      targetId,
+      updated?.title || existing.title,
+      `Changed status (${changes.join(', ') || 'updated'}) on "${updated?.title || existing.title}"`
+    );
+
     return res.json({ success: true, property: formatAdminProperty(updated) });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err?.message || 'Failed to update property status.' });
   }
 });
 
-app.delete('/api/admin/properties/:id', requirePlatformAdmin, async (req, res) => {
+app.post('/api/admin/properties/:id/restore', requirePlatformAdmin, async (req, res) => {
   try {
+    const adminUser = (req as any).adminUser;
     const targetId = decodeURIComponent(req.params.id || '').trim();
     const existing = await db.getPropertyById(targetId);
     if (!existing) {
       return res.status(404).json({ success: false, error: 'Property not found.' });
     }
-    await db.deleteProperty(targetId);
+
+    const restored = await db.updateProperty(targetId, {
+      isDeleted: false,
+      deletedAt: null,
+      deletedBy: null,
+      status: existing.status === 'deleted' ? null : existing.status,
+      isPublished: true,
+      isHidden: false,
+      approvalStatus: existing.approvalStatus === 'rejected' ? 'approved' : (existing.approvalStatus || 'approved'),
+    });
+
+    await logAdminAction(
+      adminUser,
+      'RESTORE_PROPERTY',
+      'property',
+      targetId,
+      restored?.title || existing.title,
+      `Restored deleted property "${restored?.title || existing.title}" to active marketplace`
+    );
+
+    return res.json({ success: true, property: formatAdminProperty(restored) });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Failed to restore property.' });
+  }
+});
+
+app.post('/api/admin/properties/bulk', requirePlatformAdmin, async (req, res) => {
+  try {
+    const adminUser = (req as any).adminUser;
+    const { propertyIds, action } = req.body || {};
+    if (!Array.isArray(propertyIds) || propertyIds.length === 0) {
+      return res.status(400).json({ success: false, error: 'Select at least one property for bulk action.' });
+    }
+    const allowedActions = [
+      'approve',
+      'reject',
+      'publish',
+      'unpublish',
+      'hide',
+      'unhide',
+      'feature',
+      'unfeature',
+      'mark_sold',
+      'mark_available',
+      'delete',
+      'restore',
+      'permanent_delete',
+    ];
+    if (!allowedActions.includes(action)) {
+      return res.status(400).json({ success: false, error: 'Invalid bulk action.' });
+    }
+
+    const uniqueIds = Array.from(new Set(propertyIds.map((x: unknown) => String(x || '').trim()).filter(Boolean)));
+    let affectedCount = 0;
+
+    for (const id of uniqueIds) {
+      const existing = await db.getPropertyById(id);
+      if (!existing) continue;
+
+      if (action === 'permanent_delete') {
+        await db.deleteProperty(id);
+        affectedCount++;
+        continue;
+      }
+
+      const patch: Record<string, any> = {};
+      if (action === 'approve') {
+        patch.approvalStatus = 'approved';
+        patch.isPublished = true;
+        patch.isHidden = false;
+        patch.isDeleted = false;
+      } else if (action === 'reject') {
+        patch.approvalStatus = 'rejected';
+      } else if (action === 'publish') {
+        patch.isPublished = true;
+        patch.isHidden = false;
+        patch.approvalStatus = 'approved';
+        patch.isDeleted = false;
+      } else if (action === 'unpublish') {
+        patch.isPublished = false;
+      } else if (action === 'hide') {
+        patch.isHidden = true;
+      } else if (action === 'unhide') {
+        patch.isHidden = false;
+        patch.isPublished = true;
+      } else if (action === 'feature') {
+        patch.featured = true;
+      } else if (action === 'unfeature') {
+        patch.featured = false;
+      } else if (action === 'mark_sold') {
+        patch.isSold = true;
+      } else if (action === 'mark_available') {
+        patch.isSold = false;
+      } else if (action === 'delete') {
+        patch.isDeleted = true;
+        patch.isPublished = false;
+        patch.deletedAt = new Date().toISOString();
+        patch.deletedBy = adminUser.contact || adminUser.username;
+      } else if (action === 'restore') {
+        patch.isDeleted = false;
+        patch.deletedAt = null;
+        patch.deletedBy = null;
+        patch.isPublished = true;
+        patch.isHidden = false;
+        if (existing.status === 'deleted') patch.status = null;
+      }
+
+      await db.updateProperty(id, patch);
+      affectedCount++;
+    }
+
+    await logAdminAction(
+      adminUser,
+      `BULK_${String(action).toUpperCase()}`,
+      'bulk',
+      uniqueIds.slice(0, 5).join(','),
+      `${affectedCount} properties`,
+      `Executed bulk "${action}" across ${affectedCount} property listing(s)`
+    );
+
+    return res.json({ success: true, action, affectedCount });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Bulk action failed.' });
+  }
+});
+
+app.delete('/api/admin/properties/:id', requirePlatformAdmin, async (req, res) => {
+  try {
+    const adminUser = (req as any).adminUser;
+    const targetId = decodeURIComponent(req.params.id || '').trim();
+    const isPermanent = req.query.permanent === 'true' || req.body?.permanent === true;
+    const existing = await db.getPropertyById(targetId);
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Property not found.' });
+    }
+
+    if (isPermanent) {
+      await db.deleteProperty(targetId);
+      await logAdminAction(
+        adminUser,
+        'PERMANENT_DELETE_PROPERTY',
+        'property',
+        targetId,
+        existing.title,
+        `Permanently purged property "${existing.title}" (${targetId})`
+      );
+    } else {
+      await db.updateProperty(targetId, {
+        isDeleted: true,
+        isPublished: false,
+        deletedAt: new Date().toISOString(),
+        deletedBy: adminUser.contact || adminUser.username,
+      });
+      await logAdminAction(
+        adminUser,
+        'ARCHIVE_PROPERTY',
+        'property',
+        targetId,
+        existing.title,
+        `Soft-deleted / archived property "${existing.title}" (${targetId}) — restorable from Archive`
+      );
+    }
 
     // Automatically resolve any open reports associated with the removed listing
     const allReports = await db.getAllReports();
@@ -2363,7 +2769,14 @@ app.delete('/api/admin/properties/:id', requirePlatformAdmin, async (req, res) =
       }
     }
 
-    return res.json({ success: true, id: targetId, message: 'Property listing removed.' });
+    return res.json({
+      success: true,
+      id: targetId,
+      permanent: isPermanent,
+      message: isPermanent
+        ? 'Property listing permanently deleted.'
+        : 'Property listing archived and removed from public pages (can be restored).',
+    });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err?.message || 'Failed to delete property.' });
   }
@@ -2445,6 +2858,16 @@ app.put('/api/admin/users/:id', requirePlatformAdmin, async (req, res) => {
     }
 
     const saved = await db.saveUser(updatedUser);
+    await logAdminAction(
+      adminUser,
+      typeof isSuspended === 'boolean' ? (isSuspended ? 'SUSPEND_USER' : 'REACTIVATE_USER') : 'UPDATE_USER',
+      'user',
+      saved.id,
+      saved.username,
+      typeof isSuspended === 'boolean'
+        ? `${isSuspended ? 'Suspended' : 'Reactivated'} user "${saved.username}" (${saved.contact})`
+        : `Updated user account "${saved.username}" (${saved.contact})`
+    );
     return res.json({ success: true, user: formatSafeUser(saved) });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err?.message || 'Failed to update user.' });
@@ -2472,6 +2895,14 @@ app.delete('/api/admin/users/:id', requirePlatformAdmin, async (req, res) => {
     const deletedListings = await db.deletePropertiesByOwner(targetUser.id, targetUser.contact);
     await db.deleteUserSessions(targetUser.id);
     await db.deleteUser(targetUser.id);
+    await logAdminAction(
+      adminUser,
+      'DELETE_USER',
+      'user',
+      targetUser.id,
+      targetUser.username,
+      `Deleted user "${targetUser.username}" (${targetUser.contact}) and ${deletedListings} listing(s)`
+    );
 
     return res.json({
       success: true,
@@ -2495,6 +2926,7 @@ app.get('/api/admin/reports', requirePlatformAdmin, async (_req, res) => {
 
 app.patch('/api/admin/reports/:id', requirePlatformAdmin, async (req, res) => {
   try {
+    const adminUser = (req as any).adminUser;
     const reportId = decodeURIComponent(req.params.id || '').trim();
     const { status, action } = req.body || {};
     const allReports = await db.getAllReports();
@@ -2504,7 +2936,12 @@ app.patch('/api/admin/reports/:id', requirePlatformAdmin, async (req, res) => {
     }
 
     if (action === 'remove_property' && targetReport.propertyId) {
-      await db.deleteProperty(targetReport.propertyId);
+      await db.updateProperty(targetReport.propertyId, {
+        isDeleted: true,
+        isPublished: false,
+        deletedAt: new Date().toISOString(),
+        deletedBy: adminUser.contact || adminUser.username,
+      });
     } else if (action === 'hide_property' && targetReport.propertyId) {
       await db.updateProperty(targetReport.propertyId, { isHidden: true });
     }
@@ -2516,6 +2953,14 @@ app.patch('/api/admin/reports/:id', requirePlatformAdmin, async (req, res) => {
         : targetReport.status;
 
     const updated = await db.updateReportStatus(reportId, nextStatus);
+    await logAdminAction(
+      adminUser,
+      'MODERATE_REPORT',
+      'report',
+      reportId,
+      targetReport.propertyTitle || targetReport.propertyId,
+      `Moderated report (${action || nextStatus}) for "${targetReport.propertyTitle || targetReport.propertyId}"`
+    );
     return res.json({ success: true, report: updated });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: 'Failed to update report.' });
@@ -2543,7 +2988,16 @@ app.get('/api/admin/settings', requirePlatformAdmin, async (_req, res) => {
 
 app.put('/api/admin/settings', requirePlatformAdmin, async (req, res) => {
   try {
+    const adminUser = (req as any).adminUser;
     const saved = await db.savePlatformSettings(req.body || {});
+    await logAdminAction(
+      adminUser,
+      'UPDATE_SETTINGS',
+      'settings',
+      'platform',
+      'Platform Settings',
+      `Updated platform settings (categories: ${saved.enabledCategories.join(', ')}, requireApproval: ${saved.requireApprovalForNewListings})`
+    );
     return res.json({ success: true, settings: saved });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: 'Failed to update settings.' });
@@ -3617,7 +4071,8 @@ async function handleSeoPageRender(req: express.Request, res: express.Response, 
   };
 
   const normalizedPath = urlPath.replace(/\/+$/, '') || '/';
-  const pageParam = String(req.query.page || '').toLowerCase();
+  const rawPageParam = String(req.query.page || '').trim().toLowerCase();
+  const pageParam = /^\d+$/.test(rawPageParam) ? '' : rawPageParam;
 
   // 3. Property Detail Dynamic SSR (/property/:slugOrId or ?property=:id)
   let propertyId: string | null = null;

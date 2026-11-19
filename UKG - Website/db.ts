@@ -59,6 +59,19 @@ export interface DbReport {
   updatedAt?: string;
 }
 
+export interface DbAuditLog {
+  id: string;
+  adminId: string;
+  adminEmail: string;
+  adminName: string;
+  action: string;
+  targetType: 'property' | 'user' | 'report' | 'settings' | 'bulk';
+  targetId: string;
+  targetTitle?: string;
+  details: string;
+  createdAt: string;
+}
+
 export interface DbSession {
   sessionId: string;
   userId: string;
@@ -121,6 +134,7 @@ class DatabaseService {
   private requestsFilePath: string;
   private viewsFilePath: string;
   private settingsFilePath: string;
+  private auditLogsFilePath: string;
   private revokedSessionsFilePath: string;
   private revokedTokens = new Set<string>();
   private writeLocks = new Map<string, Promise<unknown>>();
@@ -169,6 +183,7 @@ class DatabaseService {
     this.requestsFilePath = path.join(this.dataDir, 'requests.json');
     this.viewsFilePath = path.join(this.dataDir, 'property_views.json');
     this.settingsFilePath = path.join(this.dataDir, 'platform_settings.json');
+    this.auditLogsFilePath = path.join(this.dataDir, 'admin_audit_logs.json');
     this.revokedSessionsFilePath = path.join(this.dataDir, 'revoked_sessions.json');
     try {
       const revokedList = this.readJsonFile(this.revokedSessionsFilePath);
@@ -293,6 +308,18 @@ class DatabaseService {
               id VARCHAR(100) PRIMARY KEY,
               data TEXT NOT NULL,
               updated_at VARCHAR(100)
+            );
+          `);
+
+          await client.query(`
+            CREATE TABLE IF NOT EXISTS ukg_audit_logs (
+              id VARCHAR(255) PRIMARY KEY,
+              admin_id VARCHAR(255) NOT NULL,
+              action VARCHAR(150) NOT NULL,
+              target_type VARCHAR(50) NOT NULL,
+              target_id VARCHAR(255) NOT NULL,
+              data TEXT NOT NULL,
+              created_at VARCHAR(100) NOT NULL
             );
           `);
 
@@ -451,6 +478,18 @@ class DatabaseService {
               id VARCHAR(100) PRIMARY KEY,
               data LONGTEXT NOT NULL,
               updated_at VARCHAR(100)
+            );
+          `);
+
+          await conn.query(`
+            CREATE TABLE IF NOT EXISTS ukg_audit_logs (
+              id VARCHAR(255) PRIMARY KEY,
+              admin_id VARCHAR(255) NOT NULL,
+              action VARCHAR(150) NOT NULL,
+              target_type VARCHAR(50) NOT NULL,
+              target_id VARCHAR(255) NOT NULL,
+              data LONGTEXT NOT NULL,
+              created_at VARCHAR(100) NOT NULL
             );
           `);
 
@@ -682,15 +721,18 @@ class DatabaseService {
 
   public async saveProperty(property: any): Promise<any> {
     if (!this.initialized) await this.initialize();
-    return this.withLock('properties', () => this.savePropertyUnlocked(property));
+    return this.withLock('properties', () => this.savePropertyUnlocked(property, true));
   }
 
-  private async savePropertyUnlocked(property: any): Promise<any> {
+  private async savePropertyUnlocked(property: any, touchUpdatedAt: boolean = true): Promise<any> {
+    const now = new Date().toISOString();
     if (!property.createdAt) {
-      property.createdAt = new Date().toISOString();
+      property.createdAt = now;
+    }
+    if (touchUpdatedAt || !property.updatedAt) {
+      property.updatedAt = now;
     }
     const json = JSON.stringify(property);
-    const now = new Date().toISOString();
 
     if (this.dbType === 'postgres' && this.pgPool) {
       try {
@@ -753,12 +795,12 @@ class DatabaseService {
     return property;
   }
 
-  public async updateProperty(id: string, updates: any): Promise<any | null> {
+  public async updateProperty(id: string, updates: any, touchUpdatedAt: boolean = true): Promise<any | null> {
     if (!this.initialized) await this.initialize();
-    return this.withLock('properties', () => this.updatePropertyUnlocked(id, updates));
+    return this.withLock('properties', () => this.updatePropertyUnlocked(id, updates, touchUpdatedAt));
   }
 
-  private async updatePropertyUnlocked(id: string, updates: any): Promise<any | null> {
+  private async updatePropertyUnlocked(id: string, updates: any, touchUpdatedAt: boolean = true): Promise<any | null> {
     const existing = await this.getPropertyById(id);
     if (!existing) return null;
 
@@ -773,7 +815,7 @@ class DatabaseService {
       if (merged[key] === null) delete merged[key];
     }
 
-    await this.savePropertyUnlocked(merged);
+    await this.savePropertyUnlocked(merged, touchUpdatedAt);
     return merged;
   }
 
@@ -784,7 +826,7 @@ class DatabaseService {
       if (!existing) return null;
       const current = typeof existing[metric] === 'number' ? existing[metric] : 0;
       const nextVal = current + 1;
-      return await this.updatePropertyUnlocked(id, { [metric]: nextVal });
+      return await this.updatePropertyUnlocked(id, { [metric]: nextVal }, false);
     });
   }
 
@@ -853,7 +895,7 @@ class DatabaseService {
       }
 
       const nextViews = currentViews + 1;
-      await this.updatePropertyUnlocked(propertyId, { views: nextViews });
+      await this.updatePropertyUnlocked(propertyId, { views: nextViews }, false);
       return { counted: true, views: nextViews };
     });
   }
@@ -1777,6 +1819,91 @@ class DatabaseService {
       this.writeJsonFileAtomically(this.settingsFilePath, [merged]);
       return merged;
     });
+  }
+
+  // =================================================================
+  // ADMINISTRATOR AUDIT TRAIL
+  // =================================================================
+
+  public async recordAuditLog(
+    entry: Omit<DbAuditLog, 'id' | 'createdAt'> & { id?: string; createdAt?: string }
+  ): Promise<DbAuditLog> {
+    if (!this.initialized) await this.initialize();
+    return this.withLock('audit_logs', async () => {
+      const record: DbAuditLog = {
+        id: entry.id || `audit-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`,
+        adminId: String(entry.adminId || 'admin'),
+        adminEmail: String(entry.adminEmail || ''),
+        adminName: String(entry.adminName || 'Administrator'),
+        action: String(entry.action || 'ADMIN_ACTION'),
+        targetType: entry.targetType || 'property',
+        targetId: String(entry.targetId || ''),
+        targetTitle: entry.targetTitle ? String(entry.targetTitle) : undefined,
+        details: String(entry.details || ''),
+        createdAt: entry.createdAt || new Date().toISOString(),
+      };
+
+      const json = JSON.stringify(record);
+      if (this.dbType === 'postgres' && this.pgPool) {
+        try {
+          await this.pgPool.query(
+            `INSERT INTO ukg_audit_logs (id, admin_id, action, target_type, target_id, data, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             ON CONFLICT (id) DO UPDATE SET data = $6`,
+            [record.id, record.adminId, record.action, record.targetType, record.targetId, json, record.createdAt]
+          );
+        } catch (err) {
+          console.error('[UKG DB] PostgreSQL recordAuditLog error:', err);
+        }
+      } else if (this.dbType === 'mysql' && this.mysqlPool) {
+        try {
+          await this.mysqlPool.query(
+            `INSERT INTO ukg_audit_logs (id, admin_id, action, target_type, target_id, data, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE data = VALUES(data)`,
+            [record.id, record.adminId, record.action, record.targetType, record.targetId, json, record.createdAt]
+          );
+        } catch (err) {
+          console.error('[UKG DB] MySQL recordAuditLog error:', err);
+        }
+      }
+
+      const existing = this.readJsonFile(this.auditLogsFilePath);
+      const nextList = [record, ...existing.filter((x: any) => x && x.id !== record.id)].slice(0, 1000);
+      this.writeJsonFileAtomically(this.auditLogsFilePath, nextList);
+      return record;
+    });
+  }
+
+  public async getAuditLogs(limit: number = 250): Promise<DbAuditLog[]> {
+    if (!this.initialized) await this.initialize();
+    const safeLimit = Math.max(1, Math.min(1000, Math.floor(Number(limit) || 250)));
+
+    if (this.dbType === 'postgres' && this.pgPool) {
+      try {
+        const res = await this.pgPool.query(
+          'SELECT data FROM ukg_audit_logs ORDER BY created_at DESC LIMIT $1',
+          [safeLimit]
+        );
+        return res.rows.map((r) => (typeof r.data === 'string' ? JSON.parse(r.data) : r.data));
+      } catch (err) {
+        console.error('[UKG DB] PostgreSQL getAuditLogs error:', err);
+      }
+    }
+
+    if (this.dbType === 'mysql' && this.mysqlPool) {
+      try {
+        const [rows]: any = await this.mysqlPool.query(
+          'SELECT data FROM ukg_audit_logs ORDER BY created_at DESC LIMIT ?',
+          [safeLimit]
+        );
+        return rows.map((r: any) => (typeof r.data === 'string' ? JSON.parse(r.data) : r.data));
+      } catch (err) {
+        console.error('[UKG DB] MySQL getAuditLogs error:', err);
+      }
+    }
+
+    return this.readJsonFile(this.auditLogsFilePath).slice(0, safeLimit);
   }
 
   // =================================================================
