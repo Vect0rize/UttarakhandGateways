@@ -278,11 +278,7 @@ export const ProgrammaticLandingPage: React.FC<ProgrammaticLandingPageProps> = (
           <>
             <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
               <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">
-                Showing {displayedProperties.length} of{' '}
-                <span className="text-emerald-700 dark:text-emerald-400 tabular-nums">
-                  {route.matchedProperties.length}
-                </span>{' '}
-                Listings
+                Available Listings in {route.location.name}
               </h2>
               <a
                 href="/list"

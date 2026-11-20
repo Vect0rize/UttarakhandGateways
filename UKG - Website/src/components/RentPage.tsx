@@ -350,32 +350,8 @@ export const RentPage: React.FC<RentPageProps> = ({
 
       {/* Main Grid Section */}
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-        
-        {/* Results count header */}
-        <div id="rent-listings-start" className="scroll-mt-24 flex items-center justify-between gap-4 mb-6 pb-3 border-b border-teal-200/80 dark:border-teal-950">
-          <div>
-            <h2 className="text-xl sm:text-2xl font-bold font-serif-luxury text-[#0E3A2B] dark:text-[#F4F3EF] flex items-center flex-wrap gap-2">
-              {isHindi ? (
-                <>
-                  <span>किराये हेतु कुल परिणाम उपलब्ध</span>
-                  <span className="font-sans tabular-nums text-xs sm:text-sm font-extrabold px-2.5 py-0.5 rounded-full bg-[#32463D] text-[#F4F3EF] dark:bg-[#C2A691] dark:text-[#032D1F]">
-                    {rentProperties.length.toLocaleString('en-IN')}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span>Showing all rental properties</span>
-                  <span className="font-sans tabular-nums text-xs sm:text-sm font-extrabold px-2.5 py-0.5 rounded-full bg-[#32463D] text-[#F4F3EF] dark:bg-[#C2A691] dark:text-[#032D1F]">
-                    {rentProperties.length.toLocaleString('en-IN')}
-                  </span>
-                </>
-              )}
-            </h2>
-          </div>
-          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-            Page {safePage} of {totalPages}
-          </span>
-        </div>
+        {/* Scroll Anchor at Start of Rent Listings */}
+        <div id="rent-listings-start" className="scroll-mt-24" />
 
         {/* Properties Grid */}
         {displayed.length > 0 ? (

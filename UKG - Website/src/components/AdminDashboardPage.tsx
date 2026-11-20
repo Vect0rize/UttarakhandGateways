@@ -1091,16 +1091,16 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
   return (
     <div className="min-h-screen bg-[#f4f5f2] dark:bg-[#051a12] text-slate-900 dark:text-slate-100">
       {/* Top Admin Command Header */}
-      <header className="sticky top-0 z-40 bg-[#0E3A2B] text-white border-b border-emerald-800 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
+      <header className="sticky top-0 z-40 bg-[#0E3A2B] text-white border-b border-emerald-800 shadow-lg safe-top">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3.5 flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
             <button
               type="button"
               onClick={onBackToMain}
-              className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+              className="px-2.5 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-bold flex items-center gap-1 transition cursor-pointer shrink-0"
             >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Marketplace</span>
+              <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
+              <span>Back</span>
             </button>
             <div className="flex items-center gap-2.5">
               <div className="w-9 h-9 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center shadow-md">

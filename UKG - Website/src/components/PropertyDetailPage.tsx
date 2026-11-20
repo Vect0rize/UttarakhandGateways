@@ -780,7 +780,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
             {/* Desktop Price Header */}
             <div className="hidden lg:block text-right shrink-0">
               <span className="text-xs font-bold text-slate-500 dark:text-emerald-300 uppercase tracking-wider block">
-                {isForRent ? (isHindi ? 'मासिक किराया' : 'Monthly Rent') : (isHindi ? 'मांग मूल्य (Direct Deal)' : 'Direct Owner Price')}
+                {isForRent ? (isHindi ? 'मासिक किराया' : 'Monthly Rent') : (isHindi ? 'मांग मूल्य' : 'Asking Price')}
               </span>
               <span className="text-3xl font-black text-emerald-700 dark:text-white tracking-tight block">
                 {property.priceDisplay ? formatLocalizedPrice(property.priceDisplay, isHindi ? 'hi' : 'en') : ''}
@@ -1145,7 +1145,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
               {/* Asking Price Banner */}
               <div className="space-y-1 border-b border-slate-100 dark:border-emerald-800/60 pb-4">
                 <span className="text-xs font-bold text-slate-500 dark:text-emerald-300 uppercase tracking-wider block">
-                  {isForRent ? (isHindi ? 'मासिक किराया' : 'Monthly Rent') : (isHindi ? 'मांग मूल्य (Direct Deal)' : 'Direct Owner Price')}
+                  {isForRent ? (isHindi ? 'मासिक किराया' : 'Monthly Rent') : (isHindi ? 'मांग मूल्य' : 'Asking Price')}
                 </span>
                 <span className="text-3xl font-black text-emerald-700 dark:text-white tracking-tight block">
                   {property.priceDisplay ? formatLocalizedPrice(property.priceDisplay, isHindi ? 'hi' : 'en') : ''}

@@ -2284,41 +2284,15 @@ export default function App() {
           </section>
         )}
 
-        {/* Properties Grid Header */}
-        <div id="all-properties-heading" className="scroll-mt-24 sm:scroll-mt-28 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-emerald-200/80 dark:border-emerald-950/80">
-          <div>
-            <h3 className="text-xl sm:text-2xl font-bold text-[#0E3A2B] dark:text-[#F4F3EF] font-serif-luxury flex items-center flex-wrap gap-2.5">
-              {showingFavoritesOnly ? (
-                <span>{isHindi ? 'सहेजी गई संपत्तियां' : 'Saved for Later'}</span>
-              ) : (
-                <>
-                  <span>{isHindi ? 'सभी संपत्तियां दिखाई जा रही हैं' : 'Showing all properties'}</span>
-                  <span
-                    id="showing-properties-count"
-                    className="inline-flex items-center justify-center font-sans tabular-nums text-xs sm:text-sm font-extrabold px-3 py-1 rounded-full bg-[#0E3A2B] text-[#F4F3EF] dark:bg-[#C2A691] dark:text-[#032D1F] border border-[#AA8F7C]/50 tracking-normal shadow-xs leading-none"
-                  >
-                    {filteredProperties.length.toLocaleString('en-IN')}
-                  </span>
-                </>
-              )}
+        {/* Scroll Anchor at Start of Property Listings */}
+        <div id="all-properties-heading" className="scroll-mt-24 sm:scroll-mt-28" />
+        {showingFavoritesOnly && (
+          <div className="mb-6 pb-4 border-b border-emerald-200/80 dark:border-emerald-950/80">
+            <h3 className="text-xl sm:text-2xl font-bold text-[#0E3A2B] dark:text-[#F4F3EF] font-serif-luxury">
+              {isHindi ? 'सहेजी गई संपत्तियां' : 'Saved for Later'}
             </h3>
           </div>
-
-          {/* Common List Button -> navigates to /list */}
-          <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
-            <button
-              onClick={() => navigateToPage('list')}
-              className="text-xs sm:text-sm px-4 sm:px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-green-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold flex items-center gap-2 transition-all shadow-md shadow-emerald-700/25 hover:shadow-lg hover:scale-[1.02] active:scale-95 cursor-pointer"
-              title={isHindi ? 'प्रॉपर्टी लिस्ट करें' : 'List Property'}
-            >
-              <PlusCircle className="w-4 h-4 text-emerald-100 shrink-0" />
-              <span>{isHindi ? 'लिस्ट' : 'List'}</span>
-              <span className="bg-amber-400 text-slate-950 text-[10px] font-black px-1.5 py-0.2 rounded-full uppercase ml-0.5">
-                FREE
-              </span>
-            </button>
-          </div>
-        </div>
+        )}
 
         {/* Properties Grid: 10 properties per page */}
         {displayedProperties.length > 0 ? (
@@ -2344,15 +2318,11 @@ export default function App() {
             {totalPages > 1 && (
               <div className="mt-12 pt-8 border-t border-emerald-200/80 dark:border-emerald-950/80 flex flex-col items-center justify-center gap-3 text-center">
                 {/* Page Count in the Middle */}
-                <div className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">
+                <div className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-semibold">
                   {isHindi ? (
-                    <>
-                      प्रॉपर्टीज <strong className="text-slate-900 dark:text-slate-100">{startIndex + 1}–{endIndex}</strong> (कुल <strong className="text-slate-900 dark:text-slate-100">{filteredProperties.length}</strong> में से) | पृष्ठ {safeCurrentPage} / {totalPages}
-                    </>
+                    <>पृष्ठ {safeCurrentPage} / {totalPages}</>
                   ) : (
-                    <>
-                      Showing properties <strong className="text-slate-900 dark:text-slate-100">{startIndex + 1}–{endIndex}</strong> of <strong className="text-slate-900 dark:text-slate-100">{filteredProperties.length}</strong> (Page {safeCurrentPage} of {totalPages})
-                    </>
+                    <>Page {safeCurrentPage} of {totalPages}</>
                   )}
                 </div>
 
