@@ -97,7 +97,7 @@ export const ApkDownloadModal: React.FC = () => {
 
     // Trigger direct native APK download
     const link = document.createElement('a');
-    link.href = '/UKG - App.apk?v=12';
+    link.href = '/UKG - App.apk?v=13';
     link.download = 'UKG - App.apk';
     document.body.appendChild(link);
     link.click();

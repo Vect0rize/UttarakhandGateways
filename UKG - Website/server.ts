@@ -60,8 +60,11 @@ function verifySignedSessionToken(token: string): { valid: boolean; userId?: str
 const ALLOWED_ORIGINS = [
   'https://www.uttarakhandgateways.com',
   'https://uttarakhandgateways.com',
+  'https://localhost',
   'capacitor://localhost',
+  'ionic://localhost',
   'http://localhost',
+  'http://127.0.0.1',
   'http://localhost:3000',
   'http://localhost:5173',
   'http://127.0.0.1:3000',
@@ -88,14 +91,15 @@ app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', 'https://uttarakhandgateways.com');
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Session-Token, X-Visitor-Id, X-Internal-Test, X-Admin-Preview, X-User-Contact, X-User-Id');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Session-Token, X-Visitor-Id, X-Internal-Test, X-Admin-Preview, X-User-Contact, X-User-Id, X-User-Username, X-User-Role, X-Client-Platform');
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200);
   }
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('X-XSS-Protection', '1; mode=block');
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+  res.setHeader('Referrer-Policy', 'no-referrer-when-downgrade');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   res.setHeader('Content-Security-Policy', "default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data: blob:; media-src 'self' https: data: blob:; font-src 'self' https: data:; frame-ancestors 'self';");
   if (process.env.NODE_ENV === 'production') {
@@ -1453,12 +1457,172 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// 2b. Google Sign-In Verification Endpoint
+// 2b. Google Sign-In Verification Endpoint + Mobile Chrome Custom Tab OAuth Bridge
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '930096798748-0prheaa69sbjltnh9o6na13eub75qsv2.apps.googleusercontent.com';
+
+interface MobileGoogleHandoffEntry {
+  token: string;
+  user: any;
+  createdAt: number;
+}
+const MOBILE_HANDOFF_TTL_MS = 3 * 60 * 1000; // 3 minutes, single-use
+const mobileGoogleAuthHandoffs = new Map<string, MobileGoogleHandoffEntry>();
+
+function cleanupExpiredMobileHandoffs() {
+  const now = Date.now();
+  for (const [k, v] of mobileGoogleAuthHandoffs.entries()) {
+    if (now - v.createdAt > MOBILE_HANDOFF_TTL_MS) {
+      mobileGoogleAuthHandoffs.delete(k);
+    }
+  }
+}
+
+app.get('/api/auth/google/mobile-poll', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  cleanupExpiredMobileHandoffs();
+  const state = typeof req.query.state === 'string' ? req.query.state.trim() : '';
+  if (!state || !/^[a-zA-Z0-9_-]{12,96}$/.test(state)) {
+    return res.status(400).json({ status: 'invalid', success: false, error: 'Invalid state parameter.' });
+  }
+  const entry = mobileGoogleAuthHandoffs.get(state);
+  if (!entry) {
+    return res.json({ status: 'pending', success: false });
+  }
+  mobileGoogleAuthHandoffs.delete(state);
+  return res.json({
+    status: 'completed',
+    success: true,
+    token: entry.token,
+    sessionId: entry.token,
+    user: entry.user,
+  });
+});
+
+app.get('/auth/mobile-google', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+  res.setHeader('Referrer-Policy', 'no-referrer-when-downgrade');
+  const rawState = typeof req.query.state === 'string' ? req.query.state.trim() : '';
+  const safeState = /^[a-zA-Z0-9_-]{12,96}$/.test(rawState) ? rawState : '';
+  const isHi = req.query.lang === 'hi';
+
+  const html = `<!doctype html>
+<html lang="${isHi ? 'hi' : 'en'}">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>${isHi ? 'Google से साइन इन करें' : 'Sign in with Google'} | Uttarakhand Gateways</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    body { min-height: 100vh; background: radial-gradient(circle at top, #0E3A2B 0%, #032D1F 70%); color: #F4F3EF; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .card { width: 100%; max-width: 380px; background: rgba(12, 54, 40, 0.96); border: 1px solid rgba(194, 166, 145, 0.35); border-radius: 24px; padding: 28px 22px; text-align: center; box-shadow: 0 24px 60px rgba(0,0,0,0.5); }
+    .logo { width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 14px; display: block; border: 2px solid rgba(194, 166, 145, 0.6); object-fit: cover; background: #032D1F; }
+    h1 { font-size: 20px; font-weight: 800; margin-bottom: 6px; color: #ffffff; }
+    .accent { color: #C2A691; font-style: italic; }
+    p.sub { font-size: 13px; color: rgba(244, 243, 239, 0.78); line-height: 1.45; margin-bottom: 22px; }
+    #g-btn-wrap { min-height: 48px; display: flex; align-items: center; justify-content: center; margin-bottom: 14px; }
+    .status { font-size: 13px; margin-top: 12px; line-height: 1.45; color: #A6BFB0; }
+    .status.err { color: #fda4af; }
+    .return-btn { display: none; width: 100%; margin-top: 16px; padding: 13px 18px; border-radius: 14px; background: #10b981; color: #032D1F; font-weight: 800; font-size: 14px; text-decoration: none; border: none; cursor: pointer; }
+    .cancel-link { display: inline-block; margin-top: 18px; font-size: 12px; color: rgba(244,243,239,0.65); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <img src="/logo.png" alt="Uttarakhand Gateways" class="logo" />
+    <h1>Uttarakhand <span class="accent">Gateways</span></h1>
+    <p class="sub">${isHi ? 'ऐप में सुरक्षित रूप से साइन इन करने हेतु नीचे अपना Google खाता चुनें।' : 'Tap below to choose your Google account and return straight to the Uttarakhand Gateways app.'}</p>
+    <div id="g-btn-wrap"></div>
+    <div id="status-msg" class="status">${isHi ? 'Google साइन-इन तैयार हो रहा है...' : 'Preparing secure Google Sign-In...'}</div>
+    <a id="return-btn" class="return-btn" href="com.uttarakhandgateways.app://google-auth">${isHi ? 'ऐप पर वापस जाएं' : 'Return to Uttarakhand Gateways App'}</a>
+    <a class="cancel-link" href="com.uttarakhandgateways.app://google-auth?canceled=1">${isHi ? 'रद्द करें और ऐप पर लौटें' : 'Cancel & return to app'}</a>
+  </div>
+  <script>
+    (function() {
+      var CLIENT_ID = ${JSON.stringify(GOOGLE_CLIENT_ID)};
+      var STATE = ${JSON.stringify(safeState)};
+      var statusEl = document.getElementById('status-msg');
+      var returnBtn = document.getElementById('return-btn');
+
+      function setStatus(msg, isErr) {
+        statusEl.textContent = msg;
+        statusEl.className = isErr ? 'status err' : 'status';
+      }
+
+      async function onCredential(response) {
+        if (!response || !response.credential) {
+          setStatus('Google did not return credentials. Please tap the button again.', true);
+          return;
+        }
+        setStatus(${JSON.stringify(isHi ? 'खाता सत्यापित किया जा रहा है...' : 'Verifying your Google account...')}, false);
+        try {
+          var r = await fetch('/api/auth/google', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ credential: response.credential, mobileState: STATE })
+          });
+          var data = await r.json();
+          if (!r.ok || !data.success || !(data.token || data.sessionId)) {
+            setStatus((data && data.error) || 'Sign-in verification failed.', true);
+            return;
+          }
+          var tok = data.token || data.sessionId;
+          var customUrl = 'com.uttarakhandgateways.app://google-auth?state=' + encodeURIComponent(STATE) + '&token=' + encodeURIComponent(tok);
+          var intentUrl = 'intent://google-auth?state=' + encodeURIComponent(STATE) + '&token=' + encodeURIComponent(tok) + '#Intent;scheme=com.uttarakhandgateways.app;package=com.uttarakhandgateways.app;end';
+          returnBtn.href = customUrl;
+          returnBtn.style.display = 'inline-block';
+          setStatus(${JSON.stringify(isHi ? '✓ साइन-इन सफल! ऐप खोला जा रहा है...' : '✓ Signed in! Returning to app...')}, false);
+          try { window.location.replace(intentUrl); } catch (e) {}
+          setTimeout(function() {
+            try { window.location.href = customUrl; } catch (e) {}
+          }, 450);
+        } catch (err) {
+          setStatus('Network error while verifying sign-in. Please try again.', true);
+        }
+      }
+
+      function initGoogle() {
+        if (!window.google || !window.google.accounts || !window.google.accounts.id) return false;
+        window.google.accounts.id.initialize({
+          client_id: CLIENT_ID,
+          callback: onCredential,
+          auto_select: false,
+          cancel_on_tap_outside: false
+        });
+        window.google.accounts.id.renderButton(document.getElementById('g-btn-wrap'), {
+          type: 'standard',
+          theme: 'filled_blue',
+          size: 'large',
+          text: 'continue_with',
+          shape: 'pill',
+          width: 280
+        });
+        setStatus(${JSON.stringify(isHi ? 'जारी रखने के लिए ऊपर Google बटन दबाएं' : 'Tap Continue with Google above')}, false);
+        try { window.google.accounts.id.prompt(); } catch (e) {}
+        return true;
+      }
+
+      if (!initGoogle()) {
+        var tries = 0;
+        var iv = setInterval(function() {
+          tries++;
+          if (initGoogle() || tries > 40) {
+            clearInterval(iv);
+            if (tries > 40) setStatus('Unable to load Google Sign-In. Please check your internet connection.', true);
+          }
+        }, 250);
+      }
+    })();
+  </script>
+</body>
+</html>`;
+  res.status(200).type('html').send(html);
+});
 
 app.post('/api/auth/google', async (req, res) => {
   try {
-    const { credential } = req.body;
+    const { credential, mobileState } = req.body;
     const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
 
     // Rate limiting: 15 Google login attempts per 10 minutes
@@ -1560,10 +1724,20 @@ app.post('/api/auth/google', async (req, res) => {
       path: '/',
     });
 
+    const safeUserPayload = formatSafeUser(user);
+    if (typeof mobileState === 'string' && /^[a-zA-Z0-9_-]{12,96}$/.test(mobileState.trim())) {
+      cleanupExpiredMobileHandoffs();
+      mobileGoogleAuthHandoffs.set(mobileState.trim(), {
+        token: sessionId,
+        user: safeUserPayload,
+        createdAt: Date.now(),
+      });
+    }
+
     console.log(`[UKG Auth] Google login successful for user "${user.username}" (${trimmedEmail})`);
     return res.json({
       success: true,
-      user: formatSafeUser(user),
+      user: safeUserPayload,
       sessionId,
       token: sessionId,
       message: 'Signed in with Google successfully.',
