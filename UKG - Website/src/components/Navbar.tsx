@@ -209,10 +209,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   id="favorites-toggle-btn"
                   onClick={() => {
-                    if (!currentUser) {
-                      openAuthModal('login', isHindi ? 'सहेजी गई संपत्तियों को देखने के लिए कृपया लॉगिन करें।' : 'Please sign in to view your saved properties.');
-                      return;
-                    }
                     onToggleFavoritesOnly();
                   }}
                   className={`relative p-1.5 xl:p-2 rounded-full hover:bg-emerald-100/70 dark:hover:bg-emerald-900/60 transition-colors cursor-pointer ${
@@ -326,7 +322,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       ? 'bg-amber-50 dark:bg-amber-950/60 border-amber-300 dark:border-amber-700 text-amber-950 dark:text-amber-200' 
                       : 'bg-emerald-100/90 dark:bg-emerald-950/80 hover:bg-emerald-200 dark:hover:bg-emerald-900 border-emerald-300 dark:border-emerald-800 text-emerald-950 dark:text-emerald-200'
                   }`}
-                  title={isOwner ? '👑 Platform Owner (Amit Tyagi)' : `${currentUser.username} - View profile & switch accounts`}
+                  title={isOwner ? 'Platform Administrator' : `${currentUser.username} - View profile & switch accounts`}
                 >
                   <div className={`w-5 h-5 rounded-full overflow-hidden flex items-center justify-center text-[10px] font-black uppercase shadow-xs ${
                     isOwner ? 'bg-gradient-to-tr from-amber-600 to-yellow-500 text-white' : 'bg-gradient-to-tr from-emerald-700 to-teal-600 text-white'
@@ -402,17 +398,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <BookOpen className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>{isHindi ? 'गाइड व कानून' : 'Land Laws & Guides'}</span>
-            </a>
-
-            {/* Download Android App (Direct Native APK) */}
-            <a
-              href="/UKG - App.apk?v=13"
-              download="UKG - App.apk"
-              className={`${isPropertyViewActive ? 'hidden 2xl:inline-flex' : 'hidden lg:inline-flex'} items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/80 hover:bg-emerald-100 dark:hover:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800 text-xs font-bold shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap`}
-              title={isHindi ? 'ऑफिशियल एंड्रॉइड ऐप डाउनलोड करें' : 'Download Official Android App (APK)'}
-            >
-              <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>{isHindi ? 'ऐप डाउनलोड करें' : 'Download App'}</span>
             </a>
 
             {/* Unified Menu Button across all screens — Just 3 Lines */}
@@ -524,22 +509,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </div>
 
-            {/* Direct Official Android APK Download Banner */}
-            <a
-              href="/UKG - App.apk?v=13"
-              download="UKG - App.apk"
-              onClick={() => setMobileMenuOpen(false)}
-              className="w-full p-2.5 bg-gradient-to-r from-[#0E3A2B] via-[#32463D] to-[#0C3628] text-[#F4F3EF] font-extrabold rounded-2xl text-xs flex items-center justify-between shadow-md shadow-[#032D1F]/25 border border-[#AA8F7C]/40 cursor-pointer active:scale-98 transition-all"
-            >
-              <div className="flex items-center gap-2">
-                <Download className="w-4 h-4 text-[#C2A691]" />
-                <span>{isHindi ? 'ऑफिशियल एंड्रॉइड ऐप डाउनलोड करें' : 'Download Android App (APK)'}</span>
-              </div>
-              <span className="text-[10px] bg-[#C2A691] text-[#032D1F] px-2 py-0.5 rounded-full font-black uppercase">
-                13.4 MB
-              </span>
-            </a>
-
             {/* Mobile Buy, Rent, Post Ad Buttons */}
             <div className="grid grid-cols-3 gap-2">
               <button
@@ -630,10 +599,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                   type="button"
                   onClick={() => {
                     setMobileMenuOpen(false);
-                    if (!currentUser) {
-                      openAuthModal('login', isHindi ? 'सहेजी गई संपत्तियों को देखने के लिए कृपया लॉगिन करें।' : 'Please sign in to view your saved properties.');
-                      return;
-                    }
                     onToggleFavoritesOnly();
                   }}
                   className={`p-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all cursor-pointer border ${
@@ -680,13 +645,13 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             </div>
 
-            {/* Lister Growth Dashboard Option */}
+            {/* Listing Analysis Option */}
             <button
               type="button"
               onClick={() => {
                 setMobileMenuOpen(false);
                 if (!currentUser) {
-                  openAuthModal('login', isHindi ? 'ग्रोथ डैशबोर्ड देखने हेतु कृपया लॉगिन करें।' : 'Please sign in to view your Lister Growth Dashboard.');
+                  openAuthModal('login', isHindi ? 'लिस्टिंग विश्लेषण देखने हेतु कृपया लॉगिन करें।' : 'Please sign in to view your Listing Analysis.');
                   return;
                 }
                 if (onOpenDashboard) onOpenDashboard();
@@ -695,10 +660,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <span className="flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-                <span>{isHindi ? 'ग्रोथ डैशबोर्ड' : 'Lister Growth Dashboard'}</span>
+                <span>{isHindi ? 'लिस्टिंग विश्लेषण' : 'Listing Analysis'}</span>
               </span>
               <span className="text-[10px] bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300 px-2 py-0.5 rounded-md font-bold border border-teal-200 dark:border-teal-800">
-                {isHindi ? 'व्यूज व ग्रोथ' : 'Views & Growth'}
+                {isHindi ? 'व्यूज व आंकड़े' : 'Views & Insights'}
               </span>
             </button>
 
@@ -715,10 +680,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <span className="flex items-center gap-2">
                 <IndianRupee className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                <span>{isHindi ? 'यूकेजी लोन कैलकुलेटर' : 'UKG Loan Calculator'}</span>
+                <span>{isHindi ? 'ईएमआई कैलकुलेटर' : 'EMI Calculator'}</span>
               </span>
               <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 rounded-md font-bold border border-emerald-200 dark:border-emerald-800">
-                SBI • HDFC
+                {isHindi ? 'अनुमान' : 'Estimator'}
               </span>
             </button>
 

@@ -20,6 +20,7 @@ import { Footer } from './components/Footer';
 import { PropertyCalculator } from './components/PropertyCalculator';
 import { InboxPage } from './components/InboxPage';
 import { AiChatbot } from './components/AiChatbot';
+import { BackToTopButton } from './components/BackToTopButton';
 import { ChatConfirmationModal } from './components/ChatConfirmationModal';
 import { 
   RotateCcw, 
@@ -46,7 +47,6 @@ import { useAuth } from './context/AuthContext';
 import { getPropertyOwnerDisplayName } from './utils/propertyOwnership';
 import { AuthModal } from './components/AuthModal';
 import { FirstVisitLanguageModal } from './components/FirstVisitLanguageModal';
-import { ApkDownloadModal } from './components/ApkDownloadModal';
 import { LegalModal } from './components/LegalModal';
 import { EditPropertyModal } from './components/EditPropertyModal';
 import { LegalPolicyId } from './data/legalPolicies';
@@ -190,6 +190,7 @@ export default function App() {
     if (p === 'contact' || path === '/contact') return { page: 'contact', cleanPath: '/contact' };
     if (p === 'privacy' || path === '/privacy') return { page: 'privacy', cleanPath: '/privacy' };
     if (p === 'terms' || path === '/terms') return { page: 'terms', cleanPath: '/terms' };
+    if (p === 'disclaimer' || path === '/disclaimer') return { page: 'disclaimer', cleanPath: '/disclaimer' };
     if (p === 'listing-guidelines' || path === '/listing-guidelines') return { page: 'listing-guidelines', cleanPath: '/listing-guidelines' };
 
     if (path.startsWith('/properties-in-') && path !== '/properties-in-uttarakhand') {
@@ -516,7 +517,7 @@ export default function App() {
     const seo = selectedProperty
       ? {
           title: `${selectedProperty.title} | ${selectedProperty.city} Uttarakhand Property - Uttarakhand Gateways`,
-          description: `${selectedProperty.title} in ${selectedProperty.location}, ${selectedProperty.city}, Uttarakhand. Direct 0% brokerage ${selectedProperty.type || 'property'} for ${(selectedProperty.type === 'Rent/Lease' || selectedProperty.purpose === 'rent') ? 'rent' : 'sale'} on Uttarakhand Gateways.`,
+          description: `${selectedProperty.title} in ${selectedProperty.location}, ${selectedProperty.city}, Uttarakhand. ${selectedProperty.type || 'Property'} for ${(selectedProperty.type === 'Rent/Lease' || selectedProperty.purpose === 'rent') ? 'rent' : 'sale'} on Uttarakhand Gateways.`,
           keywords: `${selectedProperty.title}, properties in ${selectedProperty.city}, ${selectedProperty.city} real estate, properties in uttarakhand, real estate uttarakhand`,
           canonicalPath: getPropertySlugPath(selectedProperty),
         }
@@ -786,20 +787,93 @@ export default function App() {
     };
   }, []);
 
+  // Persist saved bookmarks locally for guests AND merge/retain guest bookmarks when signing in
+  const prevAuthUserIdRef = React.useRef<string | null>(null);
+
+  useEffect(() => {
+    const userId = currentUser?.id || null;
+    if (userId && prevAuthUserIdRef.current !== userId) {
+      prevAuthUserIdRef.current = userId;
+      let guestSaved: string[] = [];
+      let localUserSaved: string[] = [];
+      try {
+        const gRaw = localStorage.getItem('uk_gateways_favorites');
+        if (gRaw) guestSaved = JSON.parse(gRaw);
+      } catch {}
+      try {
+        const uRaw = localStorage.getItem(`uk_gateways_favorites_${userId}`);
+        if (uRaw) localUserSaved = JSON.parse(uRaw);
+      } catch {}
+
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      try {
+        const token = localStorage.getItem('ukg_session_token');
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+      } catch {}
+
+      fetch('/api/favorites', { credentials: 'include', headers })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          const serverSaved: string[] = Array.isArray(data?.favorites) ? data.favorites : [];
+          const merged = Array.from(
+            new Set(
+              [...serverSaved, ...localUserSaved, ...guestSaved, ...favorites].filter(
+                (id) => typeof id === 'string' && id.trim().length > 0 && !isSyntheticFakeProperty({ id })
+              )
+            )
+          );
+          setFavorites(merged);
+          try {
+            localStorage.setItem(`uk_gateways_favorites_${userId}`, JSON.stringify(merged));
+            localStorage.setItem('uk_gateways_favorites', JSON.stringify(merged));
+          } catch {}
+          fetch('/api/favorites', {
+            method: 'PUT',
+            credentials: 'include',
+            headers,
+            body: JSON.stringify({ favorites: merged }),
+          }).catch(() => {});
+        })
+        .catch(() => {});
+    } else if (!userId && prevAuthUserIdRef.current !== null) {
+      prevAuthUserIdRef.current = null;
+      try {
+        const gRaw = localStorage.getItem('uk_gateways_favorites');
+        const parsed = gRaw ? JSON.parse(gRaw) : [];
+        if (Array.isArray(parsed)) {
+          setFavorites(parsed.filter((id) => typeof id === 'string' && !isSyntheticFakeProperty({ id })));
+        }
+      } catch {}
+    }
+  }, [currentUser?.id]);
+
   useEffect(() => {
     try {
       localStorage.setItem('uk_gateways_favorites', JSON.stringify(favorites));
-    } catch {
-      // ignore
-    }
-  }, [favorites]);
+      if (currentUser?.id) {
+        localStorage.setItem(`uk_gateways_favorites_${currentUser.id}`, JSON.stringify(favorites));
+      }
+    } catch {}
+  }, [favorites, currentUser?.id]);
 
   const toggleFavorite = (id: string) => {
-    requireAuth(() => {
-      setFavorites((prev) => 
-        prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-      );
-    }, isHindi ? 'संपत्ति को सहेजने हेतु कृपया पहले लॉगिन या रजिस्टर करें।' : 'Please sign in or register to save properties.');
+    setFavorites((prev) => {
+      const next = prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id];
+      if (currentUser?.id) {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        try {
+          const token = localStorage.getItem('ukg_session_token');
+          if (token) headers['Authorization'] = `Bearer ${token}`;
+        } catch {}
+        fetch('/api/favorites', {
+          method: 'PUT',
+          credentials: 'include',
+          headers,
+          body: JSON.stringify({ favorites: next }),
+        }).catch(() => {});
+      }
+      return next;
+    });
   };
 
   const handleSelectProperty = (property: Property) => {
@@ -829,9 +903,7 @@ export default function App() {
 
 
   const handleOpenUnitConverter = () => {
-    requireAuth(() => {
-      setIsUnitConverterOpen(true);
-    }, isHindi ? 'भूमि इकाई कैलकुलेटर उपयोग करने हेतु कृपया लॉगिन करें।' : 'Please sign in or register to use the land unit converter.');
+    setIsUnitConverterOpen(true);
   };
 
   const handleOpenUploadModal = () => {
@@ -844,7 +916,7 @@ export default function App() {
   const handleOpenRentalModal = () => {
     requireAuth(() => {
       navigateToPage('rent-gui');
-    }, isHindi ? 'किराये हेतु संपत्ति लिस्ट करने के लिए कृपया पहले लॉगिन या रजिस्टर करें।' : 'Please sign in or register to list your rental property with 0% brokerage.');
+    }, isHindi ? 'किराये हेतु संपत्ति लिस्ट करने के लिए कृपया पहले लॉगिन या रजिस्टर करें।' : 'Please sign in or register to list your rental property.');
   };
 
   const handleFilterChange = (newFilters: FilterState) => {
@@ -895,6 +967,13 @@ export default function App() {
       } catch {}
       return updated;
     });
+
+    if ((newProperty as any).__persistedOnServer) {
+      broadcastPropertiesUpdated([]);
+      setUploadToast(isHindi ? `"${newProperty.title}" अब लाइव है!` : `"${newProperty.title}" is now live in the marketplace!`);
+      setTimeout(() => setUploadToast(null), 6000);
+      return;
+    }
 
     // Save to shared server database so other users (and logged-out visitors) see it
     try {
@@ -1402,7 +1481,7 @@ export default function App() {
         id: `msg-${Date.now() + 1}`,
         sender: 'seller' as const,
         senderName: 'Property Owner',
-        text: `Namaste! Thanks for reaching out. Yes, clear title and immediate mutation are available. Would you like to schedule an in-person site visit or request my direct phone number?`,
+        text: `Namaste! Thanks for reaching out. Yes, clear title and immediate mutation are available. Feel free to call or WhatsApp me directly using the contact number on the listing.`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
 
@@ -1742,6 +1821,7 @@ export default function App() {
             onNavigateCity={navigateToCity}
           />
         </Suspense>
+        <AuthModal />
       </ErrorBoundary>
     );
   }
@@ -1762,6 +1842,7 @@ export default function App() {
             onNavigateCity={navigateToCity}
           />
         </Suspense>
+        <AuthModal />
       </ErrorBoundary>
     );
   }
@@ -1789,7 +1870,7 @@ export default function App() {
 
   if (activePage === 'dashboard' && !selectedProperty) {
     return (
-      <ErrorBoundary fallbackTitle="Unable to load Lister Growth Dashboard" onReset={() => navigateToPage('home')}>
+      <ErrorBoundary fallbackTitle="Unable to load Listing Analysis" onReset={() => navigateToPage('home')}>
         <Suspense fallback={lazyFallback}>
           <ListerDashboard
             properties={properties}
@@ -2019,10 +2100,8 @@ export default function App() {
         onOpenUnitConverter={handleOpenUnitConverter}
         favoriteCount={favorites.length}
         onToggleFavoritesOnly={() => {
-          requireAuth(() => {
-            setShowingFavoritesOnly(!showingFavoritesOnly);
-            setCurrentPage(1);
-          }, isHindi ? 'सहेजी गई संपत्तियां देखने हेतु लॉगिन आवश्यक है।' : 'Please sign in or register to view saved properties.');
+          setShowingFavoritesOnly(!showingFavoritesOnly);
+          setCurrentPage(1);
         }}
         showingFavoritesOnly={showingFavoritesOnly}
         theme={theme}
@@ -2072,7 +2151,7 @@ export default function App() {
               {isHindi ? 'प्रॉपर्टी विवरण लोड हो रहा है...' : 'Loading Property Details...'}
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              {isHindi ? 'कृपया प्रतीक्षा करें, संपत्ति की जानकारी लाई जा रही है।' : 'Please wait while we retrieve the verified property listing.'}
+              {isHindi ? 'कृपया प्रतीक्षा करें, संपत्ति की जानकारी लाई जा रही है।' : 'Please wait while we retrieve the property listing.'}
             </p>
           </div>
         </main>
@@ -2129,11 +2208,11 @@ export default function App() {
             );
           })()}
         </main>
-      ) : (['about', 'contact', 'privacy', 'terms', 'listing-guidelines', 'not-found'].includes(activePage)) ? (
+      ) : (['about', 'contact', 'privacy', 'terms', 'disclaimer', 'listing-guidelines', 'not-found'].includes(activePage)) ? (
         <main className="relative z-20 flex-1 w-full">
           <Suspense fallback={lazyFallback}>
             <TrustPolicyPage
-              routeKey={activePage as 'about' | 'contact' | 'privacy' | 'terms' | 'listing-guidelines' | 'not-found'}
+              routeKey={activePage as 'about' | 'contact' | 'privacy' | 'terms' | 'disclaimer' | 'listing-guidelines' | 'not-found'}
               onNavigatePath={navigateToPath}
               totalPropertiesCount={properties.length}
             />
@@ -2186,7 +2265,7 @@ export default function App() {
                 <span>{isHindi ? 'फीचर्ड संपत्तियां' : 'Featured Properties'}</span>
               </h3>
               <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                {isHindi ? 'डायरेक्ट ओनर लिस्टिंग्स • 0% ब्रोकरेज' : 'Direct owner listings • 0% brokerage'}
+                {isHindi ? 'कोई प्लेटफॉर्म शुल्क नहीं • सीधा संपर्क' : 'NO PLATFORM FEE • Direct lister contact'}
               </p>
             </div>
 
@@ -2211,12 +2290,12 @@ export default function App() {
                 {isHindi ? 'उत्तराखंड गेटवेज के मुख्य फीचर्स' : 'Key Platform Features'}
               </span>
               <h3 className="text-xl sm:text-2xl font-bold font-serif-luxury text-slate-900 dark:text-white mt-2.5">
-                {isHindi ? 'देवभूमि में पारदर्शी और शून्य-ब्रोकरेज प्रॉपर्टी' : 'Transparent Real Estate Across Uttarakhand'}
+                {isHindi ? 'उत्तराखंड में सीधा प्रॉपर्टी डिस्कवरी मंच' : 'Property Listing & Discovery Across Uttarakhand'}
               </h3>
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mt-1">
                 {isHindi 
-                  ? 'बिचौलियों और छुपे शुल्कों के बिना सीधे असली मालिकों और सत्यापित लिस्टिंग से जुड़ें।' 
-                  : 'Connect directly with genuine property owners with 0% brokerage and verified hill land records.'}
+                  ? 'बिना किसी प्लेटफॉर्म शुल्क के संपत्ति मालिकों और लिस्टिंगकर्ताओं से सीधे जुड़ें।' 
+                  : 'Connect directly with property owners and listers across Uttarakhand with NO PLATFORM FEE.'}
               </p>
             </div>
 
@@ -2228,10 +2307,10 @@ export default function App() {
                 </div>
                 <div>
                   <h4 className="font-bold text-sm text-slate-900 dark:text-white">
-                    {isHindi ? '0% ब्रोकरेज गारंटी' : '0% Brokerage'}
+                    {isHindi ? 'कोई प्लेटफॉर्म शुल्क नहीं' : 'NO PLATFORM FEE'}
                   </h4>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
-                    {isHindi ? 'सीधे खरीददार और विक्रेता का संपर्क, बिना कमीशन।' : 'Direct buyer-seller connects with zero commission fees.'}
+                    {isHindi ? 'प्रॉपर्टी देखने व लिस्ट करने पर कोई प्लेटफॉर्म शुल्क नहीं।' : 'Browse and post standard listings with no platform fee.'}
                   </p>
                 </div>
               </div>
@@ -2243,10 +2322,10 @@ export default function App() {
                 </div>
                 <div>
                   <h4 className="font-bold text-sm text-slate-900 dark:text-white">
-                    {isHindi ? 'सत्यापित लैंड टाइटल्स' : 'Verified Land Titles'}
+                    {isHindi ? 'भूमि नियम जानकारी' : 'Land Law Guides'}
                   </h4>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
-                    {isHindi ? 'धारा 143 और स्पष्ट रजिस्ट्री टाइटल्स की पूरी जांच।' : 'Section 143 clearance and genuine registry assurance.'}
+                    {isHindi ? 'खतौनी, धारा 143 व स्वतंत्र जांच हेतु सूचनात्मक गाइड।' : 'Informational guides on Uttarakhand land rules and due diligence.'}
                   </p>
                 </div>
               </div>
@@ -2607,9 +2686,6 @@ export default function App() {
       {/* First-visit Language Choice Modal (Hindi vs English floating buttons) */}
       <FirstVisitLanguageModal />
 
-      {/* 10-Minute Recurring APK Download Pop-up Modal */}
-      <ApkDownloadModal />
-
       {/* Comprehensive Legal & Compliance Center Modal (All 7 statutory policies) */}
       <LegalModal
         isOpen={legalModalState.isOpen}
@@ -2682,6 +2758,11 @@ export default function App() {
         username={loginAnimationUser}
         onComplete={dismissLoginAnimation}
       />
+
+      {/* Responsive Floating Back to Top Shortcut on Homepage */}
+      {activePage === 'home' && !selectedProperty && !urlPropId && !isUploadModalOpen && !isRentalModalOpen && !showListChooser && !editingProperty && (
+        <BackToTopButton />
+      )}
 
       {/* Sleek AI Chatbot in Bottom Right Corner - strictly on home screen, hidden when on sell/rent GUI, listing modals, or detail views */}
       {activePage === 'home' && !selectedProperty && !urlPropId && !isUploadModalOpen && !isRentalModalOpen && !showListChooser && !editingProperty && (

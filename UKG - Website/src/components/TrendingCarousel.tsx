@@ -150,10 +150,6 @@ export const TrendingCarousel: React.FC<TrendingCarouselProps> = ({
             <div
               key={property.id || idx}
               onClick={() => {
-                if (!currentUser) {
-                  openAuthModal('login', isHindi ? 'संपत्ति का विवरण देखने हेतु कृपया लॉगिन करें।' : 'Please sign in to view property details.', () => onSelectProperty(property));
-                  return;
-                }
                 onSelectProperty(property);
               }}
               className="w-[76vw] sm:w-[280px] max-w-[300px] min-w-[250px] shrink-0 snap-start bg-white dark:bg-[#071f17] rounded-xl overflow-hidden border border-emerald-200/80 dark:border-emerald-900/60 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between cursor-pointer group active:scale-[0.98]"
@@ -327,12 +323,6 @@ export const TrendingCarousel: React.FC<TrendingCarouselProps> = ({
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (!currentUser) {
-                          openAuthModal('login', isHindi ? 'संपत्ति सहेजने हेतु कृपया पहले लॉगिन करें।' : 'Please log in to save properties.', () => {
-                            onToggleFavorite(property.id);
-                          });
-                          return;
-                        }
                         onToggleFavorite(property.id);
                       }}
                       aria-label="Save to favorites"

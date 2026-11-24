@@ -64,8 +64,8 @@ export const Hero: React.FC<HeroProps> = ({
           </h2>
           <p className="text-xs sm:text-sm md:text-base text-[#495A50] dark:text-[#C7D3CC] max-w-xl mx-auto font-normal">
             {isHindi 
-              ? '0% ब्रोकरेज के साथ सीधे संपत्ति मालिकों और ब्रोकरों से आवासीय प्लॉट, फ्लैट और विला खोजें।' 
-              : 'Discover verified residential plots, luxury flats, and villas directly with 0% brokerage.'
+              ? 'सीधे संपत्ति मालिकों और लिस्टिंगकर्ताओं से आवासीय प्लॉट, फ्लैट, विला और किराये की प्रॉपर्टी खोजें।' 
+              : 'Discover residential plots, flats, villas, and rentals across Uttarakhand with NO PLATFORM FEE.'
             }
           </p>
         </div>
@@ -116,7 +116,7 @@ export const Hero: React.FC<HeroProps> = ({
               }
             }}
             className="flex-1 px-3 sm:px-6 py-3 sm:py-3.5 rounded-full font-extrabold text-xs sm:text-base border shadow-md backdrop-blur-md hover:scale-[1.02] active:scale-95 transition-all duration-300 cursor-pointer flex items-center justify-center gap-1.5 focus:outline-none focus:ring-2 bg-[#F4F4F1]/95 dark:bg-[#0C3628] hover:bg-white dark:hover:bg-[#134433] text-[#0E3A2B] dark:text-[#F4F3EF] border-[#CDD6D0] dark:border-[#AA8F7C]/40 hover:border-[#AA8F7C] focus:ring-[#AA8F7C] whitespace-nowrap"
-            title={isHindi ? 'प्रॉपर्टी बेचें (0% ब्रोकरेज)' : 'Sell Property (0% Brokerage Free)'}
+            title={isHindi ? 'प्रॉपर्टी लिस्ट करें' : 'Sell Property'}
           >
             <span className="text-[#0E3A2B] dark:text-[#C2A691] text-base leading-none font-black">+</span>
             <span>{isHindi ? 'प्रॉपर्टी बेचें' : 'Sell Property'}</span>
@@ -133,15 +133,15 @@ export const Hero: React.FC<HeroProps> = ({
           </div>
         )}
 
-        {/* Non-Rent Real Estate Assurance Pill: "100% Clear Title & Immediate Registry" */}
+        {/* Platform Information Pills */}
         <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-medium relative z-20 pb-4">
           <span className="inline-flex items-center gap-1.5 bg-[#F7F7F4]/95 dark:bg-[#0C3628] border border-[#D0D7D2] dark:border-[#32463D] text-[#0E3A2B] dark:text-[#E5EBE7] px-3.5 py-1 rounded-full shadow-xs">
             <ShieldCheck className="w-3.5 h-3.5 text-[#0E3A2B] dark:text-[#C2A691]" />
-            {isHindi ? 'सीधी खरीद हेतु फ्लैट्स, प्लॉट्स व विला' : t('hero.assurance1')}
+            {isHindi ? 'कोई प्लेटफॉर्म शुल्क नहीं (NO PLATFORM FEE)' : 'NO PLATFORM FEE'}
           </span>
           <span className="inline-flex items-center gap-1.5 bg-[#E9EAE6]/95 dark:bg-[#2A382B] border border-[#D0D7D2] dark:border-[#AA8F7C]/35 text-[#0E3A2B] dark:text-[#E5EBE7] px-3.5 py-1 rounded-full shadow-xs">
             <ShieldCheck className="w-3.5 h-3.5 text-[#0E3A2B] dark:text-[#C2A691]" />
-            {isHindi ? '100% स्पष्ट मालिकाना हक और तत्काल रजिस्ट्री' : t('hero.assurance2')}
+            {isHindi ? 'सीधा फोन एवं व्हाट्सएप संपर्क' : t('hero.assurance2')}
           </span>
         </div>
 

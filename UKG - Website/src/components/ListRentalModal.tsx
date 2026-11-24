@@ -34,7 +34,7 @@ import { Property, PropertyCategory, PropertyType, UttarakhandCity } from '../ty
 import { CITIES } from '../data/properties';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { compressAndNormalizeImage, moderateImageWithAI } from '../utils/imageModeration';
+import { compressAndNormalizeImage, moderateImageWithAI, validateUploadFile } from '../utils/imageModeration';
 import { formatEnhancedDescription } from '../utils/descriptionEnhancer';
 import { LegalPolicyId } from '../data/legalPolicies';
 import {
@@ -94,14 +94,14 @@ export const ListRentalModal: React.FC<ListRentalModalProps> = ({
   const [availableFrom, setAvailableFrom] = useState<string>('Immediate');
 
   // Size
-  const [areaValue, setAreaValue] = useState<string>('1200');
+  const [areaValue, setAreaValue] = useState<string>('');
   const [areaUnit, setAreaUnit] = useState<AreaUnit>('sqft');
 
   // Rental Pricing & Frequency (Month / Quarter / Year)
-  const [rentPriceInput, setRentPriceInput] = useState<string>('25000');
+  const [rentPriceInput, setRentPriceInput] = useState<string>('');
   const [rentalFrequency, setRentalFrequency] = useState<RentalFrequency>('month');
-  const [securityDeposit, setSecurityDeposit] = useState<string>('50000');
-  const [maintenanceCharges, setMaintenanceCharges] = useState<string>('Included in Rent');
+  const [securityDeposit, setSecurityDeposit] = useState<string>('');
+  const [maintenanceCharges, setMaintenanceCharges] = useState<string>('');
 
   // Location
   const [city, setCity] = useState<UttarakhandCity>('Dehradun');
@@ -109,10 +109,7 @@ export const ListRentalModal: React.FC<ListRentalModalProps> = ({
   const [landmark, setLandmark] = useState('');
 
   // Media & Images
-  const [imageUrls, setImageUrls] = useState<string[]>([
-    'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80',
-    'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80'
-  ]);
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [videoUrl, setVideoUrl] = useState('');
   const videoFileInputRef = useRef<HTMLInputElement>(null);
   const [isScanningImages, setIsScanningImages] = useState(false);
@@ -121,13 +118,9 @@ export const ListRentalModal: React.FC<ListRentalModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Amenities: Presets + Other text box
-  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([
-    'Water Supply',
-    'Electricity / Power Backup',
-    'Dedicated Car Parking'
-  ]);
+  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [otherAmenity, setOtherAmenity] = useState('');
-  const [taglineInput, setTaglineInput] = useState('Mountain View, Low Deposit, Family Friendly');
+  const [taglineInput, setTaglineInput] = useState('');
   const [description, setDescription] = useState('');
   const [isEnhancingDesc, setIsEnhancingDesc] = useState(false);
   const [prevDescription, setPrevDescription] = useState<string | null>(null);
@@ -225,7 +218,7 @@ export const ListRentalModal: React.FC<ListRentalModalProps> = ({
     const rawFiles = e.target.files;
     if (!rawFiles || rawFiles.length === 0) return;
 
-    const files = Array.from(rawFiles).filter((file) => file.type.startsWith('image/'));
+    const files = Array.from(rawFiles);
     if (files.length === 0) return;
 
     setIsScanningImages(true);
@@ -234,6 +227,11 @@ export const ListRentalModal: React.FC<ListRentalModalProps> = ({
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
+      const check = validateUploadFile(file, 'image', isHindi);
+      if (!check.valid) {
+        setScanNotice(check.error || 'File exceeds 20 MB limit or is an unsupported format.');
+        continue;
+      }
       setScanProgress({ current: i + 1, total: files.length, filename: file.name });
 
       try {
@@ -265,6 +263,12 @@ export const ListRentalModal: React.FC<ListRentalModalProps> = ({
   const handleVideoFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const check = validateUploadFile(file, 'video', isHindi);
+    if (!check.valid) {
+      setErrorMessage(check.error || 'Video exceeds 20 MB limit.');
+      e.target.value = '';
+      return;
+    }
     const url = URL.createObjectURL(file);
     setVideoUrl(url);
   };
@@ -388,7 +392,7 @@ export const ListRentalModal: React.FC<ListRentalModalProps> = ({
     const newRentalProperty: Property = {
       id: `rental-prop-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
       title: title.trim(),
-      tagline: parsedHighlights[0] || (isHindi ? 'सत्यापित रेंटल प्रॉपर्टी (0% ब्रोकरेज)' : 'Verified Rental Property (0% Brokerage)'),
+      tagline: parsedHighlights[0] || (isHindi ? 'सत्यापित रेंटल प्रॉपर्टी (कोई प्लेटफॉर्म शुल्क नहीं)' : 'Verified Rental Property (NO PLATFORM FEE)'),
       type: mappedType,
       category: mappedCategory,
       price: monthlyEquivalentPrice,
@@ -416,8 +420,8 @@ export const ListRentalModal: React.FC<ListRentalModalProps> = ({
       videoUrl: videoUrl.trim() || undefined,
       description: description.trim() || (isHindi 
         ? `उत्तराखंड में किराये हेतु उत्तम संपत्ति। सुसज्जित: ${furnishing}, प्राथमिकता: ${tenantPreference}। सुरक्षा जमा: ₹${securityDeposit}, रखरखाव: ${maintenanceCharges}।` 
-        : `Well-maintained rental in ${city}. Furnishing: ${furnishing}, Preferred Tenants: ${tenantPreference}. Security Deposit: ₹${securityDeposit}, Maintenance: ${maintenanceCharges}. 0% Brokerage.`),
-      highlights: parsedHighlights.length > 0 ? parsedHighlights : ['0% Brokerage', ...(isLandOrPlot ? [] : [furnishing]), `${tenantPreference} Welcome`],
+        : `Well-maintained rental in ${city}. Furnishing: ${furnishing}, Preferred Tenants: ${tenantPreference}. Security Deposit: ₹${securityDeposit}, Maintenance: ${maintenanceCharges}. NO PLATFORM FEE.`),
+      highlights: parsedHighlights.length > 0 ? parsedHighlights : ['NO PLATFORM FEE', ...(isLandOrPlot ? [] : [furnishing]), `${tenantPreference} Welcome`],
       amenities: isLandOrPlot ? [] : finalAmenities,
       furnishing: isLandOrPlot ? undefined : furnishing,
       sellerName: (sellerType === 'Owner' && currentUser?.username)
@@ -464,8 +468,8 @@ export const ListRentalModal: React.FC<ListRentalModalProps> = ({
             </h3>
             <p className="text-xs text-slate-600 dark:text-slate-300 mt-1.5 leading-relaxed">
               {isHindi 
-                ? '0% ब्रोकरेज के साथ किरायेदार खोजने हेतु कृपया अपने ईमेल (ओटीपी) से लॉगिन करें।' 
-                : 'Please log in with your email via OTP to list a rental property with 0% brokerage.'}
+                ? 'कोई प्लेटफॉर्म शुल्क नहीं के साथ किरायेदार खोजने हेतु कृपया अपने ईमेल (ओटीपी) से लॉगिन करें।' 
+                : 'Please log in with your email via OTP to list a rental property with NO PLATFORM FEE.'}
             </p>
           </div>
           <div className="flex gap-2.5 pt-2">
@@ -510,7 +514,7 @@ export const ListRentalModal: React.FC<ListRentalModalProps> = ({
                   {isHindi ? 'किराये हेतु लिस्ट करें' : 'List Your Rental'}
                 </h3>
                 <span className="text-[10px] uppercase font-black px-2.5 py-0.5 rounded-full bg-teal-400 text-teal-950 shadow-xs">
-                  0% Brokerage
+                  NO PLATFORM FEE
                 </span>
                 <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-200 border border-emerald-400/30 hidden sm:inline-block">
                   Rent Only
@@ -547,7 +551,7 @@ export const ListRentalModal: React.FC<ListRentalModalProps> = ({
               <p className="text-sm text-slate-600 dark:text-slate-300 max-w-md mx-auto">
                 {isHindi 
                   ? 'आपकी रेंटल प्रॉपर्टी अब लाइव है। किरायेदार सीधे आपसे संपर्क कर सकते हैं।' 
-                  : 'Your rental listing is now live in the Uttarakhand rental catalog with 0% brokerage.'}
+                  : 'Your rental listing is now live in the Uttarakhand rental catalog with NO PLATFORM FEE.'}
               </p>
             </div>
           ) : (
@@ -590,7 +594,7 @@ export const ListRentalModal: React.FC<ListRentalModalProps> = ({
                     <div className="min-w-0">
                       <div className="text-xs sm:text-sm font-black text-slate-900 dark:text-white flex items-center gap-1.5">
                         <span>{isHindi ? 'मैं मकान मालिक हूँ' : 'I am the Property Owner'}</span>
-                        <span className="text-[9px] font-extrabold text-teal-700 dark:text-teal-300 bg-teal-100 dark:bg-teal-950 px-1.5 py-0.2 rounded-md">0% Brokerage</span>
+                        <span className="text-[9px] font-extrabold text-teal-700 dark:text-teal-300 bg-teal-100 dark:bg-teal-950 px-1.5 py-0.2 rounded-md">NO PLATFORM FEE</span>
                       </div>
                       <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                         {isHindi ? 'मकान मालिक / सीधा मालिकाना हक' : 'Direct property owner / landlord'}
@@ -893,7 +897,7 @@ export const ListRentalModal: React.FC<ListRentalModalProps> = ({
                           step="any"
                           value={rentPriceInput}
                           onChange={(e) => setRentPriceInput(e.target.value)}
-                          placeholder="e.g. 25000"
+                          placeholder="Enter rent amount"
                           className="w-full pl-7 pr-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-black text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
                         />
                       </div>
@@ -941,7 +945,7 @@ export const ListRentalModal: React.FC<ListRentalModalProps> = ({
                           min="0"
                           value={securityDeposit}
                           onChange={(e) => setSecurityDeposit(e.target.value)}
-                          placeholder="e.g. 50000"
+                          placeholder="Enter security deposit"
                           className="w-full pl-7 pr-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
                         />
                       </div>
@@ -1213,7 +1217,7 @@ export const ListRentalModal: React.FC<ListRentalModalProps> = ({
                       required
                       value={sellerName}
                       onChange={(e) => setSellerName(e.target.value)}
-                      placeholder="e.g. Ramesh Chandra"
+                      placeholder="Enter your name"
                       className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs sm:text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
                     />
                   </div>
@@ -1231,7 +1235,7 @@ export const ListRentalModal: React.FC<ListRentalModalProps> = ({
                       required
                       value={sellerPhone}
                       onChange={(e) => setSellerPhone(e.target.value)}
-                      placeholder="e.g. 9897123456"
+                      placeholder="Enter your mobile number"
                       className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs sm:text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
                     />
                   </div>
@@ -1350,7 +1354,7 @@ export const ListRentalModal: React.FC<ListRentalModalProps> = ({
                   >
                     Rental & Listing Policy
                   </button>
-                  <span> with 0% Brokerage.</span>
+                  <span> with NO PLATFORM FEE.</span>
                 </div>
 
                 <div className="flex items-center gap-2.5 w-full sm:w-auto">

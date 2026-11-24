@@ -103,6 +103,7 @@ export interface Property {
   images: string[];
   videoUrl?: string;
   videos?: string[];
+  documents?: Array<{ name: string; url: string; size?: number }>;
   areaUnit?: string;
   pricingUnit?: string;
   description: string;
@@ -121,7 +122,6 @@ export interface Property {
   ownerContact?: string;
   ownerUsername?: string;
   fullSellerName?: string;
-  isListerNameVisible?: boolean;
   approvalStatus?: 'approved' | 'pending' | 'rejected';
   isPublished?: boolean;
   isHidden?: boolean;
@@ -164,22 +164,6 @@ export interface ChatThread {
   lastMessage: string;
   lastMessageTime: string;
   messages: ChatMessage[];
-}
-
-export interface PhoneNumberRequest {
-  id: string;
-  propertyId: string;
-  propertyTitle: string;
-  propertyCity: string;
-  propertyImage: string;
-  sellerName: string;
-  sellerPhone: string;
-  requesterName: string;
-  requesterNote?: string;
-  requestedAt: string;
-  status: 'pending' | 'approved' | 'declined';
-  approvedAt?: string;
-  isIncomingForUserListing?: boolean;
 }
 
 export interface FilterState {

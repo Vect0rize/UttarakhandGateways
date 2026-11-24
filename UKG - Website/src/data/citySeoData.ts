@@ -52,8 +52,8 @@ function buildGeneratedCities(): Record<string, CityMarketData> {
       city: profile.name,
       hindiName: HINDI_CITY_MAP[profile.slug] || profile.name,
       metaTitle: `Properties in ${profile.name} | Buy & Rent Houses, Flats, Plots & Land | Uttarakhand Gateways`,
-      metaDescription: `Explore verified properties in ${profile.name} (${profile.district}), Uttarakhand. Compare houses, flats, cottages & plots directly with owners and verified local dealers.`,
-      h1: `Verified Properties in ${profile.name}`,
+      metaDescription: `Explore properties in ${profile.name} (${profile.district}), Uttarakhand. Compare houses, flats, cottages & plots directly with owners and local dealers.`,
+      h1: `Properties in ${profile.name}`,
       tagline: profile.tagline,
       elevation: profile.elevation,
       priceRange: 'Computed from live active listings',
@@ -66,7 +66,7 @@ function buildGeneratedCities(): Record<string, CityMarketData> {
       faqs: [
         {
           q: `Can buyers explore direct-owner properties in ${profile.name}?`,
-          a: `Yes. Uttarakhand Gateways displays direct owner and disclosed local broker listings across ${profile.name} (${profile.district}) with transparent contact options and zero platform commission.`,
+          a: `Yes. Uttarakhand Gateways displays direct owner and disclosed local broker listings across ${profile.name} (${profile.district}) with transparent contact options and no platform fee.`,
         },
         {
           q: `What should I check before buying land or homes in ${profile.name}?`,
@@ -124,9 +124,9 @@ export const CITY_MARKET_DATA: Record<string, CityMarketData> = {
   Dehradun: {
     city: 'Dehradun',
     hindiName: 'देहरादून',
-    metaTitle: 'Properties in Dehradun | Verified Flats, Plots & Villas for Sale & Rent',
-    metaDescription: 'Explore verified properties in Dehradun directly with 0% brokerage. Discover residential plots, luxury flats, and hillside villas across Rajpur Road, Sahastradhara, and Mussoorie Bypass.',
-    h1: 'Properties in Dehradun | 0% Brokerage Mountain Real Estate',
+    metaTitle: 'Properties in Dehradun | Flats, Plots & Villas for Sale & Rent',
+    metaDescription: 'Explore properties in Dehradun directly with NO PLATFORM FEE. Discover residential plots, luxury flats, and hillside villas across Rajpur Road, Sahastradhara, and Mussoorie Bypass.',
+    h1: 'Properties in Dehradun | NO PLATFORM FEE Mountain Real Estate',
     tagline: 'Uttarakhand’s vibrant capital nestled in the Doon Valley, offering premier education, healthcare, and urban connectivity.',
     elevation: '640 m (2,100 ft)',
     priceRange: '₹28 Lac - ₹4.8 Cr',
@@ -135,7 +135,7 @@ export const CITY_MARKET_DATA: Record<string, CityMarketData> = {
     popularLocalities: ['Rajpur Road', 'Sahastradhara Road', 'Mussoorie Bypass', 'GMS Road', 'Clement Town', 'Chakrata Road', 'Vasant Vihar'],
     connectivityHighlights: ['Delhi-Dehradun Expressway (2.5 hr commute to Delhi)', 'Jolly Grant Airport (DED) with daily direct metro flights', 'Dehradun Railway Station linking Northern Railway networks'],
     legalNotes: 'Within Dehradun Municipal Corporation & MDDA limits, Indian citizens face no upper ceiling for purchasing apartments, residential houses, or converted freehold plots.',
-    description: 'Dehradun is the premier real estate capital of Uttarakhand, offering a perfect blend of lush green Himalayan foothills, renowned residential boarding schools, hospitals, and rapid infrastructure expansion. Whether you are looking for a luxury flat on Rajpur Road, a scenic hillside villa on Mussoorie Bypass, or a residential plot on Sahastradhara Road, Uttarakhand Gateways connects you directly with verified owners with 0% brokerage.',
+    description: 'Dehradun is the premier real estate capital of Uttarakhand, offering a perfect blend of lush green Himalayan foothills, renowned residential boarding schools, hospitals, and rapid infrastructure expansion. Whether you are looking for a luxury flat on Rajpur Road, a scenic hillside villa on Mussoorie Bypass, or a residential plot on Sahastradhara Road, Uttarakhand Gateways connects you directly with property owners with NO PLATFORM FEE.',
     faqs: [
       {
         q: 'Can non-residents of Uttarakhand buy property in Dehradun?',
@@ -147,7 +147,7 @@ export const CITY_MARKET_DATA: Record<string, CityMarketData> = {
       },
       {
         q: 'Does Uttarakhand Gateways charge any brokerage on Dehradun properties?',
-        a: 'No. Uttarakhand Gateways operates on a strict 0% brokerage model. Buyers connect directly with verified property owners and brokers without middleman commissions.'
+        a: 'No. Uttarakhand Gateways operates on a strict NO PLATFORM FEE model. Buyers connect directly with property owners and brokers without middleman commissions.'
       }
     ]
   },
@@ -155,7 +155,7 @@ export const CITY_MARKET_DATA: Record<string, CityMarketData> = {
     city: 'Rishikesh',
     hindiName: 'ऋषिकेश',
     metaTitle: 'Properties in Rishikesh | Near AIIMS, Visthapit, Aam Bagh, Seema Dental & Tapovan',
-    metaDescription: 'Find verified properties in Rishikesh with 0% brokerage. Flats, plots & houses near AIIMS Rishikesh, Visthapit Colony, Aam Bagh, Seema Dental College, Tapovan & Shyampur.',
+    metaDescription: 'Find properties in Rishikesh with NO PLATFORM FEE. Flats, plots & houses near AIIMS Rishikesh, Visthapit Colony, Aam Bagh, Seema Dental College, Tapovan & Shyampur.',
     h1: 'Properties in Rishikesh | Near AIIMS, Visthapit, Aam Bagh & Ganga Valley Living',
     tagline: 'The World Capital of Yoga, offering spiritual tranquility along the holy Ganga River, high-demand medical healthcare corridors near AIIMS, and scenic foothills.',
     elevation: '372 m (1,220 ft)',
@@ -190,7 +190,7 @@ export const CITY_MARKET_DATA: Record<string, CityMarketData> = {
       },
       {
         q: 'Is it profitable to buy an apartment in Rishikesh for rental income?',
-        a: 'Yes. Rishikesh experiences high healthcare, student, and tourist demand year-round. 1/2 BHK flats near AIIMS, Aam Bagh, and Tapovan offer strong yields through verified long-term rentals and registered homestays.'
+        a: 'Yes. Rishikesh experiences high healthcare, student, and tourist demand year-round. 1/2 BHK flats near AIIMS, Aam Bagh, and Tapovan offer strong yields through long-term rentals and registered homestays.'
       },
       {
         q: 'Are plots available in Visthapit, Aam Bagh, and Shyampur with clear Section 143 conversion?',
@@ -202,7 +202,7 @@ export const CITY_MARKET_DATA: Record<string, CityMarketData> = {
     city: 'Haridwar',
     hindiName: 'हरिद्वार',
     metaTitle: 'Properties in Haridwar | Affordable Residential Plots & Flats for Sale',
-    metaDescription: 'Discover verified residential properties in Haridwar with 0% brokerage. Plots, gated township flats, and independent houses in Shivalik Nagar, SIDCUL, and Jwalapur.',
+    metaDescription: 'Discover residential properties in Haridwar with NO PLATFORM FEE. Plots, gated township flats, and independent houses in Shivalik Nagar, SIDCUL, and Jwalapur.',
     h1: 'Properties in Haridwar | Peaceful Living & Thriving Investment',
     tagline: 'An ancient spiritual sanctuary on the banks of the Ganga and a rapidly growing industrial-residential corridor.',
     elevation: '314 m (1,030 ft)',
@@ -212,7 +212,7 @@ export const CITY_MARKET_DATA: Record<string, CityMarketData> = {
     popularLocalities: ['Shivalik Nagar', 'SIDCUL Integrated Township', 'Jwalapur', 'Kankhal', 'Roorkee-Haridwar Highway', 'Bahadrabad'],
     connectivityHighlights: ['Direct National Highway 58 & 334 to Delhi NCR', 'Haridwar Junction with express train connectivity nationwide', 'Proximity to SIDCUL industrial belt'],
     legalNotes: 'Haridwar properties fall within Haridwar-Roorkee Development Authority (HRDA) jurisdiction. Freehold plots in approved townships ensure clean bank loan approvals.',
-    description: 'Haridwar offers some of the most affordable and high-growth real estate opportunities in Uttarakhand. It combines spiritual heritage in Kankhal with modern residential townships near SIDCUL and Shivalik Nagar. Discover verified flats, plots, and duplexes directly from owners with 0% commission.',
+    description: 'Haridwar offers some of the most affordable and high-growth real estate opportunities in Uttarakhand. It combines spiritual heritage in Kankhal with modern residential townships near SIDCUL and Shivalik Nagar. Discover flats, plots, and duplexes directly from owners with NO PLATFORM FEE.',
     faqs: [
       {
         q: 'What is the average plot price in Haridwar?',
@@ -228,8 +228,8 @@ export const CITY_MARKET_DATA: Record<string, CityMarketData> = {
     city: 'Nainital',
     hindiName: 'नैनीताल',
     metaTitle: 'Properties in Nainital | Lake View Cottages, Flats & Hill Villas',
-    metaDescription: 'Browse verified hill properties in Nainital with 0% brokerage. Buy lake-view hillside cottages, wooden villas, and mountain apartments in Mallital, Tallital, and Bhimtal.',
-    h1: 'Properties in Nainital | Lake City Hillside Living with 0% Brokerage',
+    metaDescription: 'Browse hill properties in Nainital with NO PLATFORM FEE. Buy lake-view hillside cottages, wooden villas, and mountain apartments in Mallital, Tallital, and Bhimtal.',
+    h1: 'Properties in Nainital | Lake City Hillside Living with NO PLATFORM FEE',
     tagline: 'The iconic Lake District of Kumaon, surrounded by emerald hills, pleasant summers, and winter snowfalls.',
     elevation: '2,084 m (6,837 ft)',
     priceRange: '₹35 Lac - ₹5.5 Cr',
@@ -254,8 +254,8 @@ export const CITY_MARKET_DATA: Record<string, CityMarketData> = {
     city: 'Mussoorie',
     hindiName: 'मसूरी',
     metaTitle: 'Properties in Mussoorie | Luxury Hill Cottages & Villas for Sale',
-    metaDescription: 'Explore verified luxury properties in Mussoorie with 0% brokerage. Discover heritage hill cottages, panoramic villas, and apartments along Mall Road, Barlowganj, and Hathipaon.',
-    h1: 'Properties in Mussoorie | Queen of Hills Estates with 0% Brokerage',
+    metaDescription: 'Explore luxury properties in Mussoorie with NO PLATFORM FEE. Discover heritage hill cottages, panoramic villas, and apartments along Mall Road, Barlowganj, and Hathipaon.',
+    h1: 'Properties in Mussoorie | Queen of Hills Estates with NO PLATFORM FEE',
     tagline: 'Perched on the Garhwal Himalayan ridge, overlooking the Doon Valley and snow-crested Himalayan ranges.',
     elevation: '2,005 m (6,578 ft)',
     priceRange: '₹45 Lac - ₹7.5 Cr',
@@ -264,7 +264,7 @@ export const CITY_MARKET_DATA: Record<string, CityMarketData> = {
     popularLocalities: ['Mall Road', 'Library Chowk', 'Barlowganj', 'Landour', 'Hathipaon', 'Kempty Fall Road', 'Dhanaulti Bypass'],
     connectivityHighlights: ['Only 34 km from Dehradun city center (under 1 hr drive)', 'New Ropeway and Tunnel project connecting Dehradun and Mussoorie', 'Direct connectivity to Delhi via upcoming expressway'],
     legalNotes: 'Mussoorie properties come under MDDA regulations and eco-sensitive norms. Outside buyers can purchase approved apartments and designated residential units directly.',
-    description: 'Known as the Queen of Hills, Mussoorie offers an extraordinary lifestyle with its misty ridges, colonial heritage, vibrant cafes, and unmatched vistas of the Great Himalayas. Discover private mountain estates, holiday cottages, and boutique homestay listings directly on Uttarakhand Gateways with zero brokerage fees.',
+    description: 'Known as the Queen of Hills, Mussoorie offers an extraordinary lifestyle with its misty ridges, colonial heritage, vibrant cafes, and unmatched vistas of the Great Himalayas. Discover private mountain estates, holiday cottages, and boutique homestay listings directly on Uttarakhand Gateways with no platform fee.',
     faqs: [
       {
         q: 'What makes Mussoorie a prime luxury real estate destination?',
@@ -280,7 +280,7 @@ export const CITY_MARKET_DATA: Record<string, CityMarketData> = {
     city: 'Haldwani',
     hindiName: 'हल्द्वानी',
     metaTitle: 'Properties in Haldwani | Commercial & Residential Plots for Sale',
-    metaDescription: 'Find verified properties in Haldwani with 0% brokerage. Residential plots, independent floors, and houses in Kaladhungi Road, Kusumkhera, and Kathgodam.',
+    metaDescription: 'Find properties in Haldwani with NO PLATFORM FEE. Residential plots, independent floors, and houses in Kaladhungi Road, Kusumkhera, and Kathgodam.',
     h1: 'Properties in Haldwani | The Economic Gateway to Kumaon',
     tagline: 'The vibrant commercial, commercial-transit, and educational capital of Kumaon in the Shivalik foothills.',
     elevation: '424 m (1,391 ft)',

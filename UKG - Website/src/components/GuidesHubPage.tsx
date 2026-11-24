@@ -294,7 +294,7 @@ export const GuidesHubPage: React.FC<GuidesHubPageProps> = ({
                   onClick={(e) => { e.preventDefault(); if (onNavigatePage) onNavigatePage('buy'); }}
                   className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs"
                 >
-                  <span>Explore Verified Listings</span>
+                  <span>Explore Property Listings</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </a>
               </div>

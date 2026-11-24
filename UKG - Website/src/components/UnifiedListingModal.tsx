@@ -11,6 +11,8 @@ import {
   Plus,
   Check,
   AlertTriangle,
+  AlertCircle,
+  FileText,
   Upload,
   RotateCcw,
   Loader2,
@@ -53,7 +55,14 @@ import {
   isLandOrPlotType,
 } from '../utils/areaUnits';
 import { formatEnhancedDescription } from '../utils/descriptionEnhancer';
-import { compressAndNormalizeImage, moderateImageWithAI } from '../utils/imageModeration';
+import {
+  MAX_UPLOAD_FILE_MB,
+  compressImageToWebpFile,
+  formatFileSizeMB,
+  moderateImageWithAI,
+  uploadFileWithProgress,
+  validateUploadFile,
+} from '../utils/imageModeration';
 import { recordUploadedPropertyId } from '../utils/propertyOwnership';
 
 export interface UnifiedListingModalProps {
@@ -154,7 +163,7 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
   initialRole = 'Owner',
 }) => {
   const { isHindi } = useLanguage();
-  const { currentUser } = useAuth();
+  const { currentUser, openAuthModal } = useAuth();
   const mountTimeRef = useRef<number>(Date.now());
 
   useEffect(() => {
@@ -196,31 +205,35 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
   const [bedrooms, setBedrooms] = useState<number>(2);
   const [bathrooms, setBathrooms] = useState<number>(2);
   const [balconies, setBalconies] = useState<number>(1);
-  const [areaValue, setAreaValue] = useState<string>('1200');
+  const [areaValue, setAreaValue] = useState<string>('');
   const [areaUnit, setAreaUnit] = useState<AreaUnit>('sqft');
   const [furnishing, setFurnishing] = useState<'Furnished' | 'Semi-Furnished' | 'Unfurnished'>('Semi-Furnished');
 
-  // Pricing (Sale vs Rent)
-  const [totalPriceInput, setTotalPriceInput] = useState<string>('7500000');
-  const [ratePerUnitInput, setRatePerUnitInput] = useState<string>('6250');
+  // Pricing (Sale vs Rent) — genuinely empty by default
+  const [totalPriceInput, setTotalPriceInput] = useState<string>('');
+  const [ratePerUnitInput, setRatePerUnitInput] = useState<string>('');
   const [showAutoCalculator, setShowAutoCalculator] = useState<boolean>(false);
   const [lastPriceEditSource, setLastPriceEditSource] = useState<'total' | 'rate'>('total');
   const rateInputRef = useRef<HTMLInputElement>(null);
   const [isPriceNegotiable, setIsPriceNegotiable] = useState<boolean>(true);
-  const [monthlyRentInput, setMonthlyRentInput] = useState<string>('25000');
-  const [securityDepositInput, setSecurityDepositInput] = useState<string>('50000');
-  const [maintenanceInput, setMaintenanceInput] = useState<string>('0');
+  const [monthlyRentInput, setMonthlyRentInput] = useState<string>('');
+  const [securityDepositInput, setSecurityDepositInput] = useState<string>('');
+  const [maintenanceInput, setMaintenanceInput] = useState<string>('');
   const [availableFrom, setAvailableFrom] = useState<string>('Immediate');
   const [tenantPreferences, setTenantPreferences] = useState<string[]>(['Family', 'Working Professionals']);
 
   // Rent Period: Monthly, Quarterly, Yearly
   const [rentPeriod, setRentPeriod] = useState<'monthly' | 'quarterly' | 'yearly'>('monthly');
 
-  // Photos & Videos (Gallery / Device Upload)
+  // Photos, Videos & Optional Property Documents (Max 20 MB per file)
   const [images, setImages] = useState<string[]>([]);
   const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
   const [videos, setVideos] = useState<string[]>([]);
   const [isUploadingVideo, setIsUploadingVideo] = useState<boolean>(false);
+  const [documents, setDocuments] = useState<Array<{ name: string; url: string; size?: number }>>([]);
+  const [isUploadingDoc, setIsUploadingDoc] = useState<boolean>(false);
+  const [uploadProgress, setUploadProgress] = useState<{ label: string; percent: number } | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // Amenities (none selected by default)
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
@@ -235,7 +248,7 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
   const [prevDescription, setPrevDescription] = useState<string | null>(null);
   const [isEnhancingDesc, setIsEnhancingDesc] = useState<boolean>(false);
   const [descNotice, setDescNotice] = useState<string | null>(null);
-  const [declarationAccepted, setDeclarationAccepted] = useState<boolean>(true);
+  const [declarationAccepted, setDeclarationAccepted] = useState<boolean>(false);
 
   // Status & Validation
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -244,6 +257,7 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
+  const docInputRef = useRef<HTMLInputElement>(null);
 
   const cleanNameCandidate = (name?: string | null): string => {
     if (!name || typeof name !== 'string') return '';
@@ -284,8 +298,8 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
 
       const { areaValue: savedAreaVal, areaUnit: savedAreaUnit } = getPropertyAreaInput(property);
       const effectiveAreaVal =
-        savedAreaVal > 0 ? savedAreaVal : property.areaSqFt && property.areaSqFt > 0 ? property.areaSqFt : 1200;
-      setAreaValue(effectiveAreaVal.toString());
+        savedAreaVal > 0 ? savedAreaVal : property.areaSqFt && property.areaSqFt > 0 ? property.areaSqFt : 0;
+      setAreaValue(effectiveAreaVal > 0 ? effectiveAreaVal.toString() : '');
       setAreaUnit(savedAreaUnit || 'sqft');
 
       setFurnishing(property.furnishing || 'Semi-Furnished');
@@ -298,9 +312,9 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
           defaultPeriod = 'yearly';
         }
         setRentPeriod(defaultPeriod);
-        setMonthlyRentInput((property.monthlyRent || property.price || 25000).toString());
-        setSecurityDepositInput((property.securityDeposit || 50000).toString());
-        setMaintenanceInput((property.maintenanceCharges || 0).toString());
+        setMonthlyRentInput(property.monthlyRent || property.price ? String(property.monthlyRent || property.price) : '');
+        setSecurityDepositInput(property.securityDeposit ? String(property.securityDeposit) : '');
+        setMaintenanceInput(property.maintenanceCharges ? String(property.maintenanceCharges) : '');
         setAvailableFrom(property.availableFrom || 'Immediate');
         setTenantPreferences(
           Array.isArray(property.preferredTenants) && property.preferredTenants.length > 0
@@ -308,14 +322,17 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
             : ['Family', 'Working Professionals']
         );
       } else {
-        const initPrice = property.price || 7500000;
-        setTotalPriceInput(initPrice.toString());
-        setRatePerUnitInput(effectiveAreaVal > 0 ? Math.round(initPrice / effectiveAreaVal).toString() : '');
+        const initPrice = property.price || 0;
+        setTotalPriceInput(initPrice > 0 ? initPrice.toString() : '');
+        setRatePerUnitInput(initPrice > 0 && effectiveAreaVal > 0 ? Math.round(initPrice / effectiveAreaVal).toString() : '');
         setLastPriceEditSource('total');
-        setMaintenanceInput('0');
+        setMaintenanceInput('');
       }
 
       setImages(Array.isArray(property.images) ? [...property.images] : []);
+      setDocuments(Array.isArray(property.documents) ? [...property.documents] : []);
+      setUploadError(null);
+      setUploadProgress(null);
       const existingVideos = Array.from(
         new Set(
           [
@@ -331,7 +348,7 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
           : []
       );
 
-      setSellerName(cleanNameCandidate(property.sellerName) || cleanNameCandidate(currentUser?.username) || '');
+      setSellerName(cleanNameCandidate(property.sellerName) || '');
       const rawPhone = cleanPhoneCandidate(property.sellerPhone) || cleanPhoneCandidate(property.ownerContact) || '';
       setSellerPhone(rawPhone);
       setSellerWhatsApp(rawPhone);
@@ -351,25 +368,28 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
       setBedrooms(2);
       setBathrooms(2);
       setBalconies(1);
-      setAreaValue('1200');
+      setAreaValue('');
       setAreaUnit('sqft');
       setFurnishing('Semi-Furnished');
       setRentPeriod('monthly');
-      setTotalPriceInput('7500000');
-      setRatePerUnitInput('6250');
+      setTotalPriceInput('');
+      setRatePerUnitInput('');
       setLastPriceEditSource('total');
-      setMonthlyRentInput('25000');
-      setSecurityDepositInput('50000');
-      setMaintenanceInput('0');
+      setMonthlyRentInput('');
+      setSecurityDepositInput('');
+      setMaintenanceInput('');
       setAvailableFrom('Immediate');
       setTenantPreferences(['Family', 'Working Professionals']);
       setImages([]);
       setVideos([]);
+      setDocuments([]);
+      setUploadError(null);
+      setUploadProgress(null);
       setSelectedAmenities([]);
-      setSellerName(cleanNameCandidate(currentUser?.username) || '');
-      const rawContact = cleanPhoneCandidate((currentUser as any)?.phone) || cleanPhoneCandidate(currentUser?.contact) || '';
-      setSellerPhone(rawContact);
-      setSellerWhatsApp(rawContact);
+      setSellerName('');
+      setSellerPhone('');
+      setSellerWhatsApp('');
+      setDeclarationAccepted(false);
       setSellerType(normalizeSellerRole(initialRole));
       setDescription('');
       setErrorMsg(null);
@@ -378,7 +398,15 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
   }, [property, mode, isOpen, currentUser, initialRole]);
 
   // Two-way live Auto-Calculation between Total Price, Value/Rate per Unit, and Area
-  const handleTotalPriceChange = (val: string) => {
+  const sanitizeAmountDigits = (raw: string): string => raw.replace(/[^0-9]/g, '');
+  const sanitizeDecimalInput = (raw: string): string => {
+    const cleaned = raw.replace(/[^0-9.]/g, '');
+    const parts = cleaned.split('.');
+    return parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : cleaned;
+  };
+
+  const handleTotalPriceChange = (rawVal: string) => {
+    const val = sanitizeAmountDigits(rawVal);
     setLastPriceEditSource('total');
     setTotalPriceInput(val);
     const totalNum = parseFloat(val.replace(/,/g, ''));
@@ -390,7 +418,8 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
     }
   };
 
-  const handleRatePerUnitChange = (val: string) => {
+  const handleRatePerUnitChange = (rawVal: string) => {
+    const val = sanitizeDecimalInput(rawVal);
     setLastPriceEditSource('rate');
     setRatePerUnitInput(val);
     const rateNum = parseFloat(val.replace(/,/g, ''));
@@ -402,7 +431,8 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
     }
   };
 
-  const handleAreaValueChange = (val: string) => {
+  const handleAreaValueChange = (rawVal: string) => {
+    const val = sanitizeDecimalInput(rawVal);
     setAreaValue(val);
     const areaNum = parseFloat(val);
     if (!isNaN(areaNum) && areaNum > 0) {
@@ -496,52 +526,97 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
     });
   };
 
-  // Multiple File Upload Handler with AI Safety Moderation
+  // Multiple Photo Upload Handler with 20 MB Validation, Client+Server WebP Compression & Progress
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    setIsUploadingImage(true);
     setErrorMsg(null);
+    setUploadError(null);
 
     const maxAllowed = 15;
     const remainingSlots = maxAllowed - images.length;
     if (remainingSlots <= 0) {
-      setErrorMsg(
-        isHindi
-          ? `अधिकतम ${maxAllowed} तस्वीरें ही जोड़ी जा सकती हैं।`
-          : `Maximum of ${maxAllowed} images allowed per property.`
-      );
-      setIsUploadingImage(false);
+      const limitErr = isHindi
+        ? `अधिकतम ${maxAllowed} तस्वीरें ही जोड़ी जा सकती हैं।`
+        : `Maximum of ${maxAllowed} images allowed per property.`;
+      setUploadError(limitErr);
+      setErrorMsg(limitErr);
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
     const filesToProcess = Array.from(files).slice(0, remainingSlots);
+    setIsUploadingImage(true);
     const newImgs: string[] = [];
+    const errors: string[] = [];
 
-    for (const file of filesToProcess) {
-      if (!file.type.startsWith('image/')) continue;
+    for (let i = 0; i < filesToProcess.length; i++) {
+      const file = filesToProcess[i];
+      const check = validateUploadFile(file, 'image', isHindi);
+      if (!check.valid) {
+        errors.push(check.error || `Invalid file: ${file.name}`);
+        continue;
+      }
+
       try {
-        const compressedBase64 = await compressAndNormalizeImage(file, 1400, 0.82);
-        const modResult = await moderateImageWithAI(compressedBase64, file.name);
+        setUploadProgress({
+          label: isHindi
+            ? `तस्वीर अनुकूलित हो रही है (${i + 1}/${filesToProcess.length}): ${file.name}`
+            : `Optimizing photo (${i + 1}/${filesToProcess.length}): ${file.name}`,
+          percent: 15,
+        });
+
+        const compressed = await compressImageToWebpFile(file, 1600, 0.82);
+
+        setUploadProgress({
+          label: isHindi
+            ? `सुरक्षा जांच (${i + 1}/${filesToProcess.length}): ${file.name}`
+            : `Checking photo (${i + 1}/${filesToProcess.length}): ${file.name}`,
+          percent: 35,
+        });
+
+        const modResult = await moderateImageWithAI(compressed.dataUrl, file.name);
         if (!modResult.isSafe) {
-          setErrorMsg(
+          errors.push(
             isHindi
               ? `तस्वीर अस्वीकृत (${file.name}): ${modResult.reason}`
               : `Image rejected (${file.name}): ${modResult.reason}`
           );
           continue;
         }
-        newImgs.push(compressedBase64);
-      } catch (err) {
-        console.warn('Image processing error:', err);
+
+        const baseName = file.name.replace(/\.[^.]+$/, '') || 'property-photo';
+        const webpFilename = `${baseName}.webp`;
+        const uploaded = await uploadFileWithProgress(compressed.blob, webpFilename, (pct) => {
+          setUploadProgress({
+            label: isHindi
+              ? `तस्वीर अपलोड हो रही है (${i + 1}/${filesToProcess.length}): ${file.name}`
+              : `Uploading optimized WebP (${i + 1}/${filesToProcess.length}): ${file.name}`,
+            percent: Math.max(40, pct),
+          });
+        });
+
+        if (uploaded.success && uploaded.url) {
+          newImgs.push(uploaded.url);
+        } else if (uploaded.error) {
+          errors.push(uploaded.error);
+        }
+      } catch (err: any) {
+        errors.push(err?.message || `Failed to process "${file.name}".`);
       }
     }
 
     if (newImgs.length > 0) {
       setImages((prev) => [...prev, ...newImgs]);
     }
+    if (errors.length > 0) {
+      const combined = errors.join(' ');
+      setUploadError(combined);
+      setErrorMsg(combined);
+    }
     setIsUploadingImage(false);
+    setUploadProgress(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -576,95 +651,140 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
     setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Property Video Upload Handler (max 3 videos, 40MB each)
+  // Property Video Upload Handler (max 3 videos, strict 20 MB per file)
   const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
+    setErrorMsg(null);
+    setUploadError(null);
+
     const maxVideos = 3;
     const remainingSlots = maxVideos - videos.length;
     if (remainingSlots <= 0) {
-      setErrorMsg(
-        isHindi
-          ? `अधिकतम ${maxVideos} वीडियो ही जोड़े जा सकते हैं।`
-          : `Maximum of ${maxVideos} videos allowed per property.`
-      );
+      const limitErr = isHindi
+        ? `अधिकतम ${maxVideos} वीडियो ही जोड़े जा सकते हैं।`
+        : `Maximum of ${maxVideos} videos allowed per property.`;
+      setUploadError(limitErr);
+      setErrorMsg(limitErr);
       if (videoInputRef.current) videoInputRef.current.value = '';
       return;
     }
 
     setIsUploadingVideo(true);
-    setErrorMsg(null);
     const filesToProcess = Array.from(files).slice(0, remainingSlots);
     const uploadedUrls: string[] = [];
+    const errors: string[] = [];
 
-    for (const file of filesToProcess) {
-      if (!file.type.startsWith('video/')) {
-        setErrorMsg(
-          isHindi
-            ? 'कृपया एक मान्य वीडियो फाइल चुनें (.mp4, .mov, .webm)।'
-            : 'Please select a valid video file (.mp4, .mov, .webm).'
-        );
-        continue;
-      }
-      if (file.size > 40 * 1024 * 1024) {
-        setErrorMsg(
-          isHindi
-            ? `${file.name}: वीडियो आकार 40 MB से कम होना चाहिए।`
-            : `${file.name}: Video file must be under 40 MB.`
-        );
+    for (let i = 0; i < filesToProcess.length; i++) {
+      const file = filesToProcess[i];
+      const check = validateUploadFile(file, 'video', isHindi);
+      if (!check.valid) {
+        errors.push(check.error || `Invalid video: ${file.name}`);
         continue;
       }
 
-      try {
-        const res = await fetch(resolveApiUrl('/api/upload-video'), {
-          method: 'POST',
-          headers: {
-            'Content-Type': file.type || 'video/mp4',
-            'x-filename': encodeURIComponent(file.name),
-          },
-          body: file,
+      const uploaded = await uploadFileWithProgress(file, file.name, (pct) => {
+        setUploadProgress({
+          label: isHindi
+            ? `वीडियो अपलोड हो रहा है (${i + 1}/${filesToProcess.length}): ${file.name}`
+            : `Uploading video (${i + 1}/${filesToProcess.length}): ${file.name}`,
+          percent: pct,
         });
-        const data = await res.json().catch(() => null);
-        if (res.ok && data?.success && data?.url) {
-          uploadedUrls.push(data.url);
-          continue;
-        }
-      } catch (err) {
-        console.warn('Server video upload fallback check:', err);
-      }
+      });
 
-      // Data-URL fallback for offline / smaller clips
-      if (file.size <= 10 * 1024 * 1024) {
-        try {
-          const dataUrl = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(String(reader.result || ''));
-            reader.onerror = () => reject(new Error('Failed to read video file'));
-            reader.readAsDataURL(file);
-          });
-          if (dataUrl) uploadedUrls.push(dataUrl);
-        } catch {
-          setErrorMsg(isHindi ? 'वीडियो लोड करने में समस्या आई।' : 'Failed to load video file.');
-        }
+      if (uploaded.success && uploaded.url) {
+        uploadedUrls.push(uploaded.url);
       } else {
-        setErrorMsg(
-          isHindi
-            ? 'वीडियो अपलोड विफल रहा। कृपया लॉगिन करें या 10 MB से छोटा वीडियो चुनें।'
-            : 'Video upload failed. Please ensure you are signed in and try again.'
-        );
+        errors.push(uploaded.error || `Failed to upload "${file.name}".`);
       }
     }
 
     if (uploadedUrls.length > 0) {
       setVideos((prev) => [...prev, ...uploadedUrls]);
     }
+    if (errors.length > 0) {
+      const combined = errors.join(' ');
+      setUploadError(combined);
+      setErrorMsg(combined);
+    }
     setIsUploadingVideo(false);
+    setUploadProgress(null);
     if (videoInputRef.current) videoInputRef.current.value = '';
   };
 
   const removeVideo = (index: number) => {
     setVideos((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // Property PDF Document Upload Handler (max 3 documents, strict 20 MB per file)
+  const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setErrorMsg(null);
+    setUploadError(null);
+
+    const maxDocs = 3;
+    const remainingSlots = maxDocs - documents.length;
+    if (remainingSlots <= 0) {
+      const limitErr = isHindi
+        ? `अधिकतम ${maxDocs} PDF दस्तावेज़ ही जोड़े जा सकते हैं।`
+        : `Maximum of ${maxDocs} PDF documents allowed per property.`;
+      setUploadError(limitErr);
+      setErrorMsg(limitErr);
+      if (docInputRef.current) docInputRef.current.value = '';
+      return;
+    }
+
+    setIsUploadingDoc(true);
+    const filesToProcess = Array.from(files).slice(0, remainingSlots);
+    const uploadedDocs: Array<{ name: string; url: string; size?: number }> = [];
+    const errors: string[] = [];
+
+    for (let i = 0; i < filesToProcess.length; i++) {
+      const file = filesToProcess[i];
+      const check = validateUploadFile(file, 'document', isHindi);
+      if (!check.valid) {
+        errors.push(check.error || `Invalid document: ${file.name}`);
+        continue;
+      }
+
+      const uploaded = await uploadFileWithProgress(file, file.name, (pct) => {
+        setUploadProgress({
+          label: isHindi
+            ? `दस्तावेज़ अपलोड हो रहा है (${i + 1}/${filesToProcess.length}): ${file.name}`
+            : `Uploading PDF (${i + 1}/${filesToProcess.length}): ${file.name}`,
+          percent: pct,
+        });
+      });
+
+      if (uploaded.success && uploaded.url) {
+        uploadedDocs.push({
+          name: uploaded.name || file.name,
+          url: uploaded.url,
+          size: file.size,
+        });
+      } else {
+        errors.push(uploaded.error || `Failed to upload "${file.name}".`);
+      }
+    }
+
+    if (uploadedDocs.length > 0) {
+      setDocuments((prev) => [...prev, ...uploadedDocs]);
+    }
+    if (errors.length > 0) {
+      const combined = errors.join(' ');
+      setUploadError(combined);
+      setErrorMsg(combined);
+    }
+    setIsUploadingDoc(false);
+    setUploadProgress(null);
+    if (docInputRef.current) docInputRef.current.value = '';
+  };
+
+  const removeDocument = (index: number) => {
+    setDocuments((prev) => prev.filter((_, i) => i !== index));
   };
 
   // AI Description Enhancement: STRICTLY preserves only user input
@@ -741,6 +861,23 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
+
+    if (!currentUser) {
+      openAuthModal(
+        'login',
+        isHindi
+          ? 'प्रॉपर्टी लिस्ट करने हेतु कृपया पहले साइन इन करें।'
+          : 'Please sign in to post or manage a property listing.'
+      );
+      return;
+    }
+
+    if (!sellerName.trim() || sellerName.trim().length < 2) {
+      setErrorMsg(
+        isHindi ? 'कृपया अपना नाम दर्ज करें।' : 'Please enter your name.'
+      );
+      return;
+    }
 
     // Validation
     const cleanTitle = title.trim();
@@ -891,7 +1028,7 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
       );
 
       // Highlights
-      const highlights: string[] = isLand ? ['0% Brokerage'] : ['0% Brokerage', furnishing];
+      const highlights: string[] = isLand ? ['NO PLATFORM FEE'] : ['NO PLATFORM FEE', furnishing];
       if (transactionType === 'rent') {
         highlights.push(`Tenants: ${tenantPreferences.slice(0, 2).join(', ')}`);
       }
@@ -909,11 +1046,11 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
         tagline:
           transactionType === 'rent'
             ? isHindi
-              ? 'सत्यापित रेंटल प्रॉपर्टी • 0% ब्रोकरेज'
-              : 'Verified Rental Property • 0% Brokerage'
+              ? 'किराये हेतु प्रॉपर्टी • सीधा संपर्क'
+              : 'Rental Listing • Direct Contact'
             : isHindi
-            ? 'सत्यापित प्रॉपर्टी • 0% ब्रोकरेज'
-            : 'Verified Listing • 0% Brokerage',
+            ? 'बिक्री हेतु प्रॉपर्टी • सीधा संपर्क'
+            : 'Property Listing • Direct Contact',
         type,
         category,
         price: priceNumeric,
@@ -938,15 +1075,14 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
         images: effectiveImages,
         videoUrl: videos[0] || undefined,
         videos: videos.length > 0 ? videos : undefined,
+        documents: documents.length > 0 ? documents : undefined,
         description:
           description.trim() ||
           (transactionType === 'rent'
             ? isLand
-              ? `Well-maintained ${configStr} in ${city}. 0% Brokerage.`
-              : `Well-maintained ${configStr} in ${city}. Furnishing: ${furnishing}. Preferred Tenants: ${tenantPreferences.join(
-                  ', '
-                )}. 0% Brokerage.`
-            : `Verified ${configStr} located in ${city}. 0% Brokerage.`),
+              ? `${configStr} available for rent in ${city}.`
+              : `${configStr} available for rent in ${city}. Furnishing: ${furnishing}. Preferred Tenants: ${tenantPreferences.join(', ')}.`
+            : `${configStr} available for sale in ${city}.`),
         highlights,
         amenities: finalAmenities,
         furnishing: isLand ? undefined : furnishing,
@@ -982,26 +1118,32 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
         : resolveApiUrl('/api/properties');
       const method = isEditMode ? 'PUT' : 'POST';
 
+      const authHeaders: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'x-client-platform': typeof window !== 'undefined' && isNativeAndroidApp() ? 'android' : 'web',
+      };
       try {
-        const response = await fetch(url, {
-          method,
-          headers: {
-            'Content-Type': 'application/json',
-            'x-user-id': currentUser?.id || propertyPayload.ownerId || '',
-            'x-user-contact': currentUser?.contact || (currentUser as any)?.email || cleanPhone,
-            'x-user-role': (currentUser as any)?.role || (currentUser?.isOwner ? 'owner' : 'user'),
-            'x-client-platform': typeof window !== 'undefined' && isNativeAndroidApp() ? 'android' : 'web',
-          },
-          body: JSON.stringify(propertyPayload),
-        });
+        const token = localStorage.getItem('ukg_session_token');
+        if (token) authHeaders['Authorization'] = `Bearer ${token}`;
+      } catch {}
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          console.warn('Backend note on property save:', response.status, errorData);
-        }
-      } catch (netErr) {
-        console.warn('Network note during property save:', netErr);
+      const response = await fetch(url, {
+        method,
+        credentials: 'include',
+        headers: authHeaders,
+        body: JSON.stringify(propertyPayload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Server rejected listing (HTTP ${response.status})`);
       }
+
+      const savedData = await response.json().catch(() => ({}));
+      const finalSavedProperty: Property = savedData?.property
+        ? { ...propertyPayload, ...savedData.property, sellerPhone: cleanPhone }
+        : propertyPayload;
+      (finalSavedProperty as any).__persistedOnServer = true;
 
       // Record ID locally so the creator always has ownership rights
       recordUploadedPropertyId(propertyPayload.id);
@@ -1035,7 +1177,7 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
           : 'Property published successfully!'
       );
 
-      onPropertySaved?.(propertyPayload);
+      onPropertySaved?.(finalSavedProperty);
 
       setTimeout(() => {
         setIsSaving(false);
@@ -1052,6 +1194,52 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
   };
 
   if (!isOpen && !isPageMode) return null;
+
+  if (!currentUser) {
+    const authGateCard = (
+      <div className="max-w-lg mx-auto my-8 p-6 sm:p-8 rounded-3xl bg-white dark:bg-[#071c14] border border-emerald-200 dark:border-emerald-800 shadow-xl text-center space-y-4">
+        <div className="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex items-center justify-center mx-auto">
+          <Building2 className="w-7 h-7" />
+        </div>
+        <h2 className="text-xl font-black text-slate-900 dark:text-white">
+          {isHindi ? 'प्रॉपर्टी लिस्ट करने हेतु लॉगिन आवश्यक है' : 'Sign In Required to Post a Property'}
+        </h2>
+        <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+          {isHindi
+            ? 'कोई भी व्यक्ति बिना लॉगिन किए सभी प्रॉपर्टीज देख सकता है, सेव कर सकता है और लिस्र्टर से संपर्क कर सकता है। नई प्रॉपर्टी लिस्ट या प्रबंधित करने के लिए कृपया अपने खाते में साइन इन करें।'
+            : 'Browsing, bookmarking, and contacting listers do not require an account. To post or manage a property listing, please sign in or create an account.'}
+        </p>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-2">
+          <button
+            type="button"
+            onClick={() =>
+              openAuthModal(
+                'login',
+                isHindi ? 'प्रॉपर्टी लिस्ट करने हेतु साइन इन करें।' : 'Sign in or register to post your property listing.'
+              )
+            }
+            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-md cursor-pointer"
+          >
+            {isHindi ? 'साइन इन / खाता बनाएं' : 'Sign In / Create Account'}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full sm:w-auto px-5 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs sm:text-sm hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+          >
+            {isHindi ? 'वापस जाएं' : 'Back'}
+          </button>
+        </div>
+      </div>
+    );
+    return isPageMode ? (
+      authGateCard
+    ) : (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md" onClick={onClose}>
+        <div onClick={(e) => e.stopPropagation()}>{authGateCard}</div>
+      </div>
+    );
+  }
 
   const isLandOrPlotSelected = isLandOrPlotType(type) || category === 'Agriculture';
   const selectedAreaUnitConfig = getAreaUnitConfig(areaUnit);
@@ -1102,17 +1290,17 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
                   : 'Sell Property'}
               </h2>
               <span className="bg-emerald-500/20 text-emerald-200 text-[10px] font-black uppercase px-2 py-0.5 rounded-full border border-emerald-400/40">
-                0% Brokerage
+                NO PLATFORM FEE
               </span>
             </div>
             <p className="text-xs text-emerald-100/80 mt-0.5">
               {transactionType === 'rent'
                 ? isHindi
-                  ? 'सीधे सत्यापित किरायेदारों से जुड़ें • 100% मुफ़्त लिस्टिंग'
-                  : 'Connect directly with genuine tenants • 100% Free'
+                  ? 'किरायेदारों से सीधा संपर्क • कोई प्लेटफॉर्म शुल्क नहीं'
+                  : 'Connect directly with interested tenants • No Platform Fee'
                 : isHindi
-                ? 'सीधे वास्तविक खरीदारों से जुड़ें • 100% मुफ़्त लिस्टिंग'
-                : 'Connect directly with genuine buyers • 100% Free'}
+                ? 'खरीदारों से सीधा संपर्क • कोई प्लेटफॉर्म शुल्क नहीं'
+                : 'Connect directly with interested buyers • No Platform Fee'}
             </p>
           </div>
         </div>
@@ -1351,12 +1539,13 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
                 {isHindi ? 'क्षेत्रफल (Area) *' : 'Area *'}
               </label>
               <input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 required
-                min={1}
                 value={areaValue}
+                onWheel={(e) => e.currentTarget.blur()}
                 onChange={(e) => handleAreaValueChange(e.target.value)}
-                placeholder="1200"
+                placeholder={isHindi ? 'क्षेत्रफल दर्ज करें' : 'Enter property area'}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-900/80 bg-white dark:bg-slate-900 text-xs sm:text-sm font-semibold focus:ring-2 focus:ring-emerald-500 outline-none"
               />
             </div>
@@ -1557,12 +1746,13 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
                 <div className="relative">
                   <span className="absolute left-3.5 top-2.5 text-slate-400 font-bold text-sm">₹</span>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     required
-                    min={1}
                     value={totalPriceInput}
+                    onWheel={(e) => e.currentTarget.blur()}
                     onChange={(e) => handleTotalPriceChange(e.target.value)}
-                    placeholder="7500000"
+                    placeholder={isHindi ? 'कुल मूल्य दर्ज करें' : 'Enter property amount'}
                     className="w-full pl-8 pr-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-900/80 bg-white dark:bg-slate-900 text-xs sm:text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
                   />
                 </div>
@@ -1605,12 +1795,12 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
                           </span>
                           <input
                             ref={rateInputRef}
-                            type="number"
-                            min={0}
-                            step="any"
+                            type="text"
+                            inputMode="decimal"
                             value={ratePerUnitInput}
+                            onWheel={(e) => e.currentTarget.blur()}
                             onChange={(e) => handleRatePerUnitChange(e.target.value)}
-                            placeholder={isHindi ? `जैसे 25000` : `e.g. 25000`}
+                            placeholder={isHindi ? 'प्रति इकाई दर दर्ज करें' : 'Enter rate per unit'}
                             className="w-full pl-7 pr-3 py-2 rounded-xl border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-900 text-xs sm:text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
                           />
                         </div>
@@ -1624,12 +1814,12 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
                         </label>
                         <div className="flex gap-1.5">
                           <input
-                            type="number"
-                            min={0}
-                            step="any"
+                            type="text"
+                            inputMode="decimal"
                             value={areaValue}
+                            onWheel={(e) => e.currentTarget.blur()}
                             onChange={(e) => handleAreaValueChange(e.target.value)}
-                            placeholder="100"
+                            placeholder={isHindi ? 'क्षेत्रफल' : 'Enter area'}
                             className="w-1/2 px-3 py-2 rounded-xl border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-900 text-xs sm:text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
                           />
                           <select
@@ -1782,12 +1972,13 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
                   <div className="relative">
                     <span className="absolute left-3.5 top-2.5 text-slate-400 font-bold text-sm">₹</span>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       required
-                      min={1}
                       value={monthlyRentInput}
-                      onChange={(e) => setMonthlyRentInput(e.target.value)}
-                      placeholder={rentPeriod === 'quarterly' ? '75000' : rentPeriod === 'yearly' ? '300000' : '25000'}
+                      onWheel={(e) => e.currentTarget.blur()}
+                      onChange={(e) => setMonthlyRentInput(sanitizeAmountDigits(e.target.value))}
+                      placeholder={isHindi ? 'किराया राशि दर्ज करें' : 'Enter rent amount'}
                       className="w-full pl-8 pr-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-900/80 bg-white dark:bg-slate-900 text-xs sm:text-sm font-bold focus:ring-2 focus:ring-teal-500 outline-none"
                     />
                   </div>
@@ -1800,11 +1991,12 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
                   <div className="relative">
                     <span className="absolute left-3.5 top-2.5 text-slate-400 font-bold text-sm">₹</span>
                     <input
-                      type="number"
-                      min={0}
+                      type="text"
+                      inputMode="numeric"
                       value={securityDepositInput}
-                      onChange={(e) => setSecurityDepositInput(e.target.value)}
-                      placeholder="50000"
+                      onWheel={(e) => e.currentTarget.blur()}
+                      onChange={(e) => setSecurityDepositInput(sanitizeAmountDigits(e.target.value))}
+                      placeholder={isHindi ? 'सुरक्षा जमा राशि दर्ज करें' : 'Enter security deposit'}
                       className="w-full pl-8 pr-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-900/80 bg-white dark:bg-slate-900 text-xs sm:text-sm font-bold focus:ring-2 focus:ring-teal-500 outline-none"
                     />
                   </div>
@@ -1827,11 +2019,12 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
                       : 'Monthly Maintenance Fee (₹/mo)'}
                   </label>
                   <input
-                    type="number"
-                    min={0}
+                    type="text"
+                    inputMode="numeric"
                     value={maintenanceInput}
-                    onChange={(e) => setMaintenanceInput(e.target.value)}
-                    placeholder="0"
+                    onWheel={(e) => e.currentTarget.blur()}
+                    onChange={(e) => setMaintenanceInput(sanitizeAmountDigits(e.target.value))}
+                    placeholder={isHindi ? 'मेंटेनेंस शुल्क दर्ज करें (वैकल्पिक)' : 'Enter maintenance amount (optional)'}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-900/80 bg-white dark:bg-slate-900 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-teal-500 outline-none"
                   />
                 </div>
@@ -1916,17 +2109,54 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
           )}
         </div>
 
-        {/* SECTION 4: PHOTOS & VIDEOS */}
+        {/* SECTION 4: PHOTOS, VIDEOS & DOCUMENTS */}
         <div className="p-3 sm:p-5 rounded-xl sm:rounded-2xl bg-slate-50/70 dark:bg-[#0a2318] border border-slate-200/80 dark:border-emerald-900/40 space-y-3.5 sm:space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-emerald-950 pb-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 dark:border-emerald-950 pb-2">
             <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-extrabold text-sm uppercase tracking-wide">
               <ImageIcon className="w-4 h-4" />
-              <span>4. {isHindi ? 'प्रॉपर्टी की तस्वीरें और वीडियो' : 'Property Photos & Videos'}</span>
+              <span>4. {isHindi ? 'प्रॉपर्टी की तस्वीरें, वीडियो व दस्तावेज़' : 'Property Photos, Videos & Documents'}</span>
             </div>
             <span className="text-xs font-bold text-slate-500">
-              {images.length}/15 {isHindi ? 'तस्वीरें' : 'Photos'} • {videos.length}/3 {isHindi ? 'वीडियो' : 'Videos'}
+              {images.length}/15 {isHindi ? 'तस्वीरें' : 'Photos'} • {videos.length}/3 {isHindi ? 'वीडियो' : 'Videos'} • {isHindi ? `अधिकतम ${MAX_UPLOAD_FILE_MB} MB/फ़ाइल` : `Max ${MAX_UPLOAD_FILE_MB} MB/file`}
             </span>
           </div>
+
+          {/* Live Upload Progress Bar */}
+          {uploadProgress && (
+            <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 space-y-1.5">
+              <div className="flex items-center justify-between text-xs font-bold text-emerald-900 dark:text-emerald-200 gap-2">
+                <span className="truncate">{uploadProgress.label}</span>
+                <span className="shrink-0 font-mono">{uploadProgress.percent}%</span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-emerald-200/70 dark:bg-emerald-900 overflow-hidden">
+                <div
+                  className="h-full bg-emerald-600 dark:bg-emerald-400 transition-all duration-200 rounded-full"
+                  style={{ width: `${uploadProgress.percent}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Inline File Validation / Upload Error Alert */}
+          {uploadError && (
+            <div
+              role="alert"
+              className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 flex items-start justify-between gap-2 text-xs text-rose-800 dark:text-rose-200"
+            >
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                <span className="font-semibold leading-relaxed">{uploadError}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setUploadError(null)}
+                className="text-rose-500 hover:text-rose-700 font-bold px-1 cursor-pointer"
+                aria-label="Dismiss upload error"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
 
           {/* Photo Upload Dropzone */}
           <div
@@ -1937,14 +2167,16 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
               type="file"
               ref={fileInputRef}
               multiple
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif"
               onChange={handleFileUpload}
               className="hidden"
             />
             {isUploadingImage ? (
               <div className="flex flex-col items-center gap-2 text-emerald-600">
                 <Loader2 className="w-6 h-6 animate-spin" />
-                <span className="text-xs font-bold">{isHindi ? 'तस्वीरें प्रोसेस हो रही हैं...' : 'Processing gallery photos...'}</span>
+                <span className="text-xs font-bold">
+                  {isHindi ? 'तस्वीरें WebP में अनुकूलित व अपलोड हो रही हैं...' : 'Optimizing & uploading WebP photos...'}
+                </span>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-2">
@@ -1956,7 +2188,9 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
                     {isHindi ? 'गैलरी / डिवाइस से तस्वीरें चुनें' : 'Choose Photos from Gallery / Device'}
                   </span>
                   <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                    {isHindi ? 'PNG, JPG, WEBP (फ़ोटो का चयन करने के लिए टैप करें)' : 'PNG, JPG, WEBP (Tap to select multiple photos)'}
+                    {isHindi
+                      ? 'JPG, PNG, WEBP, AVIF • स्वचालित WebP संपीड़न • अधिकतम 20 MB प्रति फ़ाइल'
+                      : 'JPG, PNG, WEBP, AVIF • Auto-optimized to WebP • Max 20 MB per photo'}
                   </span>
                 </div>
               </div>
@@ -2049,7 +2283,7 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
                 type="file"
                 ref={videoInputRef}
                 multiple
-                accept="video/mp4,video/webm,video/quicktime,video/*"
+                accept="video/mp4,video/webm,video/quicktime"
                 onChange={handleVideoUpload}
                 className="hidden"
               />
@@ -2067,7 +2301,7 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
                     {isHindi ? 'प्रॉपर्टी वीडियो अपलोड करें' : 'Upload Property Videos from Device'}
                   </span>
                   <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                    {isHindi ? 'MP4, MOV, WEBM (अधिकतम 3 वीडियो, 40 MB प्रत्येक)' : 'MP4, MOV, WEBM (Up to 3 videos • max 40 MB each)'}
+                    {isHindi ? 'MP4, MOV, WEBM (अधिकतम 3 वीडियो • 20 MB प्रति फ़ाइल)' : 'MP4, MOV, WEBM (Up to 3 videos • max 20 MB each)'}
                   </span>
                 </div>
               )}
@@ -2091,6 +2325,74 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
                       onClick={() => removeVideo(vIdx)}
                       className="absolute top-2 right-2 p-1.5 rounded-full bg-rose-600/90 hover:bg-rose-600 text-white shadow-md cursor-pointer transition-colors"
                       title={isHindi ? 'वीडियो हटाएं' : 'Remove video'}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Optional Property Documents (PDF Floor Plan / Brochure • Max 20 MB) */}
+          <div className="pt-2 border-t border-slate-200/80 dark:border-emerald-900/50 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-extrabold text-slate-700 dark:text-emerald-200">
+                <FileText className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span>{isHindi ? 'प्रॉपर्टी दस्तावेज़ / नक्शा (वैकल्पिक PDF)' : 'Property Brochure / Layout Plan (Optional PDF)'}</span>
+              </div>
+              <span className="text-[11px] font-semibold text-slate-500">{documents.length}/3</span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5">
+              <input
+                type="file"
+                ref={docInputRef}
+                multiple
+                accept="application/pdf,.pdf"
+                onChange={handleDocumentUpload}
+                className="hidden"
+              />
+              <button
+                type="button"
+                disabled={isUploadingDoc}
+                onClick={() => docInputRef.current?.click()}
+                className="px-3.5 py-2 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-slate-900 hover:border-emerald-500 text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer transition-colors disabled:opacity-60"
+              >
+                {isUploadingDoc ? <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" /> : <Upload className="w-3.5 h-3.5 text-emerald-600" />}
+                <span>{isHindi ? 'PDF अपलोड करें (अधिकतम 20 MB)' : 'Attach PDF Document (Max 20 MB)'}</span>
+              </button>
+              <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                {isHindi ? 'केवल PDF फ़ाइलें अनुमत हैं।' : 'PDF files only • Publicly viewable on listing'}
+              </span>
+            </div>
+
+            {documents.length > 0 && (
+              <div className="space-y-1.5">
+                {documents.map((doc, dIdx) => (
+                  <div
+                    key={dIdx}
+                    className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-emerald-800/70 text-xs"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <FileText className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <a
+                        href={resolveApiUrl(doc.url)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-bold text-slate-800 dark:text-slate-100 hover:underline truncate"
+                      >
+                        {doc.name}
+                      </a>
+                      {doc.size ? (
+                        <span className="text-[10px] text-slate-400 shrink-0">({formatFileSizeMB(doc.size)})</span>
+                      ) : null}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeDocument(dIdx)}
+                      className="p-1 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg cursor-pointer shrink-0"
+                      title={isHindi ? 'दस्तावेज़ हटाएं' : 'Remove document'}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -2240,7 +2542,7 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
                 required
                 value={sellerName}
                 onChange={(e) => setSellerName(e.target.value)}
-                placeholder="Amit Tyagi"
+                placeholder={isHindi ? "अपना नाम दर्ज करें" : "Enter your name"}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-900/80 bg-white dark:bg-slate-900 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
               />
             </div>
@@ -2282,7 +2584,7 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
                   const cleaned = val.replace(/\D/g, '').slice(0, 10);
                   setSellerPhone(cleaned);
                 }}
-                placeholder="9876543210"
+                placeholder={isHindi ? "अपना मोबाइल नंबर दर्ज करें" : "Enter your mobile number"}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-900/80 bg-white dark:bg-slate-900 text-xs sm:text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
               />
             </div>
@@ -2339,7 +2641,7 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
                   const cleaned = val.replace(/\D/g, '').slice(0, 10);
                   setSellerWhatsApp(cleaned);
                 }}
-                placeholder="9876543210"
+                placeholder={isHindi ? "अपना मोबाइल नंबर दर्ज करें" : "Enter your mobile number"}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-900/80 bg-white dark:bg-slate-900 text-xs sm:text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
               />
             )}
@@ -2418,8 +2720,8 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
             />
             <span className="text-[11px] text-slate-600 dark:text-slate-300 leading-snug">
               {isHindi
-                ? 'मैं प्रमाणित करता/करती हूँ कि दी गई सभी जानकारियां सत्य हैं। उत्तराखंड गेटवेज केवल एक प्लेटफॉर्म है और 0% ब्रोकरेज प्रदान करता है।'
-                : 'I hereby declare that all details provided are accurate and authentic. Uttarakhand Gateways is a verified 0% brokerage direct platform.'}
+                ? 'मैं पुष्टि करता/करती हूँ कि दी गई सभी जानकारी सही और वास्तविक है, तथा मैं सहमत हूँ कि मेरा संपर्क नंबर इस लिस्टिंग पर सार्वजनिक रूप से प्रदर्शित होगा ताकि इच्छुक उपयोगकर्ता सीधे कॉल या व्हाट्सएप कर सकें।'
+                : 'I confirm that all property information provided is genuine and accurate, and I agree that my contact number will be displayed publicly on this listing for direct phone and WhatsApp inquiries.'}
             </span>
           </label>
         </div>

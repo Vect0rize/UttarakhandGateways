@@ -125,7 +125,7 @@ export const ListerDashboard: React.FC<ListerDashboardProps> = ({
               </div>
               <div>
                 <h1 className="text-base sm:text-lg font-black text-slate-900 dark:text-white leading-tight flex items-center gap-2">
-                  <span>{isHindi ? 'प्रॉपर्टी ग्रोथ डैशबोर्ड' : 'Lister Growth Dashboard'}</span>
+                  <span>{isHindi ? 'लिस्टिंग विश्लेषण' : 'Listing Analysis'}</span>
                   <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-100 dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 rounded-full">
                     LIVE
                   </span>
@@ -159,7 +159,7 @@ export const ListerDashboard: React.FC<ListerDashboardProps> = ({
               <Sparkles className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
               <div>
                 <h4 className="text-xs sm:text-sm font-bold text-amber-900 dark:text-amber-200">
-                  {isHindi ? 'ग्रोथ डैशबोर्ड (कोई प्रॉपर्टी नहीं)' : 'Lister Growth Dashboard'}
+                  {isHindi ? 'लिस्टिंग विश्लेषण (कोई प्रॉपर्टी नहीं)' : 'Listing Analysis'}
                 </h4>
                 <p className="text-xs text-amber-800/80 dark:text-amber-300/80 mt-0.5">
                   {isHindi 
@@ -366,7 +366,7 @@ export const ListerDashboard: React.FC<ListerDashboardProps> = ({
                   {isHindi ? 'कोई लिस्टिंग नहीं मिली' : 'No properties found in this view'}
                 </h4>
                 <p className="text-xs text-slate-500 max-w-md mx-auto">
-                  {isHindi ? 'उत्तराखंड में अपनी जमीन, विला, प्लॉट या रेंटल को 0% ब्रोकरेज पर लिस्ट करें!' : 'List your mountain cottage, plot, villa or rental to start tracking buyer growth.'}
+                  {isHindi ? 'उत्तराखंड में अपनी जमीन, विला, प्लॉट या रेंटल को बिना किसी प्लेटफॉर्म शुल्क के लिस्ट करें।' : 'List your cottage, plot, villa, or rental with NO PLATFORM FEE to track performance here.'}
                 </p>
               </div>
               <button
@@ -595,8 +595,8 @@ export const ListerDashboard: React.FC<ListerDashboardProps> = ({
               </div>
               <p className="text-[11px] text-emerald-100 leading-relaxed">
                 {isHindi 
-                  ? 'हमारी मुफ्त AI तकनीक का उपयोग करें जो आपके विवरण को आकर्षक बिंदुओं, 0% ब्रोकरेज बैज और मुख्य सुविधाओं के साथ तैयार करती है।' 
-                  : 'Use our free 1-click AI enhancer to format your listing with crystal-clear bullet points and verified mountain highlights.'}
+                  ? 'विवरण सुधारक टूल का उपयोग करें जो आपके विवरण को स्पष्ट बिंदुओं और मुख्य सुविधाओं के साथ व्यवस्थित करता है।' 
+                  : 'Use the description formatter to organize your listing details into clear, readable bullet points.'}
               </p>
             </div>
           </div>

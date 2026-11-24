@@ -2,10 +2,11 @@ import { Property } from '../types';
 import { User } from '../context/AuthContext';
 
 /**
- * Checks if the user is the platform owner ("Amit Tyagi").
- * The owner has unrestricted permissions to delete any property, manage/delete any account, etc.
+ * Checks if the user is a platform administrator.
  */
-export const isAppOwner = (user: { username?: string; contact?: string; email?: string; role?: string; isOwner?: boolean } | null | undefined): boolean => {
+export const isAppOwner = (
+  user: { username?: string; contact?: string; email?: string; role?: string; isOwner?: boolean } | null | undefined
+): boolean => {
   if (!user) return false;
   const contact = (user.contact || (user as any).email || '').trim().toLowerCase();
   return (
@@ -17,14 +18,129 @@ export const isAppOwner = (user: { username?: string; contact?: string; email?: 
 };
 
 /**
- * Normalizes phone numbers to standard 10 digits for accurate comparison.
+ * Normalizes phone numbers to standard 10 digits when Indian mobile format is detected.
  */
-export const normalizePhone = (num?: string): string => {
+export const normalizePhone = (num?: string | null): string => {
   if (!num) return '';
-  const digits = num.replace(/\D/g, '');
+  const digits = String(num).replace(/\D/g, '');
   if (digits.length === 12 && digits.startsWith('91')) return digits.slice(2);
   if (digits.length === 11 && digits.startsWith('0')) return digits.slice(1);
   return digits;
+};
+
+/**
+ * Extracts a genuine, lister-provided public phone number from a property record.
+ * Never invents, guesses, or substitutes fallback phone numbers.
+ */
+export const getPublicPropertyPhone = (property?: Property | null): string | null => {
+  if (!property) return null;
+  const candidates = [property.sellerPhone, property.ownerContact];
+  for (const raw of candidates) {
+    if (!raw || typeof raw !== 'string') continue;
+    const trimmed = raw.trim();
+    if (!trimmed) continue;
+    if (trimmed.includes('@') || /[a-zA-Z]/.test(trimmed)) continue;
+    if (trimmed.includes('•') || trimmed.includes('*')) continue;
+    const digits = trimmed.replace(/\D/g, '');
+    if (digits.length >= 10 && digits.length <= 15) {
+      return trimmed;
+    }
+  }
+  return null;
+};
+
+/**
+ * Formats a genuine phone number cleanly for UI display.
+ */
+export const formatPhoneForDisplay = (rawPhone?: string | null): string => {
+  if (!rawPhone) return '';
+  const digits = String(rawPhone).replace(/\D/g, '');
+  if (digits.length === 10) {
+    return `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`;
+  }
+  if (digits.length === 11 && digits.startsWith('0')) {
+    const core = digits.slice(1);
+    return `+91 ${core.slice(0, 5)} ${core.slice(5)}`;
+  }
+  if (digits.length === 12 && digits.startsWith('91')) {
+    const core = digits.slice(2);
+    return `+91 ${core.slice(0, 5)} ${core.slice(5)}`;
+  }
+  return rawPhone.trim().startsWith('+') ? rawPhone.trim() : `+${digits}`;
+};
+
+/**
+ * Builds a clickable `tel:` protocol URI from a genuine lister phone number.
+ */
+export const getTelHref = (rawPhone?: string | null): string | null => {
+  if (!rawPhone) return null;
+  const digits = String(rawPhone).replace(/\D/g, '');
+  if (digits.length < 10) return null;
+  if (digits.length === 10) return `tel:+91${digits}`;
+  if (digits.length === 11 && digits.startsWith('0')) return `tel:+91${digits.slice(1)}`;
+  if (digits.length === 12 && digits.startsWith('91')) return `tel:+${digits}`;
+  return `tel:+${digits}`;
+};
+
+/**
+ * Normalizes a genuine phone number into international digits required by https://wa.me/<number>.
+ */
+export const formatWhatsAppPhone = (rawPhone?: string | null): string | null => {
+  if (!rawPhone) return null;
+  const digits = String(rawPhone).replace(/\D/g, '');
+  if (digits.length < 10 || digits.length > 15) return null;
+  if (digits.length === 10) return `91${digits}`;
+  if (digits.length === 11 && digits.startsWith('0')) return `91${digits.slice(1)}`;
+  if (digits.length === 11 && !digits.startsWith('91')) return `91${digits.slice(-10)}`;
+  return digits;
+};
+
+/**
+ * Builds the default customizable prefilled WhatsApp inquiry message identifying the property.
+ */
+export const buildDefaultWhatsAppMessage = (
+  property?: Pick<Property, 'title' | 'city' | 'location'> | null,
+  isHindi: boolean = false
+): string => {
+  if (!property) {
+    return isHindi
+      ? 'नमस्ते, मैंने उत्तराखंड गेटवेज पर आपकी प्रॉपर्टी देखी और इसके बारे में अधिक जानकारी चाहता/चाहती हूँ।'
+      : 'Hello, I found your property on Uttarakhand Gateways and would like to know more about it.';
+  }
+  const title = (property.title || '').trim();
+  const loc = (property.location || property.city || 'Uttarakhand').trim();
+  if (isHindi) {
+    return title
+      ? `नमस्ते, मैंने उत्तराखंड गेटवेज पर आपकी प्रॉपर्टी "${title}" (${loc}) देखी और इसके बारे में अधिक जानकारी चाहता/चाहती हूँ।`
+      : 'नमस्ते, मैंने उत्तराखंड गेटवेज पर आपकी प्रॉपर्टी देखी और इसके बारे में अधिक जानकारी चाहता/चाहती हूँ।';
+  }
+  return title
+    ? `Hello, I found your property "${title}" (${loc}) on Uttarakhand Gateways and would like to know more about it.`
+    : 'Hello, I found your property on Uttarakhand Gateways and would like to know more about it.';
+};
+
+/**
+ * Generates a dynamic WhatsApp deep link for the lister's actual phone number and message.
+ */
+export const getWhatsAppContactUrl = (
+  phoneOrProperty?: string | Property | null,
+  customMessage?: string
+): string | null => {
+  const isPropObj = Boolean(phoneOrProperty && typeof phoneOrProperty === 'object');
+  const rawPhone = isPropObj
+    ? getPublicPropertyPhone(phoneOrProperty as Property)
+    : (phoneOrProperty as string | null | undefined);
+  const waPhone = formatWhatsAppPhone(rawPhone);
+  if (!waPhone) return null;
+  const msg =
+    typeof customMessage === 'string'
+      ? customMessage.trim()
+      : isPropObj
+        ? buildDefaultWhatsAppMessage(phoneOrProperty as Property)
+        : '';
+  return msg
+    ? `https://wa.me/${waPhone}?text=${encodeURIComponent(msg)}`
+    : `https://wa.me/${waPhone}`;
 };
 
 /**
@@ -67,30 +183,11 @@ export const unrecordUploadedPropertyId = (id: string): void => {
 };
 
 /**
- * Checks if the currently authenticated user is the legitimate direct creator/owner of the given property listing.
- * Does NOT grant automatic ownership to platform owners (Amit Tyagi) so that other sellers' names and listings are not hijacked.
+ * Checks if the currently authenticated user is the direct creator/owner of the given property listing.
  */
 export const isDirectPropertyOwner = (property?: Property | null, currentUser?: User | null): boolean => {
   if (!currentUser || !property) return false;
 
-  // Platform admin known personal listings match
-  if (isAppOwner(currentUser)) {
-    const rawOwner = (property.ownerUsername || '').trim().toLowerCase();
-    const rawSeller = (property.sellerName || '').trim().toLowerCase();
-    const rawContact = (property.ownerContact || property.sellerEmail || '').trim().toLowerCase();
-    if (
-      rawContact === 'amit1986.delhi@gmail.com' ||
-      rawContact === '7535981704' ||
-      rawOwner === 'amit1986.delhi' ||
-      rawOwner === 'amit tyagi' ||
-      rawSeller === 'amit1986.delhi' ||
-      rawSeller === 'amit tyagi'
-    ) {
-      return true;
-    }
-  }
-
-  // 1. Direct owner ID match
   if (property.ownerId && property.ownerId === currentUser.id) {
     return true;
   }
@@ -99,20 +196,23 @@ export const isDirectPropertyOwner = (property?: Property | null, currentUser?: 
   const userPhoneDigits = normalizePhone(currentUser.contact);
   const userUsername = (currentUser.username || '').trim().toLowerCase();
 
-  // 2. Direct owner contact match (email or mobile)
   if (property.ownerContact) {
     const propOwnerContact = property.ownerContact.trim().toLowerCase();
     if (propOwnerContact === userContact) return true;
     const propOwnerDigits = normalizePhone(property.ownerContact);
-    if (userPhoneDigits && propOwnerDigits && (userPhoneDigits === propOwnerDigits || userPhoneDigits.endsWith(propOwnerDigits) || propOwnerDigits.endsWith(userPhoneDigits))) {
+    if (
+      userPhoneDigits &&
+      propOwnerDigits &&
+      (userPhoneDigits === propOwnerDigits ||
+        userPhoneDigits.endsWith(propOwnerDigits) ||
+        propOwnerDigits.endsWith(userPhoneDigits))
+    ) {
       return true;
     }
   }
 
-  // If listing already has explicit ownerId/contact identity, strictly require identity match (never match by display username alone to prevent spoofing)
   const hasExplicitOwnerIdentity = Boolean(property.ownerId || property.ownerContact || property.sellerEmail);
 
-  // 3 & 6. Legacy fallback when no explicit owner ID/email exists
   if (!hasExplicitOwnerIdentity) {
     if (property.ownerUsername && property.ownerUsername.trim().toLowerCase() === userUsername) {
       return true;
@@ -122,20 +222,23 @@ export const isDirectPropertyOwner = (property?: Property | null, currentUser?: 
     }
   }
 
-  // 4. Seller Email match
   if (property.sellerEmail && property.sellerEmail.trim().toLowerCase() === userContact) {
     return true;
   }
 
-  // 5. Seller Phone comparison (strip non-digits & country prefix)
   if (property.sellerPhone) {
     const sellerDigits = normalizePhone(property.sellerPhone);
-    if (userPhoneDigits.length >= 10 && sellerDigits.length >= 10 && (userPhoneDigits === sellerDigits || userPhoneDigits.endsWith(sellerDigits) || sellerDigits.endsWith(userPhoneDigits))) {
+    if (
+      userPhoneDigits.length >= 10 &&
+      sellerDigits.length >= 10 &&
+      (userPhoneDigits === sellerDigits ||
+        userPhoneDigits.endsWith(sellerDigits) ||
+        sellerDigits.endsWith(userPhoneDigits))
+    ) {
       return true;
     }
   }
 
-  // 7. Check local/session uploaded registries
   if (typeof window !== 'undefined') {
     try {
       const sessionList: string[] = JSON.parse(sessionStorage.getItem('ukg_session_uploaded_ids') || '[]');
@@ -149,7 +252,7 @@ export const isDirectPropertyOwner = (property?: Property | null, currentUser?: 
 };
 
 /**
- * Checks if the user can manage/edit/delete the property (either direct owner or platform admin Amit Tyagi).
+ * Checks if the user can manage/edit/delete the property (either direct owner or platform administrator).
  */
 export const canManageProperty = (property?: Property | null, currentUser?: User | null): boolean => {
   if (!currentUser || !property) return false;
@@ -157,66 +260,7 @@ export const canManageProperty = (property?: Property | null, currentUser?: User
   return isDirectPropertyOwner(property, currentUser);
 };
 
-// Aliasing isPropertyOwner to isDirectPropertyOwner ensures that any component checking "isPropertyOwner"
-// to filter user-owned listings or attribute listing ownership only attributes authentic listings created by this user.
 export const isPropertyOwner = isDirectPropertyOwner;
-
-/**
- * Checks whether the current user has sent a contact/phone access request
- * for this property and the lister has APPROVED / ACCEPTED it.
- */
-export const hasApprovedAccessRequest = (
-  propertyId?: string | null,
-  currentUser?: User | null
-): boolean => {
-  if (!propertyId || typeof window === 'undefined') return false;
-
-  try {
-    const raw = localStorage.getItem('uk_gateways_phone_requests');
-    if (!raw) return false;
-    const list: any[] = JSON.parse(raw);
-    if (!Array.isArray(list)) return false;
-
-    const userContact = (currentUser?.contact || (currentUser as any)?.email || '').trim().toLowerCase();
-    const userUsername = (currentUser?.username || '').trim().toLowerCase();
-    const userId = currentUser?.id;
-
-    return list.some((req) => {
-      if (req.propertyId !== propertyId) return false;
-      if (req.status !== 'approved') return false;
-
-      // Must be an outgoing request sent by this user (not an incoming request for their own listing)
-      if (req.isIncomingForUserListing) return false;
-
-      if (userId && req.requesterId && req.requesterId === userId) return true;
-      if (userContact && req.requesterContact && req.requesterContact.trim().toLowerCase() === userContact) return true;
-      if (userUsername && req.requesterName && req.requesterName.trim().toLowerCase() === userUsername) return true;
-
-      // Fallback for requests created in current browser session
-      if (!req.isIncomingForUserListing && req.status === 'approved') return true;
-
-      return false;
-    });
-  } catch {
-    return false;
-  }
-};
-
-/**
- * Determines if the lister's real personal name and direct contact can be seen.
- * STRICT PRIVACY RULE: People should NOT be able to see the lister's name anywhere
- * UNLESS they send a request and the lister accepts it (or they are the lister/admin).
- */
-export const isListerNameVisible = (
-  property?: Property | null,
-  currentUser?: User | null
-): boolean => {
-  if (!property) return false;
-  if (currentUser && isDirectPropertyOwner(property, currentUser)) return true;
-  if (currentUser && isAppOwner(currentUser)) return true;
-  if ((property as any).isListerNameVisible === true) return true;
-  return hasApprovedAccessRequest(property.id, currentUser);
-};
 
 const GENERIC_OWNER_PLACEHOLDERS = new Set([
   'direct property owner',
@@ -236,9 +280,6 @@ export const cleanRawOwnerName = (rawName?: string | null): string => {
   if (!trimmed) return '';
   const lower = trimmed.toLowerCase();
   if (GENERIC_OWNER_PLACEHOLDERS.has(lower)) return '';
-  if (lower === 'amit1986.delhi' || lower === 'amit1986.delhi@gmail.com') {
-    return 'Amit Tyagi';
-  }
   if (trimmed.includes('@')) {
     const localPart = trimmed.split('@')[0].replace(/[._-]+/g, ' ').trim();
     if (!localPart) return '';
@@ -251,10 +292,7 @@ export const cleanRawOwnerName = (rawName?: string | null): string => {
 };
 
 /**
- * Partially masks an owner's full name for public display:
- * - Shows the first two words of the owner's name.
- * - Replaces everything after the first two words with "***".
- * - 1 or 2 words are displayed without masking.
+ * Partially masks a long full name for public display (first two words + "***").
  */
 export const maskPublicOwnerName = (rawName?: string | null, fallback = 'Property Owner'): string => {
   if (rawName && rawName.includes('***')) {
@@ -295,101 +333,7 @@ export const getOrCreateVisitorId = (): string => {
 };
 
 /**
- * Gets the verified, approved lister name if access has been granted.
- * Returns null if the user does NOT have approved access.
- */
-export const getApprovedListerName = (
-  property?: Property | null,
-  currentUser?: User | null
-): string | null => {
-  if (!property) return null;
-  if (!isListerNameVisible(property, currentUser)) return null;
-
-  // 0. Platform Admin sees complete unmasked owner name
-  if (currentUser && isAppOwner(currentUser)) {
-    const full =
-      cleanRawOwnerName((property as any).fullSellerName) ||
-      cleanRawOwnerName(property.ownerUsername) ||
-      cleanRawOwnerName(property.sellerName);
-    if (full) return full;
-  }
-
-  // 1. Direct owner view
-  if (currentUser && isDirectPropertyOwner(property, currentUser)) {
-    return cleanRawOwnerName(currentUser.username) || cleanRawOwnerName(property.sellerName) || 'You (Owner)';
-  }
-
-  // 2. Check approved request record for stored lister name
-  if (typeof window !== 'undefined') {
-    try {
-      const raw = localStorage.getItem('uk_gateways_phone_requests');
-      if (raw) {
-        const list: any[] = JSON.parse(raw);
-        if (Array.isArray(list)) {
-          const found = list.find((r) => r.propertyId === property.id && r.status === 'approved' && !r.isIncomingForUserListing);
-          if (found && (found.sellerName || found.listerName)) {
-            const cleaned = cleanRawOwnerName(found.sellerName || found.listerName);
-            if (cleaned) return cleaned;
-          }
-        }
-      }
-    } catch {}
-  }
-
-  // 3. Fallback to property fullSellerName or sellerName if returned from authorized server response
-  const authorizedName =
-    cleanRawOwnerName((property as any).fullSellerName) ||
-    cleanRawOwnerName(property.sellerName) ||
-    cleanRawOwnerName(property.ownerUsername);
-  if (authorizedName) {
-    return authorizedName;
-  }
-
-  return 'Property Owner';
-};
-
-/**
- * Gets the verified, approved phone number if access has been granted.
- * Returns null if the user does NOT have approved access.
- */
-export const getApprovedPhoneNumber = (
-  property?: Property | null,
-  currentUser?: User | null
-): string | null => {
-  if (!property) return null;
-  if (!isListerNameVisible(property, currentUser)) return null;
-
-  if (currentUser && isDirectPropertyOwner(property, currentUser) && currentUser.contact) {
-    return property.sellerPhone || currentUser.contact;
-  }
-
-  if (typeof window !== 'undefined') {
-    try {
-      const raw = localStorage.getItem('uk_gateways_phone_requests');
-      if (raw) {
-        const list: any[] = JSON.parse(raw);
-        if (Array.isArray(list)) {
-          const found = list.find((r) => r.propertyId === property.id && r.status === 'approved' && !r.isIncomingForUserListing);
-          if (found && (found.sellerPhone || found.listerPhone)) {
-            return found.sellerPhone || found.listerPhone;
-          }
-        }
-      }
-    } catch {}
-  }
-
-  if (property.sellerPhone && !property.sellerPhone.includes('••')) {
-    return property.sellerPhone;
-  }
-
-  return null;
-};
-
-/**
- * Resolves the display name for a property's owner or broker:
- * - Admin & Direct Owner & Approved Requester: complete unmasked name.
- * - Public visitors: partially masked owner name (first two words + "***", or 1-2 words unmasked).
- * - Never returns "Verified Direct Owner" or "Direct Property Owner".
+ * Resolves the display name for a property's owner or broker.
  */
 export const getPropertyOwnerDisplayName = (
   property?: Property | null,
@@ -400,7 +344,6 @@ export const getPropertyOwnerDisplayName = (
 
   const isBroker = property.sellerType === 'Broker';
 
-  // 1. Platform Administrator sees the complete unmasked owner name
   if (currentUser && isAppOwner(currentUser)) {
     const adminViewName =
       cleanRawOwnerName((property as any).fullSellerName) ||
@@ -409,20 +352,12 @@ export const getPropertyOwnerDisplayName = (
     if (adminViewName) return adminViewName;
   }
 
-  // 2. Direct author/owner of this property sees their full name
   if (currentUser && currentUser.username && !isBroker) {
     if (isDirectPropertyOwner(property, currentUser)) {
       return cleanRawOwnerName(currentUser.username) || currentUser.username;
     }
   }
 
-  // 3. Approved contact access requester sees complete owner name
-  if (isListerNameVisible(property, currentUser)) {
-    const approved = getApprovedListerName(property, currentUser);
-    if (approved) return approved;
-  }
-
-  // 4. Public display: partially masked owner name (first two words + "***")
   const fallback = isBroker
     ? (isHindi ? 'प्रॉपर्टी ब्रोकर' : 'Property Broker')
     : (isHindi ? 'प्रॉपर्टी मालिक' : 'Property Owner');

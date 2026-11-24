@@ -44,6 +44,7 @@ import {
   SlidersHorizontal,
 } from 'lucide-react';
 import { Property, PropertyCategory, PropertyType, UttarakhandCity, Region } from '../types';
+import { compressImageToWebpFile, uploadFileWithProgress, validateUploadFile } from '../utils/imageModeration';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { isAppOwner, formatPropertyViewsCount } from '../utils/propertyOwnership';
@@ -536,8 +537,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
       category: 'Residential',
       type: 'Plot',
       purpose: 'sale',
-      price: 2500000,
-      priceDisplay: '₹25 Lakh',
+      price: 0,
+      priceDisplay: '',
       pricingUnit: 'total',
       ratePerSqFt: '',
       ratePerGajOrNali: '',
@@ -550,10 +551,10 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
       coordinates: { lat: 30.0869, lng: 78.2676 },
       distanceFromAirport: '',
       distanceFromRailway: '',
-      areaSqFt: 900,
-      areaValue: 100,
+      areaSqFt: 0,
+      areaValue: 0,
       areaUnit: 'gaj',
-      areaDisplay: '100 Gaj',
+      areaDisplay: '',
       landMeasureInNali: 0,
       configuration: 'Residential Plot',
       bedrooms: 0,
@@ -572,8 +573,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
       peakName: '',
       homestaySubsidyEligible: false,
       description: '',
-      sellerName: currentUser?.username || 'Amit Tyagi',
-      ownerUsername: currentUser?.username || 'Amit Tyagi',
+      sellerName: currentUser?.username || '',
+      ownerUsername: currentUser?.username || '',
       sellerPhone: '',
       sellerEmail: currentUser?.contact || '',
       ownerContact: currentUser?.contact || '',
@@ -581,7 +582,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
       images: [],
       videoUrl: '',
       amenities: ['Water Supply', 'Electricity Connection'],
-      highlights: ['0% Brokerage', 'Clear Freehold Title'],
+      highlights: ['NO PLATFORM FEE'],
       approvalStatus: 'approved',
       isPublished: true,
       isHidden: false,
@@ -617,45 +618,74 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
     });
   };
 
-  // Image Upload / Replace / Reorder Helpers
-  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>, replaceAtIndex?: number) => {
+  // Image Upload / Replace / Reorder Helpers (20 MB limit + WebP compression)
+  const handleImageFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, replaceAtIndex?: number) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
+    const selected = Array.from(files);
+    e.target.value = '';
+    setErrorMsg(null);
 
     if (typeof replaceAtIndex === 'number') {
-      const file = files[0];
-      if (file && file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const dataUrl = reader.result as string;
-          setEditorProperty((prev) => {
-            if (!prev) return prev;
-            const nextImages = [...(prev.images || [])];
-            nextImages[replaceAtIndex] = dataUrl;
-            return { ...prev, images: nextImages };
-          });
-          setReplacingImageIdx(null);
-        };
-        reader.readAsDataURL(file);
+      const file = selected[0];
+      if (!file) return;
+      const check = validateUploadFile(file, 'image');
+      if (!check.valid) {
+        setErrorMsg(check.error || 'Invalid image file.');
+        return;
       }
-      e.target.value = '';
+      try {
+        const compressed = await compressImageToWebpFile(file, 1600, 0.82);
+        const baseName = file.name.replace(/\.[^.]+$/, '') || 'admin-photo';
+        const uploaded = await uploadFileWithProgress(compressed.blob, `${baseName}.webp`);
+        const finalUrl = uploaded.success && uploaded.url ? uploaded.url : compressed.dataUrl;
+        setEditorProperty((prev) => {
+          if (!prev) return prev;
+          const nextImages = [...(prev.images || [])];
+          nextImages[replaceAtIndex] = finalUrl;
+          return { ...prev, images: nextImages };
+        });
+        setReplacingImageIdx(null);
+        showToast('Image optimized to WebP and updated.');
+      } catch (err: any) {
+        setErrorMsg(err?.message || 'Failed to optimize replacement image.');
+      }
       return;
     }
 
-    Array.from(files).slice(0, 12).forEach((file) => {
-      if (!file.type.startsWith('image/')) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        const dataUrl = reader.result as string;
-        setEditorProperty((prev) => {
-          if (!prev) return prev;
-          const existing = Array.isArray(prev.images) ? prev.images : [];
-          return { ...prev, images: [...existing, dataUrl].slice(0, 20) };
-        });
-      };
-      reader.readAsDataURL(file);
-    });
-    e.target.value = '';
+    const addedUrls: string[] = [];
+    const errors: string[] = [];
+    for (const file of selected.slice(0, 12)) {
+      const check = validateUploadFile(file, 'image');
+      if (!check.valid) {
+        errors.push(check.error || `Invalid file: ${file.name}`);
+        continue;
+      }
+      try {
+        const compressed = await compressImageToWebpFile(file, 1600, 0.82);
+        const baseName = file.name.replace(/\.[^.]+$/, '') || 'admin-photo';
+        const uploaded = await uploadFileWithProgress(compressed.blob, `${baseName}.webp`);
+        if (uploaded.success && uploaded.url) {
+          addedUrls.push(uploaded.url);
+        } else if (uploaded.error) {
+          errors.push(uploaded.error);
+        }
+      } catch (err: any) {
+        errors.push(err?.message || `Failed to process ${file.name}`);
+      }
+    }
+
+    if (addedUrls.length > 0) {
+      setEditorProperty((prev) => {
+        if (!prev) return prev;
+        const existing = Array.isArray(prev.images) ? prev.images : [];
+        return { ...prev, images: [...existing, ...addedUrls].slice(0, 20) };
+      });
+      showToast(`Uploaded ${addedUrls.length} optimized WebP photo(s).`);
+    }
+    if (errors.length > 0) {
+      setErrorMsg(errors.join(' '));
+    }
   };
 
   const moveEditorImage = (fromIdx: number, toIdx: number) => {
@@ -3567,7 +3597,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                       type="text"
                       value={editorProperty.sellerPhone || ''}
                       onChange={(e) => setEditorProperty({ ...editorProperty, sellerPhone: e.target.value })}
-                      placeholder="+91 9876543210"
+                      placeholder="Enter mobile number"
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-800 bg-slate-50 dark:bg-[#051811]"
                     />
                   </div>

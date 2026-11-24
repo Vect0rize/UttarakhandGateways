@@ -30,7 +30,19 @@ import {
 import { resolveApiUrl } from '../config/apiConfig';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { isPropertyOwner, canManageProperty, getPropertyOwnerDisplayName, formatPropertyViewsCount, isAppOwner, getOrCreateVisitorId } from '../utils/propertyOwnership';
+import {
+  isPropertyOwner,
+  canManageProperty,
+  getPropertyOwnerDisplayName,
+  formatPropertyViewsCount,
+  isAppOwner,
+  getOrCreateVisitorId,
+  getPublicPropertyPhone,
+  formatPhoneForDisplay,
+  getTelHref,
+  buildDefaultWhatsAppMessage,
+  getWhatsAppContactUrl,
+} from '../utils/propertyOwnership';
 import { formatLocalizedPrice, translatePropertyType } from '../utils/language';
 import { formatPropertyArea, formatPropertyRate, isLandOrPlotProperty } from '../utils/areaUnits';
 import { getPropertyShareUrl, sharePropertyListing } from '../utils/propertyShare';
@@ -42,9 +54,6 @@ interface PropertyDetailModalProps {
   isFavorite: boolean;
   onToggleFavorite: (id: string) => void;
   onStartChat?: (property: Property) => void;
-  onRequestPhoneNumber?: (property: Property) => void;
-  phoneRequestStatus?: 'none' | 'pending' | 'approved' | 'declined';
-  approvedPhoneNumber?: string;
   onDeleteProperty?: (propertyId: string) => void;
   onToggleSold?: (propertyId: string) => void;
 }
@@ -56,9 +65,6 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
   isFavorite,
   onToggleFavorite,
   onStartChat,
-  onRequestPhoneNumber,
-  phoneRequestStatus = 'none',
-  approvedPhoneNumber,
   onDeleteProperty,
   onToggleSold,
 }) => {
@@ -66,8 +72,13 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
   const [copiedLink, setCopiedLink] = useState(false);
   const [downloadingBrochure, setDownloadingBrochure] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [localPhoneRequested, setLocalPhoneRequested] = useState(false);
   const { isHindi } = useLanguage();
+  const [customWhatsAppMsg, setCustomWhatsAppMsg] = useState<string>(() =>
+    buildDefaultWhatsAppMessage(property, isHindi)
+  );
+  useEffect(() => {
+    setCustomWhatsAppMsg(buildDefaultWhatsAppMessage(property, isHindi));
+  }, [property?.id, isHindi]);
   const { currentUser, openAuthModal } = useAuth();
 
   const isDirectOwner = property ? isPropertyOwner(property, currentUser) : false;
@@ -112,10 +123,6 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
   };
 
   const handleDownloadBrochure = () => {
-    if (!currentUser) {
-      openAuthModal('login', isHindi ? 'विवरण पुस्तिका डाउनलोड करने हेतु कृपया पहले लॉगिन करें।' : 'Please sign in to download property brochures.');
-      return;
-    }
     setDownloadingBrochure(true);
     setTimeout(() => {
       setDownloadingBrochure(false);
@@ -164,10 +171,6 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
             {/* Save for later toggle button */}
             <button
               onClick={() => {
-                if (!currentUser) {
-                  openAuthModal('login', isHindi ? 'संपत्ति सहेजने हेतु कृपया पहले लॉगिन करें।' : 'Please sign in to save properties.');
-                  return;
-                }
                 onToggleFavorite(property.id);
               }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
@@ -564,84 +567,51 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                   </div>
                 )}
 
-                {/* Protected Phone Number & Ask Access to Owner */}
-                {!isDirectOwner && (
-                  <div className="space-y-2.5 p-3.5 rounded-2xl bg-emerald-50/80 dark:bg-[#061911]/80 border border-emerald-200 dark:border-emerald-800">
-                    <div className="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-300">
-                      <Lock className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <strong className="text-slate-800 dark:text-slate-100">
-                          {isHindi ? 'फ़ोन नंबर सुरक्षा सुरक्षित:' : 'Phone Privacy Protected:'}{' '}
-                        </strong>
-                        {isHindi
-                          ? 'अवांछित स्पैम रोकने के लिए मालिक का फ़ोन नंबर सुरक्षित रखा गया है। आप सीधे मालिक से नंबर का अनुरोध कर सकते हैं।'
-                          : "To protect owner privacy and prevent spam, the phone number is kept private. You can ask access from the owner for their number."}
+                {/* Public Lister Contact & Direct WhatsApp */}
+                {(() => {
+                  const publicPhone = getPublicPropertyPhone(property);
+                  const telHref = getTelHref(publicPhone);
+                  const waHref = getWhatsAppContactUrl(publicPhone, customWhatsAppMsg);
+                  if (!publicPhone || !telHref) return null;
+                  return (
+                    <div className="space-y-2.5 p-3.5 rounded-2xl bg-emerald-50/80 dark:bg-[#061911]/80 border border-emerald-200 dark:border-emerald-800">
+                      <div className="flex items-center justify-between text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                        <span>{isHindi ? 'लिस्र्टर का फोन:' : 'Lister Phone:'}</span>
+                        <span className="font-mono text-sm tracking-wider font-extrabold text-slate-800 dark:text-slate-100">
+                          {formatPhoneForDisplay(publicPhone)}
+                        </span>
                       </div>
-                    </div>
 
-                    <div className="flex items-center justify-between text-xs font-bold text-emerald-800 dark:text-emerald-300 pt-1 border-t border-emerald-200/60 dark:border-emerald-900/40">
-                      <span>{isHindi ? 'मालिक का फोन:' : 'Owner Phone:'}</span>
-                      <span className="font-mono text-sm tracking-wider font-extrabold text-slate-700 dark:text-slate-200">
-                        {phoneRequestStatus === 'approved' || approvedPhoneNumber
-                          ? (approvedPhoneNumber || property.sellerPhone || '+91 98971 23456')
-                          : '+91 98••••••••'}
-                      </span>
-                    </div>
+                      <a
+                        href={telHref}
+                        className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer no-underline"
+                      >
+                        <Phone className="w-3.5 h-3.5" />
+                        <span>{isHindi ? 'कॉल करें' : 'Call Lister Directly'}</span>
+                      </a>
 
-                    <div className="pt-1">
-                      {phoneRequestStatus === 'approved' || approvedPhoneNumber ? (
-                        <a
-                          href={`tel:${(approvedPhoneNumber || property.sellerPhone || '').replace(/[^0-9+]/g, '')}`}
-                          onClick={(e) => {
-                            if (!currentUser) {
-                              e.preventDefault();
-                              openAuthModal('login', isHindi ? 'मालिक को कॉल करने हेतु कृपया पहले लॉगिन करें।' : 'Please sign in to contact the property owner.');
-                              return;
-                            }
-                          }}
-                          className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
-                        >
-                          <Phone className="w-3.5 h-3.5" />
-                          <span>{isHindi ? 'मालिक को सीधे कॉल करें' : 'Call Owner Directly'}</span>
-                        </a>
-                      ) : (phoneRequestStatus === 'pending' || localPhoneRequested) ? (
-                        <div className="w-full py-2.5 px-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300 text-xs font-bold flex items-center justify-between">
-                          <span className="flex items-center gap-1.5">
-                            <Clock className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
-                            <span>{isHindi ? 'फोन अनुरोध भेजा गया (स्वीकृति लंबित)' : 'Phone Access Requested • Pending'}</span>
-                          </span>
-                          <span className="text-[10px] bg-amber-200 dark:bg-amber-900 px-2 py-0.5 rounded-full font-mono">
-                            {isHindi ? 'इनबॉक्स देखें' : 'Check Inbox'}
-                          </span>
+                      {waHref && (
+                        <div className="space-y-2 pt-1">
+                          <textarea
+                            rows={2}
+                            value={customWhatsAppMsg}
+                            onChange={(e) => setCustomWhatsAppMsg(e.target.value)}
+                            className="w-full p-2 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100"
+                          />
+                          <a
+                            href={waHref}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full py-2.5 px-3 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer no-underline"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            <span>{isHindi ? 'व्हाट्सएप पर संदेश भेजें' : 'Message on WhatsApp'}</span>
+                          </a>
                         </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!currentUser) {
-                              openAuthModal('login', isHindi ? 'मालिक के फोन नंबर का अनुरोध करने के लिए कृपया पहले लॉगिन करें।' : 'Please sign in to ask access to the owner for their phone number.');
-                              return;
-                            }
-                            setLocalPhoneRequested(true);
-                            if (onRequestPhoneNumber) {
-                              onRequestPhoneNumber(property);
-                            } else {
-                              fetch(`/api/properties/${encodeURIComponent(property.id)}/inquiry`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ type: 'phone_access_request', propertyId: property.id, timestamp: Date.now() })
-                              }).catch(() => {});
-                            }
-                          }}
-                          className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-green-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98] cursor-pointer"
-                        >
-                          <Lock className="w-3.5 h-3.5" />
-                          <span>{isHindi ? 'मालिक से फोन नंबर मांगें (Ask Access)' : 'Ask Access to Owner for Number'}</span>
-                        </button>
                       )}
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* Direct Chat with Owner Button (Only shown to buyers) */}
                 {!isDirectOwner && onStartChat && (
@@ -664,10 +634,6 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                 {/* Save for later button */}
                 <button
                   onClick={() => {
-                    if (!currentUser) {
-                      openAuthModal('login', isHindi ? 'प्रॉपर्टी को शॉर्टलिस्ट करने हेतु कृपया लॉगिन करें।' : 'Please sign in to save properties.', () => onToggleFavorite(property.id));
-                      return;
-                    }
                     onToggleFavorite(property.id);
                   }}
                   className="w-full py-2 px-4 rounded-xl bg-white dark:bg-[#071c14] hover:bg-emerald-50 dark:hover:bg-[#0c2f22] text-slate-700 dark:text-slate-200 text-xs font-medium border border-emerald-200 dark:border-emerald-800 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
@@ -678,13 +644,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
 
                 {/* Download Brochure Button */}
                 <button
-                  onClick={() => {
-                    if (!currentUser) {
-                      openAuthModal('login', isHindi ? 'दस्तावेज़ डाउनलोड करने हेतु कृपया लॉगिन करें।' : 'Please sign in to download legal brochure.', handleDownloadBrochure);
-                      return;
-                    }
-                    handleDownloadBrochure();
-                  }}
+                  onClick={handleDownloadBrochure}
                   disabled={downloadingBrochure}
                   className="w-full py-2 px-4 rounded-xl bg-white dark:bg-[#071c14] hover:bg-emerald-50 dark:hover:bg-[#0c2f22] text-slate-700 dark:text-slate-200 text-xs font-medium border border-emerald-200 dark:border-emerald-800 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
                 >
@@ -707,15 +667,11 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                 </div>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-3">
                   {isHindi 
-                    ? '80% लोन और 8.5% ब्याज दर पर 20 वर्ष की अनुमानित ईएमआई। एसबीआई, एचडीएफसी और आईसीआईसीआई से लोन सुविधा उपलब्ध।' 
-                    : 'Estimated based on 80% loan at 8.5% interest for 20 years. Bank loans available from SBI, HDFC & ICICI.'}
+                    ? 'केवल सूचनात्मक अनुमान (80% राशि, 8.5% वार्षिक दर, 20 वर्ष)। UKG कोई ऋण या वित्तीय सलाह प्रदान नहीं करता है।' 
+                    : 'Informational estimate only (80% amount, 8.5% p.a., 20 years). UKG does not provide loans or financial advice.'}
                 </p>
                 <button
                   onClick={() => {
-                    if (!currentUser) {
-                      openAuthModal('login', isHindi ? 'गृह ऋण ईएमआई कैलकुलेटर हेतु कृपया लॉगिन करें।' : 'Please sign in to calculate home loan EMI.', () => onOpenEmiCalculator(property.price));
-                      return;
-                    }
                     onOpenEmiCalculator(property.price);
                   }}
                   className="w-full py-2 rounded-lg bg-emerald-50 dark:bg-[#061811] hover:bg-emerald-100 dark:hover:bg-[#09251a] border border-emerald-200 dark:border-emerald-700 text-xs text-emerald-800 dark:text-emerald-300 font-semibold transition-colors cursor-pointer"

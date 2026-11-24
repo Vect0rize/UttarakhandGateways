@@ -81,7 +81,7 @@ export interface AuthContextType {
   saveCurrentAccountToDevice: () => void;
   dismissSavePrompt: () => void;
 
-  // Platform Owner Management (Amit Tyagi)
+  // Platform Administrator Management
   getAllRegisteredUsers: () => StoredUserAccount[];
   fetchAllRegisteredUsers: () => Promise<StoredUserAccount[]>;
   deleteUserByOwner: (userIdOrContact: string) => Promise<{ success: boolean; message: string }>;
@@ -103,9 +103,7 @@ export const normalizeUser = (u: any): User => {
   if (!u) return u;
   let username = String(u.username || '').trim();
   const contact = String(u.contact || u.email || '').trim().toLowerCase();
-  if (contact === 'amit1986.delhi@gmail.com' && (!username || username.toLowerCase() === 'amit1986.delhi')) {
-    username = 'Amit Tyagi';
-  } else if (!username && contact) {
+  if (!username && contact) {
     username = contact.split('@')[0];
   }
   return {

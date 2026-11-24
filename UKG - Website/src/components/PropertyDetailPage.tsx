@@ -22,6 +22,7 @@ import {
   Printer,
   Sparkles,
   ExternalLink,
+  FileText,
   Navigation,
   Check,
   Ruler,
@@ -54,13 +55,14 @@ import {
   isPropertyOwner, 
   canManageProperty, 
   getPropertyOwnerDisplayName,
-  isListerNameVisible,
-  getApprovedListerName,
-  getApprovedPhoneNumber,
-  hasApprovedAccessRequest,
   isAppOwner,
   formatPropertyViewsCount,
-  getOrCreateVisitorId
+  getOrCreateVisitorId,
+  getPublicPropertyPhone,
+  formatPhoneForDisplay,
+  getTelHref,
+  buildDefaultWhatsAppMessage,
+  getWhatsAppContactUrl
 } from '../utils/propertyOwnership';
 import { formatLocalizedPrice } from '../utils/language';
 import { formatPostTime } from '../utils/timeAgo';
@@ -75,9 +77,6 @@ interface PropertyDetailPageProps {
   isFavorite: boolean;
   onToggleFavorite: (id: string) => void;
   onStartChat?: (property: Property) => void;
-  onRequestPhoneNumber?: (property: Property) => void;
-  phoneRequestStatus?: 'none' | 'pending' | 'approved' | 'declined';
-  approvedPhoneNumber?: string;
   onDeleteProperty?: (propertyId: string) => void;
   onToggleSold?: (propertyId: string) => void;
   onEditProperty?: (property: Property) => void;
@@ -112,9 +111,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
   isFavorite,
   onToggleFavorite,
   onStartChat,
-  onRequestPhoneNumber,
-  phoneRequestStatus = 'none',
-  approvedPhoneNumber,
   onDeleteProperty,
   onToggleSold,
   onEditProperty,
@@ -144,19 +140,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [localPhoneRequested, setLocalPhoneRequested] = useState(() => {
-    if (typeof window === 'undefined' || !property?.id) return false;
-    try {
-      const raw = localStorage.getItem('uk_gateways_phone_requests');
-      if (raw) {
-        const list = JSON.parse(raw);
-        if (Array.isArray(list)) {
-          return list.some((r: any) => r.propertyId === property.id && !r.isIncomingForUserListing && (r.status === 'pending' || r.status === 'approved'));
-        }
-      }
-    } catch {}
-    return false;
-  });
 
   // Optimistic Sold Status
   const [isSoldLocal, setIsSoldLocal] = useState<boolean>(Boolean(property?.isSold));
@@ -169,6 +152,14 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
 
   const { isHindi } = useLanguage();
   const { currentUser, openAuthModal } = useAuth();
+
+  const [customWhatsAppMsg, setCustomWhatsAppMsg] = useState<string>(() =>
+    buildDefaultWhatsAppMessage(property, isHindi)
+  );
+
+  useEffect(() => {
+    setCustomWhatsAppMsg(buildDefaultWhatsAppMessage(property, isHindi));
+  }, [property?.id, isHindi]);
 
   const isDirectOwner = property ? isPropertyOwner(property, currentUser) : false;
   const canManage = property ? canManageProperty(property, currentUser) : false;
@@ -254,7 +245,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
 
       // Dynamic Meta Description
       const cleanDesc = (property.description || '').replace(/\s+/g, ' ').slice(0, 160).trim();
-      const metaDescText = `${property.category || 'Property'} for ${property.purpose === 'rent' || property.isAvailableForRent ? 'rent' : 'sale'} in ${property.location || property.city || 'Uttarakhand'}. ${cleanDesc || 'Explore verified mountain properties on Uttarakhand Gateways with 0% brokerage.'}`;
+      const metaDescText = `${property.category || 'Property'} for ${property.purpose === 'rent' || property.isAvailableForRent ? 'rent' : 'sale'} in ${property.location || property.city || 'Uttarakhand'}. ${cleanDesc || 'Discover properties on Uttarakhand Gateways with NO PLATFORM FEE.'}`;
       
       let descTag = document.querySelector('meta[name="description"]');
       if (!descTag) {
@@ -407,63 +398,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
     }
   };
 
-  const handleRequestAccessClick = async () => {
-    if (!currentUser) {
-      openAuthModal(
-        'login',
-        isHindi
-          ? 'मालिक का नाम और फोन नंबर देखने हेतु अनुरोध भेजने के लिए कृपया पहले लॉगिन करें।'
-          : 'Please sign in to request access to view the lister name and phone number.'
-      );
-      return;
-    }
-    setLocalPhoneRequested(true);
-
-    try {
-      const existingRaw = localStorage.getItem('uk_gateways_phone_requests');
-      const list = existingRaw ? JSON.parse(existingRaw) : [];
-      const newReq = {
-        id: `req_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        propertyId: property.id,
-        propertyTitle: property.title,
-        propertyCity: property.city || 'Uttarakhand',
-        propertyImage: property.images?.[0] || '',
-        requesterId: currentUser.id,
-        requesterName: currentUser.username || 'Interested Buyer',
-        requesterContact: currentUser.contact || '',
-        listerId: property.ownerId || '',
-        listerName: property.sellerName || '',
-        listerPhone: property.sellerPhone || '',
-        sellerName: property.sellerName || 'Property Owner',
-        sellerPhone: property.sellerPhone || '',
-        status: 'pending',
-        requestedAt: 'Just now',
-        timestamp: Date.now(),
-        isIncomingForUserListing: false,
-      };
-      const filtered = Array.isArray(list) ? list.filter((r: any) => r.propertyId !== property.id || r.isIncomingForUserListing) : [];
-      filtered.unshift(newReq);
-      localStorage.setItem('uk_gateways_phone_requests', JSON.stringify(filtered));
-      window.dispatchEvent(new StorageEvent('storage', { key: 'uk_gateways_phone_requests', newValue: JSON.stringify(filtered) }));
-    } catch {}
-
-    fetch('/api/requests', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ propertyId: property.id, requesterNote: 'Interested in property inspection and discussion.' }),
-    }).catch(() => {});
-
-    fetch(`/api/properties/${encodeURIComponent(property.id)}/inquiry`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'phone_access_request', propertyId: property.id, timestamp: Date.now() }),
-    }).catch(() => {});
-
-    if (onRequestPhoneNumber) {
-      onRequestPhoneNumber(property);
-    }
-  };
-
   /**
    * Universally shares the property listing without requiring user login.
    * Anyone can share any property listing at any time.
@@ -484,10 +418,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
   };
 
   const handlePrint = () => {
-    if (!currentUser) {
-      openAuthModal('login', isHindi ? 'प्रॉपर्टी शीट प्रिंट करने हेतु कृपया पहले लॉगिन करें।' : 'Please sign in or register to print this property.');
-      return;
-    }
     window.print();
   };
 
@@ -522,9 +452,9 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
 
 
 
-  const isListerVisible = property ? isListerNameVisible(property, currentUser) : false;
-  const approvedPhone = property ? (getApprovedPhoneNumber(property, currentUser) || approvedPhoneNumber) : null;
-  const approvedListerName = property ? getApprovedListerName(property, currentUser) : null;
+  const publicPhone = getPublicPropertyPhone(property);
+  const publicTelHref = getTelHref(publicPhone);
+  const publicWhatsAppHref = getWhatsAppContactUrl(publicPhone, customWhatsAppMsg);
   const sellerDisplayName = getPropertyOwnerDisplayName(property, currentUser, isHindi);
   const isForRent = property?.type === 'Rent/Lease' || property?.purpose === 'rent' || Boolean(property?.isAvailableForRent) || (Boolean(property?.priceDisplay) && property.priceDisplay.toLowerCase().includes('/ month'));
 
@@ -604,10 +534,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
           <button
             type="button"
             onClick={() => {
-              if (!currentUser) {
-                openAuthModal('login', isHindi ? 'प्रॉपर्टी को सहेजने (Save) हेतु कृपया पहले लॉगिन करें।' : 'Please sign in or register to save this property.');
-                return;
-              }
               onToggleFavorite(property.id);
             }}
             className={`p-2 sm:px-3 sm:py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
@@ -660,27 +586,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
       {/* MAIN CONTENT CONTAINER */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 sm:pt-6 space-y-6 sm:space-y-8">
         
-        {/* Guest Session Sign In Prompt */}
-        {!currentUser && (
-          <div className="p-3 sm:p-4 rounded-2xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-950 dark:text-amber-200 shadow-sm animate-in fade-in">
-            <div className="flex items-center gap-2.5">
-              <Lock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-              <span>
-                {isHindi 
-                  ? 'अतिथि दृश्य: मालिक से चैट करने, लिस्टिंग सहेजने, या संपर्क करने हेतु कृपया लॉगिन या रजिस्टर करें।' 
-                  : 'Browsing as Guest: Please sign in or register to chat with the owner, save this property, or perform any action.'}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => openAuthModal('login', isHindi ? 'मालिक से संपर्क व चैट करने हेतु कृपया लॉगिन करें।' : 'Please sign in to interact with this property.')}
-              className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm shrink-0 cursor-pointer self-start sm:self-auto"
-            >
-              {isHindi ? 'लॉग इन / रजिस्टर' : 'Sign In / Register'}
-            </button>
-          </div>
-        )}
-
         {/* 2. PROPERTY HERO HEADER (TITLE, BADGES, LOCATION) */}
         <div className="space-y-3">
           
@@ -1048,8 +953,8 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
                   <ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                   <span>{isHindi ? 'उत्तराखंड कानूनी व पहाड़ी अवसंरचना विवरण' : 'Uttarakhand Mountain & Legal Infrastructure'}</span>
                 </h3>
-                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-600 text-white uppercase tracking-wider">
-                  UKG Verified Specs
+                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-700 dark:bg-emerald-900 text-white uppercase tracking-wider">
+                  {isHindi ? 'लिस्टर द्वारा दी गई जानकारी' : 'Lister-Provided Details'}
                 </span>
               </div>
 
@@ -1113,6 +1018,30 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* OPTIONAL PROPERTY DOCUMENTS (PDF) */}
+            {Array.isArray(property.documents) && property.documents.length > 0 && (
+              <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#0c241c] border border-slate-200 dark:border-emerald-800/60 shadow-sm space-y-3">
+                <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                  <span>{isHindi ? 'प्रॉपर्टी दस्तावेज़ व लेआउट प्लान' : 'Property Documents & Layout Plans'}</span>
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {property.documents.map((doc, idx) => (
+                    <a
+                      key={idx}
+                      href={resolveApiUrl(doc.url)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-3 rounded-xl bg-slate-50 dark:bg-[#081a13] border border-slate-200 dark:border-emerald-900/50 hover:border-emerald-500 flex items-center justify-between gap-2 text-xs sm:text-sm font-bold text-slate-800 dark:text-emerald-100 transition-colors no-underline"
+                    >
+                      <span className="truncate">{doc.name || `Document ${idx + 1}.pdf`}</span>
+                      <ExternalLink className="w-4 h-4 text-emerald-600 shrink-0" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* SECTION E: AMENITIES & FEATURES */}
             {!isLandOrPlot && safeAmenities.length > 0 && (
@@ -1179,136 +1108,116 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
                     </button>
                   </div>
                   <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                    {isHindi ? '20% डाउन पेमेंट व 20 वर्ष अवधि पर आधारित' : 'Based on 20% down payment for 20 years'}
+                    {isHindi ? 'केवल सामान्य सूचनात्मक अनुमान (UKG ऋण प्रदान नहीं करता है)' : 'Informational estimate only. UKG does not provide loans.'}
                   </p>
                 </div>
               )}
 
-              {sellerDisplayName && (
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-100 dark:border-emerald-900/40 space-y-2.5">
+              {/* Public Lister Information & Direct Phone / WhatsApp Contact */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200 dark:border-emerald-900/50 space-y-3">
+                {sellerDisplayName && (
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-black text-base flex items-center justify-center shrink-0 shadow-sm uppercase">
-                      {(isListerVisible ? (approvedListerName || sellerDisplayName) : sellerDisplayName).charAt(0)}
+                    <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-black text-base flex items-center justify-center shrink-0 shadow-sm uppercase">
+                      {sellerDisplayName.charAt(0)}
                     </div>
                     <div className="min-w-0 flex-1">
                       <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block">
-                        {property.sellerType === 'Broker' 
-                          ? (isHindi ? 'ब्रोकर:' : 'Broker:') 
+                        {property.sellerType === 'Broker'
+                          ? (isHindi ? 'ब्रोकर:' : 'Broker:')
                           : (isHindi ? 'मालिक:' : 'Owner:')}
                       </span>
                       <span className="font-extrabold text-sm text-slate-900 dark:text-white truncate block">
-                        {isListerVisible ? (approvedListerName || sellerDisplayName) : sellerDisplayName}
+                        {sellerDisplayName}
                       </span>
-                      <div className="flex items-center gap-1.5 mt-0.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
-                        {isListerVisible && approvedPhone ? (
-                          <span className="font-mono text-emerald-700 dark:text-emerald-300 font-bold">{approvedPhone}</span>
-                        ) : (
-                          <>
-                            <Lock className="w-3 h-3 text-emerald-600" />
-                            <span>+91 98•••••••• ({isHindi ? 'सुरक्षित' : 'Protected'})</span>
-                          </>
-                        )}
-                      </div>
                     </div>
                   </div>
+                )}
 
-                  {!isListerVisible && (
-                    <div className="pt-2 border-t border-slate-200/60 dark:border-emerald-900/40 text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                      <Shield className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                      <span>{isHindi ? 'गोपनीयता नीति: पूरा नाम और संपर्क नंबर अनुरोध स्वीकृत होने के बाद दिखाया जाता है।' : 'Owner Privacy: Full name and phone number are unlocked once your contact request is accepted.'}</span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Unlocked Contact Details for Approved Requesters */}
-              {isListerVisible && !isDirectOwner && (
-                <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-black text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                      <span>{isHindi ? 'अनुरोध स्वीकृत • संपर्क उपलब्ध' : 'Request Accepted • Contact Unlocked'}</span>
-                    </span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-200 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-100">
-                      {isHindi ? 'सत्यापित' : 'Verified'}
-                    </span>
-                  </div>
-
-                  {approvedPhone && (
-                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800">
-                      <div className="flex items-center gap-2">
-                        <Phone className="w-4 h-4 text-emerald-600" />
-                        <span className="font-mono font-bold text-sm text-slate-900 dark:text-white">
-                          {approvedPhone}
+                {publicPhone && publicTelHref ? (
+                  <div className="space-y-3 pt-2 border-t border-slate-200/70 dark:border-emerald-900/50">
+                    <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Phone className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                        <span className="font-mono font-extrabold text-sm text-slate-900 dark:text-white truncate">
+                          {formatPhoneForDisplay(publicPhone)}
                         </span>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <a
-                          href={`tel:${approvedPhone.replace(/\D/g, '')}`}
-                          className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 shadow-xs cursor-pointer"
+                      <a
+                        href={publicTelHref}
+                        onClick={() => {
+                          if (property.id) {
+                            fetch(`/api/properties/${encodeURIComponent(property.id)}/inquiry`, { method: 'POST' }).catch(() => {});
+                          }
+                        }}
+                        className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs shrink-0 cursor-pointer"
+                      >
+                        <Phone className="w-3.5 h-3.5" />
+                        <span>{isHindi ? 'कॉल करें' : 'Call'}</span>
+                      </a>
+                    </div>
+
+                    {/* Customizable Direct WhatsApp Message */}
+                    {publicWhatsAppHref && (
+                      <div className="space-y-2">
+                        <label
+                          htmlFor="ukg-whatsapp-inquiry-msg"
+                          className="block text-[11px] font-bold text-slate-700 dark:text-emerald-200"
                         >
-                          <Phone className="w-3.5 h-3.5" />
-                          <span>{isHindi ? 'कॉल करें' : 'Call'}</span>
-                        </a>
+                          {isHindi ? 'व्हाट्सएप संदेश (भेजने से पहले बदल सकते हैं):' : 'WhatsApp Message (customizable before sending):'}
+                        </label>
+                        <textarea
+                          id="ukg-whatsapp-inquiry-msg"
+                          rows={3}
+                          value={customWhatsAppMsg}
+                          onChange={(e) => setCustomWhatsAppMsg(e.target.value)}
+                          className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#25D366] resize-y"
+                        />
                         <a
-                          href={`https://wa.me/91${approvedPhone.replace(/\D/g, '').slice(-10)}`}
+                          href={publicWhatsAppHref}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="px-3 py-1.5 rounded-lg bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-xs flex items-center gap-1 shadow-xs cursor-pointer"
+                          onClick={() => {
+                            if (property.id) {
+                              fetch(`/api/properties/${encodeURIComponent(property.id)}/inquiry`, { method: 'POST' }).catch(() => {});
+                            }
+                          }}
+                          className="w-full py-3 px-4 rounded-2xl bg-[#25D366] hover:bg-[#20ba59] text-white font-extrabold text-sm shadow-md shadow-emerald-600/20 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2 no-underline"
                         >
-                          <WhatsAppIcon className="w-3.5 h-3.5 fill-white" />
-                          <span>WhatsApp</span>
+                          <WhatsAppIcon className="w-4 h-4 fill-white" />
+                          <span>{isHindi ? 'व्हाट्सएप पर लिस्र्टर को संदेश भेजें' : 'Message Lister on WhatsApp'}</span>
                         </a>
                       </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Action 1: Ask Access to Lister for Name and Phone Number */}
-              {!isDirectOwner && !isListerVisible && (
-                (localPhoneRequested || phoneRequestStatus === 'pending') ? (
-                  <div className="w-full py-3.5 px-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 text-xs font-bold flex items-center justify-between">
-                    <span className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-amber-600 animate-pulse" />
-                      <span>{isHindi ? 'मालिक को अनुरोध भेजा गया (स्वीकृति लंबित)' : 'Access Request Sent to Lister (Pending Approval)'}</span>
-                    </span>
-                    <span className="text-[10px] bg-amber-200 dark:bg-amber-900 text-amber-950 dark:text-amber-100 px-2 py-0.5 rounded-full font-mono font-bold">
-                      {isHindi ? 'प्रतीक्षारत' : 'Pending'}
-                    </span>
+                    )}
                   </div>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={handleRequestAccessClick}
-                    className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-green-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-sm shadow-md shadow-emerald-600/25 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    <Lock className="w-4 h-4" />
-                    <span>{isHindi ? 'मालिक का नाम व नंबर देखने हेतु अनुरोध भेजें' : 'Request Access to View Lister Name & Phone'}</span>
-                  </button>
-                )
-              )}
+                  <p className="text-xs text-slate-500 dark:text-slate-400 pt-1">
+                    {isHindi
+                      ? 'लिस्र्टर द्वारा सार्वजनिक फ़ोन नंबर प्रदान नहीं किया गया है।'
+                      : 'No public phone number was provided for this listing.'}
+                  </p>
+                )}
+              </div>
 
-              {/* Action 1: Chat with Owner */}
-              <button
-                type="button"
-                onClick={handleInitiateChat}
-                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-green-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-sm shadow-md shadow-emerald-600/25 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2"
-              >
-                <MessageSquare className="w-4 h-4" />
-                <span>{isHindi ? 'मालिक से चैट करें (Chat)' : 'Chat with Owner'}</span>
-              </button>
+              {/* Optional In-App Chat & Share */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={handleInitiateChat}
+                  className="py-2.5 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/70 hover:bg-emerald-100 dark:hover:bg-emerald-900/70 border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 font-bold text-xs cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <MessageSquare className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>{isHindi ? 'इनबॉक्स चैट' : 'Inbox Chat'}</span>
+                </button>
 
-              {/* Action 2: Share on WhatsApp with generated deep link */}
-              <button
-                type="button"
-                onClick={handleShareWhatsApp}
-                className="w-full py-3 px-4 rounded-2xl bg-[#25D366] hover:bg-[#20ba59] text-white font-extrabold text-sm shadow-md shadow-emerald-600/20 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2"
-                title={isHindi ? 'व्हाट्सएप पर डीप लिंक शेयर करें' : 'Share property deep link on WhatsApp'}
-              >
-                <WhatsAppIcon className="w-4 h-4 fill-white" />
-                <span>{isHindi ? 'व्हाट्सएप पर शेयर करें' : 'Share on WhatsApp'}</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={handleShareWhatsApp}
+                  className="py-2.5 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>{isHindi ? 'लिंक शेयर करें' : 'Share Listing'}</span>
+                </button>
+              </div>
 
               {/* Owner Edit / Sold Controls */}
               {canManage && (
@@ -1375,25 +1284,35 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {/* Mobile Native WhatsApp Share Button */}
-          <button
-            type="button"
-            onClick={handleShareWhatsApp}
-            className="py-2.5 px-3 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md active:scale-95 cursor-pointer"
-            title={isHindi ? 'व्हाट्सएप पर शेयर करें' : 'Share on WhatsApp'}
-          >
-            <WhatsAppIcon className="w-4 h-4 fill-white" />
-            <span>{isHindi ? 'शेयर' : 'Share'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleInitiateChat}
-            className="py-2.5 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md active:scale-95 cursor-pointer"
-          >
-            <MessageSquare className="w-3.5 h-3.5" />
-            <span>{isHindi ? 'मालिक से चैट' : 'Chat with Owner'}</span>
-          </button>
+          {publicTelHref && (
+            <a
+              href={publicTelHref}
+              className="py-2.5 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md active:scale-95 cursor-pointer no-underline"
+            >
+              <Phone className="w-3.5 h-3.5" />
+              <span>{isHindi ? 'कॉल' : 'Call'}</span>
+            </a>
+          )}
+          {publicWhatsAppHref ? (
+            <a
+              href={publicWhatsAppHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="py-2.5 px-3.5 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md active:scale-95 cursor-pointer no-underline"
+            >
+              <WhatsAppIcon className="w-4 h-4 fill-white" />
+              <span>WhatsApp</span>
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={handleShareWhatsApp}
+              className="py-2.5 px-3 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md active:scale-95 cursor-pointer"
+            >
+              <WhatsAppIcon className="w-4 h-4 fill-white" />
+              <span>{isHindi ? 'शेयर' : 'Share'}</span>
+            </button>
+          )}
         </div>
       </div>
 

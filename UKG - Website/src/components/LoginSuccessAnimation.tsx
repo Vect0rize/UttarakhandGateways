@@ -86,8 +86,8 @@ export const LoginSuccessAnimation: React.FC<LoginSuccessAnimationProps> = ({
 
         <p className="text-xs text-emerald-200/90 mt-2 leading-relaxed">
           {isHindi 
-            ? 'उत्तराखंड गेटवेज में आपका स्वागत है। 0% ब्रोकरेज के साथ प्रॉपर्टीज एक्सप्लोर करें।' 
-            : 'Successfully authenticated to Uttarakhand Gateways. Explore 0% brokerage verified mountain properties.'}
+            ? 'उत्तराखंड गेटवेज में आपका स्वागत है। अब आप अपनी लिस्टिंग्स प्रबंधित कर सकते हैं।' 
+            : 'Signed in to Uttarakhand Gateways. You can now post and manage your property listings.'}
         </p>
 
         {/* Mini Trust Footer */}

@@ -10,10 +10,10 @@ export const HomeSeoGuideSection: React.FC = () => {
     {
       id: 'what-is-ukg',
       icon: <Building className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />,
-      titleEn: 'What is Uttarakhand Gateways and How Does 0% Brokerage Work?',
-      titleHi: 'उत्तराखंड गेटवेज क्या है और 0% ब्रोकरेज मॉडल कैसे काम करता है?',
-      contentEn: 'Uttarakhand Gateways is a verified real estate marketplace dedicated exclusively to mountain properties across Uttarakhand. Unlike traditional property portals that charge hefty commissions or hide owner contact numbers behind broker desks, Uttarakhand Gateways connects buyers directly with genuine owners and brokers with zero brokerage. Listing properties for sale or rent is completely free, providing a transparent, commission-free experience.',
-      contentHi: 'उत्तराखंड गेटवेज उत्तराखंड की पहाड़ी संपत्तियों के लिए समर्पित एक सत्यापित रियल एस्टेट मार्केटप्लेस है। पारंपरिक ब्रोकरों के विपरीत जो भारी कमीशन लेते हैं या बिचौलियों के माध्यम से संपर्क कराते हैं, उत्तराखंड गेटवेज खरीदारों को सीधे असली संपत्ति मालिकों और ब्रोकरों से जोड़ता है—वो भी 0% ब्रोकरेज पर। यहां प्रॉपर्टी की बिक्री या किराए की लिस्टिंग पोस्ट करना पूरी तरह से निःशुल्क है।'
+      titleEn: 'What is Uttarakhand Gateways and How Does the Platform Work?',
+      titleHi: 'उत्तराखंड गेटवेज क्या है और यह मंच कैसे काम करता है?',
+      contentEn: 'Uttarakhand Gateways is an online property listing and discovery platform dedicated to properties across Uttarakhand. Property owners and listers publish their sale or rental listings along with direct contact details, and interested buyers or tenants can connect directly via phone or WhatsApp with NO PLATFORM FEE.',
+      contentHi: 'उत्तराखंड गेटवेज उत्तराखंड की संपत्तियों के लिए एक ऑनलाइन प्रॉपर्टी लिस्टिंग और डिस्कवरी मंच है। संपत्ति मालिक और लिस्टिंगकर्ता अपने बिक्री या किराये के विज्ञापन सीधे संपर्क विवरण के साथ प्रकाशित करते हैं, और इच्छुक खरीदार या किरायेदार बिना किसी प्लेटफॉर्म शुल्क के सीधे फोन या व्हाट्सएप द्वारा संपर्क कर सकते हैं।'
     },
     {
       id: 'outside-buyers-rules',
@@ -28,8 +28,8 @@ export const HomeSeoGuideSection: React.FC = () => {
       icon: <FileCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />,
       titleEn: 'What is Section 143 (Non-Agricultural Land Conversion) in Uttarakhand?',
       titleHi: 'उत्तराखंड में धारा 143 (गैर-कृषि भूमि रूपांतरण) क्या है?',
-      contentEn: 'Section 143 (now covered under Section 80 of the Revenue Code) certifies that an agricultural parcel has been legally converted for residential or commercial use by the Sub-Divisional Magistrate (SDM). When purchasing residential plots or cottages in Uttarakhand, ensuring the property has Section 143 clearance guarantees a hassle-free registry, clear freehold title, and quick eligibility for home bank loans.',
-      contentHi: 'धारा 143 (अब राजस्व संहिता की धारा 80 के अंतर्गत) यह प्रमाणित करती है कि संबंधित उप-जिलाधिकारी (एसडीएम) द्वारा कृषि भूमि को कानूनी रूप से आवासीय या व्यावसायिक उपयोग में बदल दिया गया है। उत्तराखंड में प्लॉट या कॉटेज खरीदते समय धारा 143 स्वीकृत भूमि होने पर रजिस्ट्री में कोई बाधा नहीं आती, टाइटल पूरी तरह से फ्रीहोल्ड होता है और बैंकों से तुरंत होम लोन मिलता है।'
+      contentEn: 'Section 143 (and corresponding revenue provisions) relates to administrative conversion of agricultural land for non-agricultural residential or commercial use by the competent revenue authority. Before purchasing plots or land in Uttarakhand, prospective buyers should independently verify revenue records, conversion orders, and title documents with a qualified lawyer.',
+      contentHi: 'धारा 143 (एवं संबंधित राजस्व प्रावधान) सक्षम राजस्व अधिकारी द्वारा कृषि भूमि के गैर-कृषि आवासीय या व्यावसायिक उपयोग में रूपांतरण से संबंधित है। उत्तराखंड में प्लॉट या भूमि खरीदने से पहले खरीदारों को योग्य वकील के माध्यम से मूल राजस्व रिकॉर्ड, रूपांतरण आदेश और स्वामित्व दस्तावेजों की स्वतंत्र जांच अवश्य करनी चाहिए।'
     },
     {
       id: 'land-measurements',
@@ -91,8 +91,8 @@ export const HomeSeoGuideSection: React.FC = () => {
         </h2>
         <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-2 leading-relaxed">
           {isHindi 
-            ? '0% ब्रोकरेज, धारा 154 सीलिंग नियम, धारा 143 गैर-कृषि लैंड टाइटल और नाली-मुट्ठी माप से जुड़े सभी महत्वपूर्ण उत्तर।' 
-            : 'Authoritative guidance on 0% brokerage, UPZA & LR Act Section 154 land ceiling, Section 143 conversion, and hill land measurements.'}
+            ? 'भूमि नियमों, धारा 154, गैर-कृषि भूमि प्रावधानों और नाली-मुट्ठी माप से जुड़े सामान्य सूचनात्मक उत्तर।' 
+            : 'General informational overview of Uttarakhand land regulations, Section 154 norms, Section 143 conversion, and local land measurements.'}
         </p>
       </div>
 

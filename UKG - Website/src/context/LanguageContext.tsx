@@ -29,10 +29,10 @@ const translations: Record<Language, Record<string, string>> = {
     'nav.allUnits': 'Any Unit',
 
     // Hero
-    'hero.badge': 'Verified Uttarakhand Real Estate • 0% Brokerage',
+    'hero.badge': 'Uttarakhand Property Discovery • NO PLATFORM FEE',
     'hero.tagline': 'Your Gateway To Mountains',
-    'hero.assurance1': 'Flats, Plots & Villas for Direct Purchase',
-    'hero.assurance2': '100% Clear Title & Immediate Registry',
+    'hero.assurance1': 'Residential, Commercial & Land Listings',
+    'hero.assurance2': 'Direct Lister Phone & WhatsApp Contact',
 
     // Search
     'search.hub': 'Filter Properties',
@@ -88,10 +88,10 @@ const translations: Record<Language, Record<string, string>> = {
     'nav.allUnits': 'सभी इकाइयां',
 
     // Hero
-    'hero.badge': 'सत्यापित उत्तराखंड रियल एस्टेट • 0% ब्रोकरेज',
+    'hero.badge': 'उत्तराखंड प्रॉपर्टी डिस्कवरी • कोई प्लेटफॉर्म शुल्क नहीं',
     'hero.tagline': 'पहाड़ों में आपके सपनों का आशियाना',
-    'hero.assurance1': 'सीधी खरीद के लिए फ्लैट्स, प्लॉट्स और विला',
-    'hero.assurance2': '100% स्पष्ट टाइटल और तत्काल रजिस्ट्री',
+    'hero.assurance1': 'आवासीय, व्यावसायिक एवं भूमि लिस्टिंग्स',
+    'hero.assurance2': 'सीधा फोन एवं व्हाट्सएप संपर्क',
 
     // Search
     'search.hub': 'प्रॉपर्टी खोजें',

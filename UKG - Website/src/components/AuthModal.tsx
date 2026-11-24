@@ -362,8 +362,8 @@ export const AuthModal: React.FC = () => {
             </h2>
             <p className="text-xs text-emerald-100/80 mt-2 leading-relaxed">
               {isHindi 
-                ? '0% ब्रोकरेज पर सीधे संपत्ति मालिकों और खरीदारों से जुड़ें। देहरादून, मसूरी, नैनीताल और ऋषिकेश में सत्यापित संपत्तियां।' 
-                : 'Direct owner-to-buyer real estate with 0% brokerage. Verified cottages, scenic plots, and villas across Uttarakhand.'}
+                ? 'देहरादून, मसूरी, नैनीताल और ऋषिकेश में सीधे संपत्ति मालिकों, लिस्टिंगकर्ताओं और खरीदारों से जुड़ें।' 
+                : 'Connect directly with property owners and listers across Uttarakhand with NO PLATFORM FEE.'}
             </p>
           </div>
 
@@ -375,7 +375,7 @@ export const AuthModal: React.FC = () => {
               </div>
               <div className="text-xs">
                 <strong className="block text-white font-bold">
-                  {isHindi ? '0% ब्रोकरेज कमीशन' : 'Zero Brokerage Commission'}
+                  {isHindi ? 'कोई प्लेटफॉर्म शुल्क नहीं' : 'NO PLATFORM FEE'}
                 </strong>
                 <span className="text-emerald-100/70 text-[11px]">
                   {isHindi ? 'सीधे मालिक से बात करें और लाखों बचाएं।' : 'Connect directly with genuine sellers and buyers.'}
@@ -389,10 +389,10 @@ export const AuthModal: React.FC = () => {
               </div>
               <div className="text-xs">
                 <strong className="block text-white font-bold">
-                  {isHindi ? '100% सुरक्षित और सत्यापित' : '100% Verified Listings'}
+                  {isHindi ? 'सीधा लिस्टर संपर्क' : 'Direct Lister Contact'}
                 </strong>
                 <span className="text-emerald-100/70 text-[11px]">
-                  {isHindi ? 'सत्यापित ईमेल व सीधे संपर्क के साथ।' : 'RERA certified projects & verified mountain land.'}
+                  {isHindi ? 'फ़ोन और व्हाट्सएप के माध्यम से सीधे बात करें।' : 'Call or WhatsApp property owners and listers directly.'}
                 </span>
               </div>
             </div>
@@ -415,7 +415,7 @@ export const AuthModal: React.FC = () => {
           {/* Bottom Trust Stat */}
           <div className="relative z-10 pt-4 border-t border-emerald-800/60 flex items-center justify-between text-[11px] text-emerald-200/80">
             <span> गढ़वाल व कुमाऊं </span>
-            <span className="font-bold text-white">15,000+ Active Users</span>
+            <span className="font-bold text-white">Property Discovery Platform</span>
           </div>
         </div>
 
@@ -489,7 +489,7 @@ export const AuthModal: React.FC = () => {
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     {mode === 'login'
                       ? (isHindi ? 'उत्तराखंड की संपत्तियों को देखने, संपर्क करने व प्रबंधित करने हेतु लॉगिन करें।' : 'Access saved properties, chat with owners, and list properties.')
-                      : (isHindi ? '0% ब्रोकरेज पर सीधे संपत्ति मालिकों से जुड़ें और विज्ञापन पोस्ट करें।' : 'Join the verified 0% brokerage direct real estate marketplace.')}
+                      : (isHindi ? 'अपनी प्रॉपर्टी लिस्ट या प्रबंधित करने के लिए साइन इन करें।' : 'Sign in to post and manage your property listings.')}
                   </p>
 
                   {/* Clean Tab Switcher: Sign In vs Create Account */}
@@ -863,7 +863,7 @@ export const AuthModal: React.FC = () => {
                       autoComplete="name"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      placeholder="e.g. Amit Tyagi"
+                      placeholder="Enter your name"
                       className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                     />
                   </div>

@@ -288,22 +288,22 @@ export const PropertyCalculator: React.FC<PropertyCalculatorProps> = ({
   return (
     <div className={`w-full bg-white dark:bg-[#071f16] rounded-3xl border border-emerald-200/90 dark:border-emerald-800/80 shadow-xl overflow-hidden flex flex-col transition-colors duration-300 ${isModal ? 'max-h-[90vh]' : 'my-4'}`}>
       
-      {/* Top Header - Bespoke Uttarakhand Land Theme */}
-      <div className="px-5 sm:px-6 py-4 bg-gradient-to-r from-[#092b20] via-[#0b3829] to-[#07241a] text-white flex items-center justify-between gap-3 border-b border-emerald-800/60 flex-shrink-0">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-500 text-white shadow-md flex items-center justify-center shrink-0">
-            <Compass className="w-6 h-6 text-emerald-100" />
+      {/* Top Header - Responsive Uttarakhand Land Theme */}
+      <div className="px-4 sm:px-6 py-4 bg-gradient-to-r from-[#092b20] via-[#0b3829] to-[#07241a] text-white flex items-start sm:items-center justify-between gap-3 border-b border-emerald-800/60 flex-shrink-0">
+        <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-500 text-white shadow-md flex items-center justify-center shrink-0">
+            <Compass className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-100" />
           </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-base sm:text-lg font-bold text-white tracking-tight font-serif-luxury truncate">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+              <h2 className="text-base sm:text-lg font-bold text-white tracking-tight font-serif-luxury break-words">
                 {isHindi ? 'उत्तराखंड भूमि कैलकुलेटर' : 'Uttarakhand Land Calculator'}
               </h2>
-              <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-emerald-500/25 text-emerald-300 border border-emerald-400/30 whitespace-nowrap">
-                Nali • Gaj • Sq.Ft • Bigha • Acre
+              <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-500/25 text-emerald-300 border border-emerald-400/30">
+                Nali • Gaj • Sq.Ft • Bigha
               </span>
             </div>
-            <p className="text-xs text-emerald-200/80 truncate sm:whitespace-normal mt-0.5">
+            <p className="text-[11px] sm:text-xs text-emerald-200/80 leading-snug break-words mt-0.5">
               {isHindi 
                 ? 'उत्तराखंड की पहाड़ी (नाली, मुट्ठी, बीघा) व मैदानी इकाइयों का त्वरित सटीक रूपांतरण' 
                 : 'Instant, precise conversion for Uttarakhand hill & plains land measurements'}
@@ -322,31 +322,32 @@ export const PropertyCalculator: React.FC<PropertyCalculatorProps> = ({
         )}
       </div>
 
-      {/* Main Land Converter - Pure, Clean & Compact */}
-      <div className="p-5 sm:p-7 space-y-5">
-        <div className="p-5 sm:p-6 rounded-2xl bg-slate-50/90 dark:bg-[#08281d] border border-emerald-200/90 dark:border-emerald-800/70 shadow-xs">
+      {/* Main Land Converter - Mobile Responsive & Zero Overflow */}
+      <div className="p-3.5 sm:p-6 md:p-7 space-y-5 overflow-x-hidden">
+        <div className="p-3.5 sm:p-6 rounded-2xl bg-slate-50/90 dark:bg-[#08281d] border border-emerald-200/90 dark:border-emerald-800/70 shadow-xs min-w-0">
           
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 sm:gap-5 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-11 gap-4 sm:gap-5 items-center min-w-0">
             
             {/* FROM SECTION */}
-            <div className="md:col-span-2 space-y-2">
+            <div className="lg:col-span-5 space-y-2 min-w-0">
               <label className="text-xs font-bold text-slate-700 dark:text-emerald-200 block">
                 {isHindi ? 'मात्रा दर्ज करें (From):' : 'Enter Quantity (From):'}
               </label>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full min-w-0">
                 <input
                   type="number"
                   min="0"
                   step="any"
                   value={inputValue || ''}
+                  onWheel={(e) => e.currentTarget.blur()}
                   onChange={(e) => handleInputQuantityChange(Math.max(0, parseFloat(e.target.value) || 0))}
-                  className="w-1/2 px-3.5 py-3 text-base font-black rounded-xl border border-slate-300 dark:border-emerald-700/70 bg-white dark:bg-[#04160f] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-xs"
+                  className="w-full min-w-0 px-3.5 py-2.5 sm:py-3 text-base font-black rounded-xl border border-slate-300 dark:border-emerald-700/70 bg-white dark:bg-[#04160f] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-xs"
                   placeholder="1"
                 />
                 <select
                   value={fromUnit}
                   onChange={(e) => setFromUnit(e.target.value as LandUnitKey)}
-                  className="w-1/2 px-3 py-3 text-xs sm:text-sm font-bold rounded-xl border border-slate-300 dark:border-emerald-700/70 bg-white dark:bg-[#04160f] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer shadow-xs truncate"
+                  className="w-full min-w-0 max-w-full px-3 py-2.5 sm:py-3 text-xs sm:text-sm font-bold rounded-xl border border-slate-300 dark:border-emerald-700/70 bg-white dark:bg-[#04160f] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer shadow-xs"
                 >
                   {LAND_UNITS.map((u) => (
                     <option key={u.key} value={u.key} className="bg-white dark:bg-[#04160f] text-slate-900 dark:text-white">
@@ -355,32 +356,32 @@ export const PropertyCalculator: React.FC<PropertyCalculatorProps> = ({
                   ))}
                 </select>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-emerald-300/80 italic leading-snug">
+              <p className="text-[11px] text-slate-500 dark:text-emerald-300/80 italic leading-snug break-words">
                 {isHindi ? fromUnitObj.hindiDescription : fromUnitObj.description}
               </p>
             </div>
 
             {/* SWAP BUTTON */}
-            <div className="flex justify-center items-center py-1 md:py-0">
+            <div className="lg:col-span-1 flex justify-center items-center py-0.5 lg:py-0">
               <button
                 type="button"
                 onClick={handleSwapUnits}
-                className="p-3.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400/40 shadow-md hover:scale-110 active:scale-95 transition-all cursor-pointer"
+                className="p-3 sm:p-3.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400/40 shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer shrink-0"
                 title={isHindi ? 'इकाइयां आपस में बदलें' : 'Swap From and To units'}
                 aria-label="Swap units"
               >
-                <ArrowRightLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+                <ArrowRightLeft className="w-4 h-4 sm:w-5 sm:h-5 rotate-90 lg:rotate-0 transition-transform" />
               </button>
             </div>
 
             {/* TO SECTION */}
-            <div className="md:col-span-2 space-y-2">
+            <div className="lg:col-span-5 space-y-2 min-w-0">
               <label className="text-xs font-bold text-slate-700 dark:text-emerald-200 block">
                 {isHindi ? 'रूपांतरित परिणाम (To):' : 'Converted Result (To):'}
               </label>
-              <div className="flex gap-2">
-                <div className="w-1/2 px-3.5 py-3 rounded-xl border-2 border-emerald-500/60 bg-emerald-100/70 dark:bg-[#04140e] text-emerald-950 dark:text-emerald-300 font-black text-base sm:text-lg flex items-center justify-between shadow-xs">
-                  <span className="truncate">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full min-w-0">
+                <div className="w-full min-w-0 px-3.5 py-2.5 sm:py-3 rounded-xl border-2 border-emerald-500/60 bg-emerald-100/70 dark:bg-[#04140e] text-emerald-950 dark:text-emerald-300 font-black text-base sm:text-lg flex items-center justify-between shadow-xs overflow-hidden">
+                  <span className="truncate block w-full">
                     {convertedResult < 0.001 && convertedResult > 0 
                       ? convertedResult.toExponential(4) 
                       : Number(convertedResult.toFixed(4)).toLocaleString('en-IN')}
@@ -389,7 +390,7 @@ export const PropertyCalculator: React.FC<PropertyCalculatorProps> = ({
                 <select
                   value={toUnit}
                   onChange={(e) => setToUnit(e.target.value as LandUnitKey)}
-                  className="w-1/2 px-3 py-3 text-xs sm:text-sm font-bold rounded-xl border border-slate-300 dark:border-emerald-700/70 bg-white dark:bg-[#04160f] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer shadow-xs truncate"
+                  className="w-full min-w-0 max-w-full px-3 py-2.5 sm:py-3 text-xs sm:text-sm font-bold rounded-xl border border-slate-300 dark:border-emerald-700/70 bg-white dark:bg-[#04160f] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer shadow-xs"
                 >
                   {LAND_UNITS.map((u) => (
                     <option key={u.key} value={u.key} className="bg-white dark:bg-[#04160f] text-slate-900 dark:text-white">
@@ -398,56 +399,58 @@ export const PropertyCalculator: React.FC<PropertyCalculatorProps> = ({
                   ))}
                 </select>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-emerald-300/80 italic leading-snug">
+              <p className="text-[11px] text-slate-500 dark:text-emerald-300/80 italic leading-snug break-words">
                 {isHindi ? toUnitObj.hindiDescription : toUnitObj.description}
               </p>
             </div>
 
           </div>
 
-          {/* Clean Formula Bar */}
-          <div className="mt-5 pt-4 border-t border-emerald-200/80 dark:border-emerald-800/70 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-700 dark:text-emerald-200 gap-3 bg-white/80 dark:bg-[#061e16] p-3.5 rounded-xl border border-emerald-100 dark:border-emerald-900/50">
-            <span className="font-semibold text-center sm:text-left text-xs sm:text-sm">
-              {isHindi ? 'सटीक सूत्र:' : 'Exact Formula:'}{' '}
-              <span className="font-mono text-emerald-700 dark:text-emerald-400 font-black">
-                {inputValue} {isHindi ? fromUnitObj.hindiLabel : fromUnitObj.label}
-              </span>{' '}
-              ={' '}
-              <span className="font-mono font-black text-emerald-700 dark:text-emerald-400">
-                {Number(convertedResult.toFixed(4)).toLocaleString('en-IN')} {isHindi ? toUnitObj.hindiLabel : toUnitObj.label}
-              </span>
-            </span>
+          {/* Responsive Formula & Actions Bar */}
+          <div className="mt-5 pt-4 border-t border-emerald-200/80 dark:border-emerald-800/70 flex flex-col lg:flex-row lg:items-center lg:justify-between text-xs text-slate-700 dark:text-emerald-200 gap-3 bg-white/80 dark:bg-[#061e16] p-3.5 rounded-xl border border-emerald-100 dark:border-emerald-900/50 min-w-0">
+            <div className="space-y-1 min-w-0 text-center sm:text-left">
+              <div className="font-semibold text-xs sm:text-sm break-words">
+                {isHindi ? 'सटीक सूत्र:' : 'Exact Formula:'}{' '}
+                <span className="font-mono text-emerald-700 dark:text-emerald-400 font-black">
+                  {inputValue} {isHindi ? fromUnitObj.hindiLabel : fromUnitObj.label}
+                </span>{' '}
+                ={' '}
+                <span className="font-mono font-black text-emerald-700 dark:text-emerald-400">
+                  {Number(convertedResult.toFixed(4)).toLocaleString('en-IN')} {isHindi ? toUnitObj.hindiLabel : toUnitObj.label}
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-500 dark:text-emerald-400/80 font-mono break-words">
+                1 {isHindi ? fromUnitObj.hindiLabel : fromUnitObj.label.split(' (')[0]} = {(fromUnitObj.sqFtMultiplier / toUnitObj.sqFtMultiplier).toFixed(4)} {isHindi ? toUnitObj.hindiLabel : toUnitObj.label.split(' (')[0]}
+              </div>
+            </div>
             
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] text-slate-500 dark:text-emerald-400/80 font-mono">
-                1 {fromUnitObj.hindiLabel} = {(fromUnitObj.sqFtMultiplier / toUnitObj.sqFtMultiplier).toFixed(4)} {toUnitObj.hindiLabel}
-              </span>
+            <div className="flex flex-wrap sm:flex-nowrap items-center justify-center sm:justify-end gap-2 w-full lg:w-auto min-w-0">
               <button
                 type="button"
                 onClick={() => setShowAutoPriceCalc((prev) => !prev)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 shadow-xs ${
+                className={`flex-1 sm:flex-initial justify-center px-3 py-2 rounded-lg text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 shadow-xs min-w-0 ${
                   showAutoPriceCalc
                     ? 'bg-emerald-600 text-white'
                     : 'bg-emerald-100 dark:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-200 dark:hover:bg-emerald-800'
                 }`}
               >
-                <Calculator className="w-3.5 h-3.5" />
-                <span>{isHindi ? 'ऑटो कीमत कैलकुलेट' : 'Auto Calculate Price'}</span>
+                <Calculator className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">{isHindi ? 'ऑटो कीमत कैलकुलेट' : 'Auto Calculate Price'}</span>
               </button>
               <button
                 type="button"
                 onClick={handleCopyResult}
-                className="px-2.5 py-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-200 dark:hover:bg-emerald-800 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
+                className="px-3 py-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-200 dark:hover:bg-emerald-800 text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-xs shrink-0"
                 title="Copy conversion formula"
               >
                 {copiedFormula ? (
                   <>
-                    <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                     <span>{isHindi ? 'कॉपी हुआ' : 'Copied'}</span>
                   </>
                 ) : (
                   <>
-                    <Copy className="w-3.5 h-3.5" />
+                    <Copy className="w-3.5 h-3.5 shrink-0" />
                     <span>{isHindi ? 'कॉपी' : 'Copy'}</span>
                   </>
                 )}
@@ -482,8 +485,9 @@ export const PropertyCalculator: React.FC<PropertyCalculatorProps> = ({
                       min="0"
                       step="any"
                       value={valuePerUnit}
+                      onWheel={(e) => e.currentTarget.blur()}
                       onChange={(e) => handleValuePerUnitChange(e.target.value)}
-                      placeholder={isHindi ? 'जैसे 25000' : 'e.g. 25000'}
+                      placeholder={isHindi ? 'प्रति इकाई मूल्य दर्ज करें' : 'Enter rate per unit'}
                       className="w-full pl-8 pr-3.5 py-2.5 rounded-xl border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-[#04160f] text-sm font-black text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>
@@ -511,6 +515,7 @@ export const PropertyCalculator: React.FC<PropertyCalculatorProps> = ({
                       min="0"
                       step="any"
                       value={totalPriceCalc}
+                      onWheel={(e) => e.currentTarget.blur()}
                       onChange={(e) => handleTotalPriceCalcChange(e.target.value)}
                       placeholder={isHindi ? 'कुल कीमत' : 'Total Price'}
                       className="w-full pl-8 pr-3.5 py-2.5 rounded-xl border-2 border-emerald-500/70 bg-white dark:bg-[#04160f] text-sm font-black text-emerald-950 dark:text-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"

@@ -239,7 +239,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               </div>
               <p className="text-[11px] text-emerald-300/80">
                 {isOwner 
-                  ? (isHindi ? 'अमित त्यागी · पूर्ण स्वामित्व अधिकार' : 'Amit Tyagi · Platform Founder & Owner')
+                  ? (isHindi ? 'प्लेटफॉर्म प्रशासक' : 'Platform Administrator')
                   : (isHindi ? 'खाता विवरण व सेटिंग्स' : 'Manage identity & credentials')
                 }
               </p>
@@ -344,10 +344,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                         onOpenDashboard();
                       }}
                       className="px-2.5 py-1 rounded-lg bg-teal-50 dark:bg-teal-950/80 border border-teal-300 dark:border-teal-700 hover:bg-teal-100 text-teal-800 dark:text-teal-300 font-bold text-[11px] flex items-center gap-1 transition-all cursor-pointer shadow-xs active:scale-95"
-                      title={isHindi ? 'ग्रोथ एनालिटिक्स डैशबोर्ड खोलें' : 'Open Lister Growth Dashboard'}
+                      title={isHindi ? 'लिस्टिंग विश्लेषण खोलें' : 'Open Listing Analysis'}
                     >
                       <BarChart3 className="w-3 h-3 text-teal-600 dark:text-teal-400" />
-                      <span>{isHindi ? 'ग्रोथ डैशबोर्ड' : 'Growth Dashboard'}</span>
+                      <span>{isHindi ? 'लिस्टिंग विश्लेषण' : 'Listing Analysis'}</span>
                     </button>
                   )}
                   {onOpenSellModal && (
@@ -390,8 +390,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     </h4>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
                       {isHindi 
-                        ? 'अपनी प्रॉपर्टी बेचें या किराये पर दें सीधे 0% ब्रोकरेज के साथ। खरीदार और किरायेदार आपसे सीधे संपर्क करेंगे।' 
-                        : 'List your property for sale or rent with 0% brokerage. Buyers & tenants connect directly with you.'}
+                        ? 'अपनी प्रॉपर्टी बिना किसी प्लेटफॉर्म शुल्क के बेचें या किराये पर दें। खरीदार और किरायेदार आपसे सीधे संपर्क करेंगे।' 
+                        : 'List your property for sale or rent with NO PLATFORM FEE. Buyers & tenants connect directly with you.'}
                     </p>
                   </div>
                   <div className="flex items-center justify-center gap-2 pt-2">
@@ -514,7 +514,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           ) : isOwner && activeTab === 'owner' ? (
             <div className="space-y-4">
               <div className="p-3.5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 text-xs text-amber-950 dark:text-amber-200">
-                <span className="font-bold block mb-1">👑 Platform Owner Access (Amit Tyagi)</span>
+                <span className="font-bold block mb-1">Platform Administrator Access</span>
                 <span>You can delete any user account and manage listings. When an account is deleted, all properties uploaded by that account are automatically purged.</span>
               </div>
 

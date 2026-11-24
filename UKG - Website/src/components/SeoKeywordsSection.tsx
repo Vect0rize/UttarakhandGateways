@@ -108,8 +108,8 @@ export const SeoKeywordsSection: React.FC<SeoKeywordsSectionProps> = ({
 
         <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
           {isHindi
-            ? 'उत्तराखंड गेटवेज (UKG Properties) पर देहरादून, ऋषिकेश, हरिद्वार, नैनीताल, मसूरी और हल्द्वानी में 0% ब्रोकरेज के साथ प्रॉपर्टी खरीदें, बेचें या किराये पर लें।'
-            : 'Buy, purchase, sell, or rent properties in Uttarakhand directly with 0% brokerage — featuring plots, houses, flats, cottages, villas, commercial spaces, and PG in Uttarakhand across Dehradun, Rishikesh, Haridwar, Nainital, Mussoorie & Haldwani.'}
+            ? 'उत्तराखंड गेटवेज (UKG Properties) पर देहरादून, ऋषिकेश, हरिद्वार, नैनीताल, मसूरी और हल्द्वानी में बिना किसी प्लेटफॉर्म शुल्क के प्रॉपर्टी खरीदें, बेचें या किराये पर लें।'
+            : 'Buy, purchase, sell, or rent properties in Uttarakhand with NO PLATFORM FEE — featuring plots, houses, flats, cottages, villas, commercial spaces, and PG across Dehradun, Rishikesh, Haridwar, Nainital, Mussoorie & Haldwani.'}
         </p>
       </div>
     </section>

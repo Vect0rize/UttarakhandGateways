@@ -30,9 +30,6 @@ interface RentPageProps {
   favorites: string[];
   onToggleFavorite: (id: string) => void;
   onStartChat: (property: Property) => void;
-  onRequestPhoneNumber?: (property: Property) => void;
-  getPhoneRequestStatus?: (id: string) => 'none' | 'pending' | 'approved' | 'declined';
-  getApprovedPhoneNumber?: (id: string) => string | undefined;
   onDeleteProperty: (id: string) => void;
   onToggleSold: (id: string) => void;
   onEditProperty: (property: Property) => void;
@@ -49,9 +46,6 @@ export const RentPage: React.FC<RentPageProps> = ({
   favorites,
   onToggleFavorite,
   onStartChat,
-  onRequestPhoneNumber,
-  getPhoneRequestStatus,
-  getApprovedPhoneNumber,
   onDeleteProperty,
   onToggleSold,
   onEditProperty,
@@ -237,7 +231,7 @@ export const RentPage: React.FC<RentPageProps> = ({
           <div className="flex items-center gap-2.5">
             <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950 text-teal-800 dark:text-teal-300 text-xs font-bold border border-teal-200 dark:border-teal-800">
               <ShieldCheck className="w-3.5 h-3.5 text-teal-600" />
-              <span>0% Brokerage Rentals</span>
+              <span>NO PLATFORM FEE</span>
             </span>
 
             <button
@@ -270,7 +264,7 @@ export const RentPage: React.FC<RentPageProps> = ({
           </div>
 
           <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-teal-600 text-white text-xs font-black uppercase tracking-wider shadow-xs">
-            <span>🔑 Rentals & Leases • 0% Brokerage</span>
+            <span>🔑 Rentals & Leases • NO PLATFORM FEE</span>
           </div>
 
           <h1 className="font-serif-luxury text-3xl sm:text-4xl md:text-5xl font-black text-[#07261b] dark:text-white">
@@ -279,8 +273,8 @@ export const RentPage: React.FC<RentPageProps> = ({
           
           <p className="text-xs sm:text-sm text-slate-600 dark:text-teal-200/80 max-w-2xl mx-auto">
             {isHindi 
-              ? 'आवासीय फ्लैट, विला, कॉटेज, होमस्टे और दुकानें 0% ब्रोकरेज पर सीधे उपलब्ध हैं।' 
-              : 'Browse verified flats, apartments, mountain cottages, and commercial spaces available for rent.'}
+              ? 'आवासीय फ्लैट, विला, कॉटेज, होमस्टे और दुकानें सीधे संपर्क के साथ उपलब्ध हैं।' 
+              : 'Browse flats, apartments, cottages, rooms, and commercial spaces available for rent across Uttarakhand.'}
           </p>
 
           {/* Quick Filter Bar */}

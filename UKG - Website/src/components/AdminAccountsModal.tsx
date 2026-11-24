@@ -90,7 +90,7 @@ export const AdminAccountsModal: React.FC<AdminAccountsModalProps> = ({
               </div>
               <p className="text-xs text-emerald-200/80 mt-0.5">
                 {isHindi 
-                  ? 'प्लेटफॉर्म ओनर (Amit Tyagi) के लिए सभी पंजीकृत खातों की वास्तविक सूची (लॉगिन स्थिति सहित)' 
+                  ? 'प्लेटफॉर्म प्रशासक के लिए सभी पंजीकृत खातों की वास्तविक सूची (लॉगिन स्थिति सहित)' 
                   : 'Official directory of every user account on the platform, whether currently logged in or not.'}
               </p>
             </div>

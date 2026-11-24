@@ -222,7 +222,7 @@ export const CityPropertyLandingPage: React.FC<CityPropertyLandingPageProps> = (
             <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs font-bold tracking-wide">
               <MapPin className="w-3.5 h-3.5" />
               <span>{marketData.city}, Uttarakhand ({marketData.elevation})</span>
-              <span className="bg-amber-400 text-slate-950 text-[10px] font-black px-1.5 py-0.2 rounded-sm uppercase tracking-wider">0% BROKERAGE</span>
+              <span className="bg-amber-400 text-slate-950 text-[10px] font-black px-1.5 py-0.2 rounded-sm uppercase tracking-wider">NO PLATFORM FEE</span>
             </div>
 
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black font-serif-luxury tracking-tight leading-tight">
@@ -237,7 +237,7 @@ export const CityPropertyLandingPage: React.FC<CityPropertyLandingPageProps> = (
           {/* Key Market Intelligence Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
             <div className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15">
-              <span className="text-[11px] text-emerald-300 uppercase tracking-wider font-bold block">Verified Listings</span>
+              <span className="text-[11px] text-emerald-300 uppercase tracking-wider font-bold block">Active Listings</span>
               <span className="text-xl sm:text-2xl font-black text-white">{cityProperties.length} Properties</span>
             </div>
 
@@ -413,7 +413,7 @@ export const CityPropertyLandingPage: React.FC<CityPropertyLandingPageProps> = (
             <span>Real Estate Market Overview: {marketData.city}</span>
           </div>
           <h3 className="text-xl sm:text-2xl font-bold font-serif-luxury text-slate-900 dark:text-white">
-            Investing in {marketData.city} Real Estate with 0% Brokerage
+            Exploring {marketData.city} Real Estate on Uttarakhand Gateways
           </h3>
           <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
             {marketData.description}
@@ -521,7 +521,7 @@ export const CityPropertyLandingPage: React.FC<CityPropertyLandingPageProps> = (
         onNavigatePath={onNavigatePath}
       />
       <footer className="py-6 border-t border-emerald-200 dark:border-emerald-800 bg-white dark:bg-[#071f17] text-center text-xs text-slate-500">
-        <p>© {new Date().getFullYear()} Uttarakhand Gateways. 0% Brokerage Mountain Real Estate Marketplace.</p>
+        <p>© {new Date().getFullYear()} Uttarakhand Gateways. Property Listing & Discovery Platform.</p>
       </footer>
     </div>
   );

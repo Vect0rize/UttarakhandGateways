@@ -91,7 +91,7 @@ export const SwitchAccountModal: React.FC<SwitchAccountModalProps> = ({
 
               {savedAccounts.map((acc) => {
                 const isActive = currentUser?.id === acc.id || currentUser?.contact.toLowerCase() === acc.contact.toLowerCase();
-                const isOwner = acc.username.trim().toLowerCase() === 'amit tyagi';
+                const isOwner = Boolean(acc.isOwner);
 
                 return (
                   <div

@@ -155,15 +155,15 @@ export const AiChatbot: React.FC<AiChatbotProps> = ({
     } catch (err: any) {
       console.warn('Chat request completed with fallback:', err?.message || err);
 
-      let fallbackText = "Namaste! 🙏 How can I assist you with Uttarakhand mountain properties, land conversion rules, or 0% brokerage listings today?";
+      let fallbackText = "Namaste! 🙏 How can I assist you with Uttarakhand properties, land unit conversions, or platform features today?";
       if (lower.includes('nali') || lower.includes('sq ft') || lower.includes('converter') || lower.includes('gaj')) {
         fallbackText = "📐 **Quick Uttarakhand Land Units:**\n• **1 Nali** = **2,160 sq.ft** (approx 240 Gaj / sq. yards)\n• **1 Bigha** (Hills) = **4 Nali** (8,640 sq.ft)\n• **1 Nali** = **16 Mutthi** (1 Mutthi = 135 sq.ft)\n• Outside buyers can purchase up to 250 sq.m (~1.25 Nali) in non-municipal areas.";
       } else if (lower.includes('outside') || lower.includes('rule') || lower.includes('legal') || lower.includes('ceiling') || lower.includes('buy land')) {
-        fallbackText = "📜 **Outside Buyer Rules in Uttarakhand:**\n• Any Indian citizen can buy property here.\n• **Agricultural/Rural Land:** Up to **250 sq. meters** (~2,700 sq.ft or ~1.25 Nali) per person without special state permission (Section 154 UPZA&LR).\n• **Municipal Corporation / MDDA Limits:** In urban limits (Dehradun, Rishikesh, Haridwar, etc.), there is **NO ceiling** on purchasing flats or residential plots!";
-      } else if (lower.includes('sell') || lower.includes('list') || lower.includes('brokerage') || lower.includes('commission')) {
-        fallbackText = "✦ **0% Brokerage Guarantee on UKG:**\n• Listing your property is **100% free**.\n• No commissions or hidden middleman fees.\n• Interested buyers connect with you directly via phone or instant inbox messages!";
+        fallbackText = "📜 **General Land Rules in Uttarakhand (Verify with a Lawyer):**\n• **Agricultural/Rural Land:** Non-domicile buyers should review Section 154 limits (commonly up to 250 sq. meters in non-municipal areas unless permitted).\n• **Urban / Municipal Areas:** Check local municipal or development authority rules and verify Khatauni and title deeds independently.";
+      } else if (lower.includes('sell') || lower.includes('list') || lower.includes('fee') || lower.includes('brokerage') || lower.includes('commission')) {
+        fallbackText = "✦ **Listing on Uttarakhand Gateways (NO PLATFORM FEE):**\n• Posting standard property listings carries **No Platform Fee**.\n• Interested buyers and tenants can contact listers directly via phone or WhatsApp.";
       } else if (lower.includes('143') || lower.includes('rera') || lower.includes('mdda') || lower.includes('title')) {
-        fallbackText = "🏛️ **Legal Badges Explained:**\n• **143 Converted:** Land officially converted to non-agricultural residential freehold, allowing direct construction.\n• **MDDA Approved:** Layout sanctioned by Mussoorie Dehradun Development Authority.\n• **RERA Verified:** Real Estate Regulatory Authority registered project with guaranteed buyer protection.";
+        fallbackText = "🏛️ **Common Property Terms (Verify Original Documents Independently):**\n• **Section 143:** Administrative order converting agricultural land to non-agricultural use.\n• **Development Authority Approval:** Sanctioned layout/building map from the local authority.\n• **RERA:** Applicable project registration under the Real Estate Regulatory Authority.";
       }
 
       const errorMessage: ChatMessage = {
@@ -295,7 +295,7 @@ export const AiChatbot: React.FC<AiChatbotProps> = ({
                 className="px-2.5 py-1 rounded-lg bg-white dark:bg-[#071f16] text-slate-700 dark:text-emerald-100 border border-emerald-300/70 dark:border-emerald-700 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/50 transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1 font-semibold shrink-0"
               >
                 <Building2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                <span>Sell Property (0%)</span>
+                <span>Sell Property</span>
               </button>
             )}
             {onExploreProperties && (

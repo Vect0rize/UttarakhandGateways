@@ -332,3 +332,14 @@ input[type=range].fintech-slider::-moz-range-thumb {
   border: 4px solid #AA8F7C;
 }
 
+
+/* Prevent accidental spinner clicks and normalize numeric inputs */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}

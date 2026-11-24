@@ -68,7 +68,7 @@ export const ListChooserModal: React.FC<ListChooserModalProps> = ({
                   : (isHindi ? 'प्रॉपर्टी लिस्टिंग प्रकार चुनें' : 'Choose Listing Type')}
               </h3>
               <p className="text-xs text-emerald-200/80">
-                {isHindi ? '100% नि:शुल्क • 0% ब्रोकरेज • सीधा संपर्क' : '100% Free • 0% Brokerage • Direct Owner Deals'}
+                {isHindi ? 'कोई प्लेटफॉर्म शुल्क नहीं • सीधा संपर्क' : 'NO PLATFORM FEE • Direct Lister Contact'}
               </p>
             </div>
           </div>
@@ -110,8 +110,8 @@ export const ListChooserModal: React.FC<ListChooserModalProps> = ({
                 </div>
                 <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
                   {isHindi 
-                    ? 'विला, आवासीय प्लॉट, फ्लैट, कॉटेज, फार्महाउस या कृषि भूमि सीधे 0% ब्रोकरेज पर बेचें।' 
-                    : 'Sell plots, villas, flats, cottages, or commercial land directly to verified buyers.'}
+                    ? 'विला, आवासीय प्लॉट, फ्लैट, कॉटेज, फार्महाउस या कृषि भूमि बेचने हेतु लिस्ट करें।' 
+                    : 'List plots, villas, flats, cottages, or commercial land for sale.'}
                 </p>
               </div>
               <div className="w-9 h-9 rounded-full bg-white dark:bg-slate-800 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-200 dark:border-slate-700 group-hover:translate-x-1 transition-transform">
@@ -138,8 +138,8 @@ export const ListChooserModal: React.FC<ListChooserModalProps> = ({
                 </div>
                 <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
                   {isHindi 
-                    ? 'अपार्टमेंट, कमरा, विला, होमस्टे या दुकान मासिक किराये पर देने हेतु 0% ब्रोकरेज पर लिस्ट करें।' 
-                    : 'Rent out flats, rooms, villas, homestays, or commercial shops on monthly rent.'}
+                    ? 'अपार्टमेंट, कमरा, विला, होमस्टे या दुकान किराये पर देने हेतु लिस्ट करें।' 
+                    : 'Rent out flats, rooms, villas, homestays, or commercial shops.'}
                 </p>
               </div>
               <div className="w-9 h-9 rounded-full bg-white dark:bg-slate-800 text-teal-600 flex items-center justify-center shrink-0 border border-teal-200 dark:border-slate-700 group-hover:translate-x-1 transition-transform">
@@ -149,7 +149,7 @@ export const ListChooserModal: React.FC<ListChooserModalProps> = ({
 
             <div className="pt-2 flex items-center justify-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>{isHindi ? '0% ब्रोकरेज • कोई छुपा शुल्क नहीं' : '0% Brokerage Guarantee • No Hidden Charges'}</span>
+              <span>{isHindi ? 'कोई प्लेटफॉर्म शुल्क नहीं' : 'NO PLATFORM FEE'}</span>
             </div>
           </div>
         ) : (
@@ -185,11 +185,11 @@ export const ListChooserModal: React.FC<ListChooserModalProps> = ({
                 <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
                   {step === 'rent-role'
                     ? (isHindi
-                        ? 'मैं संपत्ति का वास्तविक मालिक हूँ। 0% ब्रोकरेज सीधे किरायेदार के साथ।'
-                        : 'I am the property owner renting directly with zero brokerage.')
+                        ? 'मैं संपत्ति का मालिक हूँ और इसे किराये हेतु लिस्ट कर रहा/रही हूँ।'
+                        : 'I am the property owner listing this property for rent.')
                     : (isHindi
-                        ? 'मैं संपत्ति का वास्तविक मालिक हूँ। 0% ब्रोकरेज सीधे खरीदार के साथ।'
-                        : 'I am the property owner selling directly with zero brokerage.')}
+                        ? 'मैं संपत्ति का मालिक हूँ और इसे बिक्री हेतु लिस्ट कर रहा/रही हूँ।'
+                        : 'I am the property owner listing this property for sale.')}
                 </p>
               </div>
               <div className="w-9 h-9 rounded-full bg-white dark:bg-slate-800 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-200 dark:border-slate-700 group-hover:translate-x-1 transition-transform">
@@ -239,7 +239,7 @@ export const ListChooserModal: React.FC<ListChooserModalProps> = ({
                 <span>{isHindi ? 'वापस जाएं' : 'Back to selection'}</span>
               </button>
               <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                {isHindi ? '0% ब्रोकरेज गारंटी' : '0% Brokerage Guarantee'}
+                {isHindi ? 'कोई प्लेटफॉर्म शुल्क नहीं' : 'NO PLATFORM FEE'}
               </span>
             </div>
           </div>

@@ -35,7 +35,7 @@ import { CITIES } from '../data/properties';
 import { IMPORTANT_AMENITIES } from '../data/amenities';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { compressAndNormalizeImage, moderateImageWithAI } from '../utils/imageModeration';
+import { compressAndNormalizeImage, moderateImageWithAI, validateUploadFile } from '../utils/imageModeration';
 import { formatEnhancedDescription } from '../utils/descriptionEnhancer';
 import { 
   ShieldAlert 
@@ -348,7 +348,7 @@ export const UploadPropertyModal: React.FC<UploadPropertyModalProps> = ({
     const rawFiles = e.target.files;
     if (!rawFiles || rawFiles.length === 0) return;
 
-    const files = Array.from(rawFiles).filter((file) => file.type.startsWith('image/'));
+    const files = Array.from(rawFiles);
     if (files.length === 0) return;
 
     setIsScanningImages(true);
@@ -357,6 +357,14 @@ export const UploadPropertyModal: React.FC<UploadPropertyModalProps> = ({
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
+      const check = validateUploadFile(file, 'image', isHindi);
+      if (!check.valid) {
+        blockedBatch.push({
+          filename: file.name,
+          reason: check.error || 'Unsupported file or exceeds 20 MB limit.',
+        });
+        continue;
+      }
       setScanProgress({ current: i + 1, total: files.length, filename: file.name });
 
       try {
@@ -391,13 +399,15 @@ export const UploadPropertyModal: React.FC<UploadPropertyModalProps> = ({
     e.target.value = '';
   };
 
-  // Video File handler
+  // Video File handler (strict 20 MB limit)
   const handleVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('video/')) {
-      alert(isHindi ? 'कृपया एक मान्य वीडियो फाइल चुनें (.mp4, .mov, .webm)' : 'Please select a valid video file (.mp4, .mov, .webm)');
+    const check = validateUploadFile(file, 'video', isHindi);
+    if (!check.valid) {
+      alert(check.error || (isHindi ? 'अमान्य वीडियो फ़ाइल (अधिकतम 20 MB)।' : 'Invalid video file (max 20 MB).'));
+      e.target.value = '';
       return;
     }
 
@@ -970,7 +980,7 @@ export const UploadPropertyModal: React.FC<UploadPropertyModalProps> = ({
                         required
                         value={totalPriceInput}
                         onChange={(e) => handleTotalPriceChange(e.target.value)}
-                        placeholder="e.g. 4500000"
+                        placeholder="Enter property amount"
                         className="w-full pl-7 pr-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs sm:text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       />
                     </div>
@@ -1342,7 +1352,7 @@ export const UploadPropertyModal: React.FC<UploadPropertyModalProps> = ({
                       required
                       value={sellerName}
                       onChange={(e) => setSellerName(e.target.value)}
-                      placeholder={currentUser?.username || "e.g. Ramesh Singh"}
+                      placeholder="Enter your name"
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>
@@ -1360,7 +1370,7 @@ export const UploadPropertyModal: React.FC<UploadPropertyModalProps> = ({
                       required
                       value={sellerPhone}
                       onChange={(e) => setSellerPhone(e.target.value)}
-                      placeholder="e.g. 9897123456"
+                      placeholder="Enter your mobile number"
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
                     />
                   </div>

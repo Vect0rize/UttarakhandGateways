@@ -115,8 +115,8 @@ export function formatEnhancedDescription(
   const highlightsTitle = isHindi ? 'मुख्य विशेषताएं:' : 'Key Highlights:';
   const overviewTitle = isHindi ? 'विवरण (Overview):' : 'Property Overview:';
   const footerNote = isHindi
-    ? 'उत्तराखंड गेटवेज पर 0% ब्रोकरेज के साथ सत्यापित लिस्टिंग • सीधे मालिक से संपर्क करें।'
-    : 'Verified listing on Uttarakhand Gateways • 0% Brokerage • Direct Contact.';
+    ? 'उत्तराखंड गेटवेज पर सूचीबद्ध • सीधे संपर्क उपलब्ध।'
+    : 'Listed on Uttarakhand Gateways • Direct Contact Available.';
 
   // Build the enhanced content
   if (bullets.length > 0) {

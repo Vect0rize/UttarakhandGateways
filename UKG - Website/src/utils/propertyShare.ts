@@ -71,8 +71,8 @@ export async function sharePropertyListing(
   const shareTitle = property.title || 'Uttarakhand Property';
 
   const shareText = isHindi
-    ? `🏡 *${shareTitle}*${property.priceDisplay ? ` (${property.priceDisplay})` : ''}\n📍 ${locText}, उत्तराखंड\n\n🔗 0% ब्रोकरेज पर यह प्रॉपर्टी देखें:\n${shareUrl}\n\n_उत्तराखंड गेटवेज़ (Uttarakhand Gateways)_`
-    : `🏡 *${shareTitle}*${property.priceDisplay ? ` (${property.priceDisplay})` : ''}\n📍 ${locText}, Uttarakhand\n\n🔗 View Verified Property (0% Brokerage):\n${shareUrl}\n\n_Uttarakhand Gateways_`;
+    ? `🏡 *${shareTitle}*${property.priceDisplay ? ` (${property.priceDisplay})` : ''}\n📍 ${locText}, उत्तराखंड\n\n🔗 प्रॉपर्टी विवरण देखें:\n${shareUrl}\n\n_उत्तराखंड गेटवेज़ (Uttarakhand Gateways)_`
+    : `🏡 *${shareTitle}*${property.priceDisplay ? ` (${property.priceDisplay})` : ''}\n📍 ${locText}, Uttarakhand\n\n🔗 View Property Details:\n${shareUrl}\n\n_Uttarakhand Gateways_`;
 
   // Track share interaction asynchronously on the server
   if (property.id) {

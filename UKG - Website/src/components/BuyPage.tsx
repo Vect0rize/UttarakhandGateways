@@ -32,9 +32,6 @@ interface BuyPageProps {
   favorites: string[];
   onToggleFavorite: (id: string) => void;
   onStartChat: (property: Property) => void;
-  onRequestPhoneNumber?: (property: Property) => void;
-  getPhoneRequestStatus?: (id: string) => 'none' | 'pending' | 'approved' | 'declined';
-  getApprovedPhoneNumber?: (id: string) => string | undefined;
   onDeleteProperty: (id: string) => void;
   onToggleSold: (id: string) => void;
   onEditProperty: (property: Property) => void;
@@ -51,9 +48,6 @@ export const BuyPage: React.FC<BuyPageProps> = ({
   favorites,
   onToggleFavorite,
   onStartChat,
-  onRequestPhoneNumber,
-  getPhoneRequestStatus,
-  getApprovedPhoneNumber,
   onDeleteProperty,
   onToggleSold,
   onEditProperty,
@@ -258,7 +252,7 @@ export const BuyPage: React.FC<BuyPageProps> = ({
           <div className="flex items-center gap-2.5">
             <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-xs font-bold border border-emerald-200 dark:border-emerald-800">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>0% Brokerage Properties for Sale</span>
+              <span>NO PLATFORM FEE</span>
             </span>
 
             <button
@@ -291,7 +285,7 @@ export const BuyPage: React.FC<BuyPageProps> = ({
           </div>
 
           <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-amber-400 text-slate-950 text-xs font-black uppercase tracking-wider shadow-xs">
-            <span>🏷️ 100% Outright Sale • 0% Brokerage</span>
+            <span>🏷️ Properties for Sale • NO PLATFORM FEE</span>
           </div>
 
           <h1 className="font-serif-luxury text-3xl sm:text-4xl md:text-5xl font-black text-[#0a271c] dark:text-white">
@@ -300,8 +294,8 @@ export const BuyPage: React.FC<BuyPageProps> = ({
           
           <p className="text-xs sm:text-sm text-slate-600 dark:text-emerald-200/80 max-w-2xl mx-auto">
             {isHindi 
-              ? 'आवासीय प्लॉट, विला, कॉटेज, फ्लैट और फार्महाउस सीधे मालिकों व ब्रोकरों से खरीदें।' 
-              : 'Explore verified residential plots, hill cottages, luxury villas, and apartments for outright purchase.'}
+              ? 'आवासीय प्लॉट, विला, कॉटेज, फ्लैट और फार्महाउस सीधे मालिकों व लिस्टिंगकर्ताओं से खोजें।' 
+              : 'Explore residential plots, hill cottages, villas, and apartments listed for sale across Uttarakhand.'}
           </p>
 
           {/* Quick Filter Bar */}

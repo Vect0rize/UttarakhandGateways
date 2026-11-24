@@ -69,28 +69,29 @@ export const LandUnitConverterModal: React.FC<LandUnitConverterModalProps> = ({
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="p-4 sm:p-6 space-y-5 overflow-x-hidden">
           
           {/* Input Section */}
-          <div className="space-y-3">
+          <div className="space-y-3 min-w-0">
             <label className="block text-xs font-semibold uppercase tracking-wider text-emerald-900 dark:text-emerald-400">
               Enter Land Measurement
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0">
               <input
                 type="number"
                 min="0.1"
                 step="0.1"
                 value={value || ''}
+                onWheel={(e) => e.currentTarget.blur()}
                 onChange={(e) => setValue(Math.max(0, parseFloat(e.target.value) || 0))}
-                className="w-full bg-emerald-50/50 dark:bg-slate-800/80 border border-emerald-200 dark:border-slate-700 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 focus:bg-white dark:focus:bg-slate-800"
+                className="w-full min-w-0 bg-emerald-50/50 dark:bg-slate-800/80 border border-emerald-200 dark:border-slate-700 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 focus:bg-white dark:focus:bg-slate-800"
                 placeholder="1"
               />
 
               <select
                 value={unit}
                 onChange={(e) => setUnit(e.target.value as any)}
-                className="w-full bg-emerald-50/50 dark:bg-slate-800/80 border border-emerald-200 dark:border-slate-700 rounded-xl px-3 py-3 text-sm font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:border-emerald-500 cursor-pointer"
+                className="w-full min-w-0 bg-emerald-50/50 dark:bg-slate-800/80 border border-emerald-200 dark:border-slate-700 rounded-xl px-3 py-3 text-sm font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:border-emerald-500 cursor-pointer"
               >
                 <option value="nali">Nali (Uttarakhand)</option>
                 <option value="sqft">Sq. Feet (sq.ft)</option>
@@ -107,7 +108,7 @@ export const LandUnitConverterModal: React.FC<LandUnitConverterModalProps> = ({
             <span className="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Equivalent Units in Uttarakhand
             </span>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-1 min-[380px]:grid-cols-2 sm:grid-cols-3 gap-2.5">
               
               <div className="p-3 rounded-xl bg-emerald-50/80 dark:bg-slate-800/80 border border-emerald-200 dark:border-slate-700">
                 <span className="text-[10px] text-emerald-800 dark:text-emerald-400 font-bold uppercase tracking-wider block">

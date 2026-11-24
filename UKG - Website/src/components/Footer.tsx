@@ -79,8 +79,8 @@ export const Footer: React.FC<FooterProps> = ({
             
             <p className="text-slate-600 dark:text-emerald-200/90 text-xs sm:text-sm leading-relaxed max-w-sm">
               {isHindi
-                ? 'उत्तराखंड गेटवेज 0% ब्रोकरेज के साथ सत्यापित फ्लैट, आवासीय प्लॉट और विला खोजने का प्रमुख मंच है।'
-                : 'Uttarakhand Gateways connects homebuyers, landowners, tenants, and verified local real estate dealers across Dehradun, Rishikesh, Haridwar, Nainital, Mussoorie, Haldwani, and all 13 districts of Uttarakhand with transparent role disclosures and 0% portal commission.'}
+                ? 'उत्तराखंड गेटवेज बिना किसी प्लेटफॉर्म शुल्क के फ्लैट, आवासीय प्लॉट, विला और किराये की संपत्तियां खोजने और लिस्ट करने का मंच है।'
+                : 'Uttarakhand Gateways is a property listing and discovery platform connecting property owners, listers, buyers, and tenants across Uttarakhand with NO PLATFORM FEE.'}
             </p>
 
             <div className="p-3.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-emerald-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 max-w-sm space-y-1.5 shadow-xs">
@@ -98,17 +98,6 @@ export const Footer: React.FC<FooterProps> = ({
                   <span>{isHindi ? 'पूछताछ:' : 'Inquiries:'} ukg@uttarakhandgateways.com</span>
                 </a>
               </div>
-            </div>
-
-            <div className="pt-1">
-              <a
-                href="/UKG - App.apk?v=13"
-                download="UKG - App.apk"
-                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#0E3A2B] to-[#32463D] hover:from-[#164A37] hover:to-[#3c5348] text-[#F4F3EF] border border-[#AA8F7C]/40 font-bold text-xs shadow-xs transition-all cursor-pointer"
-              >
-                <span>📲</span>
-                <span>{isHindi ? 'ऑफिशियल एंड्रॉइड ऐप (APK)' : 'Download Android App (APK)'}</span>
-              </a>
             </div>
           </div>
 
@@ -231,6 +220,8 @@ export const Footer: React.FC<FooterProps> = ({
                     ? '/terms'
                     : link.id === 'privacy'
                     ? '/privacy'
+                    : link.id === 'disclaimer'
+                    ? '/disclaimer'
                     : link.id === 'listing_policy'
                     ? '/listing-guidelines'
                     : null;

@@ -34,7 +34,7 @@ export const ListPage: React.FC<ListPageProps> = ({
           <div className="flex items-center gap-2.5">
             <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-[#0C3628] text-emerald-800 dark:text-[#C2A691] text-xs font-bold border border-emerald-200 dark:border-[#32463D]">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-[#C2A691]" />
-              <span>{isHindi ? '100% नि:शुल्क विज्ञापन • 0% ब्रोकरेज' : '100% Free Listing • 0% Brokerage'}</span>
+              <span>{isHindi ? 'कोई प्लेटफॉर्म शुल्क नहीं' : 'NO PLATFORM FEE'}</span>
             </span>
 
             <button

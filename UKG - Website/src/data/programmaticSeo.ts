@@ -1048,8 +1048,8 @@ function buildFaqsForRoute(
           : `There are currently 0 active ${pattern.label.toLowerCase()} specifically matched in ${loc.name}. You can explore nearby ${loc.region} markets or post a direct requirement.`,
     },
     {
-      q: `Are properties in ${loc.name} listed with 0% portal brokerage?`,
-      a: `Yes. Direct owner listings carry zero brokerage, while verified local broker listings on Uttarakhand Gateways clearly disclose seller role upfront so buyers and tenants can connect directly without hidden portal commissions.`,
+      q: `Is there any platform fee for browsing or listing properties in ${loc.name}?`,
+      a: `Uttarakhand Gateways charges NO PLATFORM FEE for browsing properties or posting standard listings. Listers disclose whether they are an Owner or Broker so buyers and tenants can communicate directly.`,
     },
     {
       q: `What documents should I verify before buying property or land in ${loc.name}?`,

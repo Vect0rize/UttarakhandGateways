@@ -408,8 +408,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               </h2>
               <p className="text-xs text-emerald-100/80 mt-2 leading-relaxed">
                 {isHindi 
-                  ? '0% ब्रोकरेज पर सीधे खरीदारों और संपत्ति मालिकों से जुड़ें। 100% सत्यापित व सुरक्षित।' 
-                  : 'Direct owner-to-buyer real estate with 0% brokerage. Verified listings across Dehradun, Mussoorie, Nainital, and Rishikesh.'}
+                  ? 'बिना किसी प्लेटफॉर्म शुल्क के सीधे संपत्ति मालिकों और खरीदारों से जुड़ें।' 
+                  : 'Connect directly with property owners and listers across Dehradun, Mussoorie, Nainital, and Rishikesh with NO PLATFORM FEE.'}
               </p>
             </div>
 
@@ -419,7 +419,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                   <Check className="w-4 h-4 text-emerald-300" />
                 </div>
                 <div className="text-xs">
-                  <strong className="block text-white font-bold">Zero Brokerage Platform</strong>
+                  <strong className="block text-white font-bold">NO PLATFORM FEE</strong>
                   <span className="text-emerald-100/70 text-[11px]">Direct chat and transparent deals without middleman fees.</span>
                 </div>
               </div>
@@ -429,8 +429,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                   <ShieldCheck className="w-4 h-4 text-emerald-300" />
                 </div>
                 <div className="text-xs">
-                  <strong className="block text-white font-bold">Verified Ownership</strong>
-                  <span className="text-emerald-100/70 text-[11px]">Clean title deeds, mountain views, and genuine contacts.</span>
+                  <strong className="block text-white font-bold">Direct Lister Contact</strong>
+                  <span className="text-emerald-100/70 text-[11px]">Public phone and WhatsApp options for direct inquiries.</span>
                 </div>
               </div>
 
@@ -447,7 +447,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
             <div className="relative z-10 pt-4 border-t border-emerald-800/60 flex items-center justify-between text-[11px] text-emerald-200/80">
               <span> गढ़वाल व कुमाऊं </span>
-              <span className="font-bold text-white">15,000+ Active Users</span>
+              <span className="font-bold text-white">Property Discovery Platform</span>
             </div>
           </div>
 
@@ -494,7 +494,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                       {mode === 'login'
                         ? (isHindi ? 'उत्तराखंड की संपत्तियों को देखने व सीधे बात करने हेतु साइन इन करें।' : 'Access saved properties, chat with owners, and list properties.')
-                        : (isHindi ? '0% ब्रोकरेज पर सीधे संपत्तियां लिस्ट करें और खरीदारों से जुड़ें।' : 'Join the 0% brokerage direct real estate marketplace.')}
+                        : (isHindi ? 'अपनी संपत्तियां लिस्ट और प्रबंधित करने के लिए साइन इन करें।' : 'Sign in to post and manage your property listings.')}
                     </p>
 
                     {/* Mode Tabs */}
@@ -821,7 +821,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                         autoComplete="name"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
-                        placeholder="e.g. Amit Tyagi"
+                        placeholder="Enter your name"
                         className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                       />
                     </div>
@@ -1040,7 +1040,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           compact={true}
         />
         <footer className="py-4 text-center text-xs text-slate-500 dark:text-slate-400 bg-white/80 dark:bg-[#05150f]/80">
-          © {new Date().getFullYear()} Uttarakhand Gateways. 0% Brokerage Direct Real Estate.
+          © {new Date().getFullYear()} Uttarakhand Gateways. All Rights Reserved.
         </footer>
       </div>
     </div>

@@ -16,11 +16,22 @@ import {
   Eye,
   Compass,
   Sparkles,
-  Phone
+  Phone,
+  MessageCircle
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { isPropertyOwner, canManageProperty, getPropertyOwnerDisplayName, formatPropertyViewsCount } from '../utils/propertyOwnership';
+import {
+  isPropertyOwner,
+  canManageProperty,
+  getPropertyOwnerDisplayName,
+  formatPropertyViewsCount,
+  getPublicPropertyPhone,
+  formatPhoneForDisplay,
+  getTelHref,
+  buildDefaultWhatsAppMessage,
+  getWhatsAppContactUrl,
+} from '../utils/propertyOwnership';
 import { formatLocalizedPrice, translatePropertyType } from '../utils/language';
 import { getPropertySlugPath } from '../data/programmaticSeo';
 import { formatPostTime } from '../utils/timeAgo';
@@ -62,6 +73,9 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
   const canManage = canManageProperty(property, currentUser);
   const isOwner = canManage;
   const ownerDisplayName = getPropertyOwnerDisplayName(property, currentUser, isHindi);
+  const publicPhone = getPublicPropertyPhone(property);
+  const cardTelHref = getTelHref(publicPhone);
+  const cardWaHref = getWhatsAppContactUrl(publicPhone, buildDefaultWhatsAppMessage(property, isHindi));
   const cardRef = useRef<HTMLElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -129,10 +143,6 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
       id={`property-card-${property.id}`}
       onMouseDown={triggerRipple}
       onClick={() => {
-        if (!currentUser) {
-          openAuthModal('login', isHindi ? 'संपत्ति का पूरा विवरण देखने हेतु कृपया लॉगिन करें।' : 'Please sign in to view property details and contact the owner.', () => onSelect(property));
-          return;
-        }
         onSelect(property);
       }}
       className="bg-[#FAF9F6] dark:bg-[#0C3628] rounded-3xl overflow-hidden border border-[#D0D7D2] dark:border-[#32463D] hover:border-[#0E3A2B] dark:hover:border-[#AA8F7C] hover:shadow-2xl hover:shadow-[#032D1F]/20 dark:hover:shadow-black/70 shadow-sm flex flex-col justify-between cursor-pointer group relative transition-all duration-300 ease-out hover:-translate-y-1.5 select-none"
@@ -273,12 +283,6 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              if (!currentUser) {
-                openAuthModal('login', isHindi ? 'संपत्ति सहेजने हेतु कृपया पहले लॉगिन करें।' : 'Please log in to save properties.', () => {
-                  onToggleFavorite(property.id);
-                });
-                return;
-              }
               onToggleFavorite(property.id);
             }}
             className={`w-8 h-8 rounded-full backdrop-blur-md transition-all shadow-md cursor-pointer flex items-center justify-center hover:scale-105 active:scale-95 ${
@@ -450,25 +454,54 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
 
         {/* Bottom-Anchored Seller Info + Action Bar */}
         <div className="mt-auto pt-3 border-t border-slate-100 dark:border-emerald-800/60 space-y-2.5">
-          {(ownerDisplayName || property.reraStatus) && (
-            <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-300">
-              {ownerDisplayName ? (
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200 font-bold text-[10px] flex items-center justify-center shrink-0 uppercase">
-                    {ownerDisplayName.charAt(0)}
-                  </span>
-                  <span className="truncate">
-                    <span className="text-slate-400 dark:text-slate-400 mr-1">
-                      {property.sellerType === 'Broker' ? (isHindi ? 'ब्रोकर:' : 'Broker:') : (isHindi ? 'मालिक:' : 'Owner:')}
+          {(ownerDisplayName || publicPhone || property.reraStatus) && (
+            <div className="space-y-1.5 text-[11px] text-slate-500 dark:text-slate-300">
+              <div className="flex items-center justify-between gap-2">
+                {ownerDisplayName ? (
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200 font-bold text-[10px] flex items-center justify-center shrink-0 uppercase">
+                      {ownerDisplayName.charAt(0)}
                     </span>
-                    <strong className="text-slate-800 dark:text-white font-semibold">{ownerDisplayName}</strong>
+                    <span className="truncate">
+                      <span className="text-slate-400 dark:text-slate-400 mr-1">
+                        {property.sellerType === 'Broker' ? (isHindi ? 'ब्रोकर:' : 'Broker:') : (isHindi ? 'मालिक:' : 'Owner:')}
+                      </span>
+                      <strong className="text-slate-800 dark:text-white font-semibold">{ownerDisplayName}</strong>
+                    </span>
+                  </div>
+                ) : <span />}
+                {property.reraStatus && (
+                  <span className="text-emerald-700 dark:text-emerald-300 font-bold shrink-0 ml-1 truncate max-w-[130px]">
+                    {property.reraStatus}
                   </span>
+                )}
+              </div>
+
+              {publicPhone && cardTelHref && (
+                <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/60 border border-emerald-200/70 dark:border-emerald-800/70">
+                  <a
+                    href={cardTelHref}
+                    onClick={(e) => e.stopPropagation()}
+                    className="inline-flex items-center gap-1.5 font-mono font-bold text-xs text-emerald-800 dark:text-emerald-200 hover:underline truncate"
+                    title={isHindi ? 'कॉल करें' : 'Call Lister'}
+                  >
+                    <Phone className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span>{formatPhoneForDisplay(publicPhone)}</span>
+                  </a>
+                  {cardWaHref && (
+                    <a
+                      href={cardWaHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-[10px] shrink-0 shadow-2xs"
+                      title={isHindi ? 'व्हाट्सएप पर संदेश भेजें' : 'Message on WhatsApp'}
+                    >
+                      <MessageCircle className="w-3 h-3" />
+                      <span>WhatsApp</span>
+                    </a>
+                  )}
                 </div>
-              ) : <span />}
-              {property.reraStatus && (
-                <span className="text-emerald-700 dark:text-emerald-300 font-bold shrink-0 ml-1 truncate max-w-[130px]">
-                  {property.reraStatus}
-                </span>
               )}
             </div>
           )}
@@ -514,10 +547,6 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                 if (!e.ctrlKey && !e.metaKey && e.button === 0) {
                   e.preventDefault();
                   e.stopPropagation();
-                  if (!currentUser) {
-                    openAuthModal('login', isHindi ? 'संपत्ति का पूरा विवरण देखने हेतु कृपया लॉगिन करें।' : 'Please sign in to view property details.', () => onSelect(property));
-                    return;
-                  }
                   onSelect(property);
                 }
               }}
