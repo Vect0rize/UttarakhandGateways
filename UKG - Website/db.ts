@@ -59,13 +59,48 @@ export interface DbReport {
   updatedAt?: string;
 }
 
+export interface DbRequirement {
+  id: string;
+  requirementType: 'Buy' | 'Rent';
+  propertyType: 'Plot' | 'House' | 'Flat' | 'Villa' | 'Commercial' | 'Other';
+  city: string;
+  preferredLocation: string;
+  minBudget: number;
+  maxBudget: number;
+  bedrooms?: number | null;
+  requiredSize?: string | null;
+  description?: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  userPhone?: string;
+  approvalStatus: 'pending' | 'approved' | 'rejected';
+  isFulfilled: boolean;
+  createdAt: string;
+  updatedAt: string;
+  expiresAt: string;
+}
+
+export interface DbRequirementResponse {
+  id: string;
+  requirementId: string;
+  responderId: string;
+  responderName: string;
+  responderEmail: string;
+  responderPhone: string;
+  propertyId?: string;
+  propertyTitle?: string;
+  message: string;
+  createdAt: string;
+}
+
 export interface DbAuditLog {
   id: string;
   adminId: string;
   adminEmail: string;
   adminName: string;
   action: string;
-  targetType: 'property' | 'user' | 'report' | 'settings' | 'bulk';
+  targetType: 'property' | 'user' | 'report' | 'settings' | 'bulk' | 'requirement';
   targetId: string;
   targetTitle?: string;
   details: string;
@@ -113,6 +148,8 @@ class DatabaseService {
   private viewsFilePath: string;
   private settingsFilePath: string;
   private auditLogsFilePath: string;
+  private requirementsFilePath: string;
+  private requirementResponsesFilePath: string;
   private revokedSessionsFilePath: string;
   private revokedTokens = new Set<string>();
   private writeLocks = new Map<string, Promise<unknown>>();
@@ -161,6 +198,8 @@ class DatabaseService {
     this.viewsFilePath = path.join(this.dataDir, 'property_views.json');
     this.settingsFilePath = path.join(this.dataDir, 'platform_settings.json');
     this.auditLogsFilePath = path.join(this.dataDir, 'admin_audit_logs.json');
+    this.requirementsFilePath = path.join(this.dataDir, 'requirements.json');
+    this.requirementResponsesFilePath = path.join(this.dataDir, 'requirement_responses.json');
     this.revokedSessionsFilePath = path.join(this.dataDir, 'revoked_sessions.json');
     try {
       const revokedList = this.readJsonFile(this.revokedSessionsFilePath);
@@ -285,6 +324,26 @@ class DatabaseService {
               action VARCHAR(150) NOT NULL,
               target_type VARCHAR(50) NOT NULL,
               target_id VARCHAR(255) NOT NULL,
+              data TEXT NOT NULL,
+              created_at VARCHAR(100) NOT NULL
+            );
+          `);
+
+          await client.query(`
+            CREATE TABLE IF NOT EXISTS ukg_requirements (
+              id VARCHAR(255) PRIMARY KEY,
+              user_id VARCHAR(255) NOT NULL,
+              status VARCHAR(50) NOT NULL,
+              data TEXT NOT NULL,
+              created_at VARCHAR(100) NOT NULL
+            );
+          `);
+
+          await client.query(`
+            CREATE TABLE IF NOT EXISTS ukg_requirement_responses (
+              id VARCHAR(255) PRIMARY KEY,
+              requirement_id VARCHAR(255) NOT NULL,
+              responder_id VARCHAR(255) NOT NULL,
               data TEXT NOT NULL,
               created_at VARCHAR(100) NOT NULL
             );
@@ -445,6 +504,26 @@ class DatabaseService {
               action VARCHAR(150) NOT NULL,
               target_type VARCHAR(50) NOT NULL,
               target_id VARCHAR(255) NOT NULL,
+              data LONGTEXT NOT NULL,
+              created_at VARCHAR(100) NOT NULL
+            );
+          `);
+
+          await conn.query(`
+            CREATE TABLE IF NOT EXISTS ukg_requirements (
+              id VARCHAR(255) PRIMARY KEY,
+              user_id VARCHAR(255) NOT NULL,
+              status VARCHAR(50) NOT NULL,
+              data LONGTEXT NOT NULL,
+              created_at VARCHAR(100) NOT NULL
+            );
+          `);
+
+          await conn.query(`
+            CREATE TABLE IF NOT EXISTS ukg_requirement_responses (
+              id VARCHAR(255) PRIMARY KEY,
+              requirement_id VARCHAR(255) NOT NULL,
+              responder_id VARCHAR(255) NOT NULL,
               data LONGTEXT NOT NULL,
               created_at VARCHAR(100) NOT NULL
             );
@@ -1861,6 +1940,158 @@ class DatabaseService {
     }
 
     return this.readJsonFile(this.auditLogsFilePath).slice(0, safeLimit);
+  }
+
+  // =================================================================
+  // POST YOUR REQUIREMENTS & SECURE OWNER RESPONSES
+  // =================================================================
+
+  public async getAllRequirements(): Promise<DbRequirement[]> {
+    if (!this.initialized) await this.initialize();
+    if (this.dbType === 'postgres' && this.pgPool) {
+      try {
+        const res = await this.pgPool.query('SELECT data FROM ukg_requirements ORDER BY created_at DESC');
+        return res.rows.map((r) => (typeof r.data === 'string' ? JSON.parse(r.data) : r.data));
+      } catch (err) {
+        console.error('[UKG DB] PostgreSQL getAllRequirements error:', err);
+      }
+    }
+    if (this.dbType === 'mysql' && this.mysqlPool) {
+      try {
+        const [rows]: any = await this.mysqlPool.query('SELECT data FROM ukg_requirements ORDER BY created_at DESC');
+        return rows.map((r: any) => (typeof r.data === 'string' ? JSON.parse(r.data) : r.data));
+      } catch (err) {
+        console.error('[UKG DB] MySQL getAllRequirements error:', err);
+      }
+    }
+    return this.readJsonFile(this.requirementsFilePath);
+  }
+
+  public async getRequirementById(id: string): Promise<DbRequirement | null> {
+    const all = await this.getAllRequirements();
+    return all.find((r) => r && r.id === id) || null;
+  }
+
+  public async saveRequirement(reqRecord: DbRequirement): Promise<DbRequirement> {
+    if (!this.initialized) await this.initialize();
+    return this.withLock('requirements', async () => {
+      const json = JSON.stringify(reqRecord);
+      if (this.dbType === 'postgres' && this.pgPool) {
+        try {
+          await this.pgPool.query(
+            `INSERT INTO ukg_requirements (id, user_id, status, data, created_at)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (id) DO UPDATE SET status = $3, data = $4`,
+            [reqRecord.id, reqRecord.userId, reqRecord.approvalStatus, json, reqRecord.createdAt]
+          );
+        } catch (err) {
+          console.error('[UKG DB] PostgreSQL saveRequirement error:', err);
+        }
+      } else if (this.dbType === 'mysql' && this.mysqlPool) {
+        try {
+          await this.mysqlPool.query(
+            `INSERT INTO ukg_requirements (id, user_id, status, data, created_at)
+             VALUES (?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE status = VALUES(status), data = VALUES(data)`,
+            [reqRecord.id, reqRecord.userId, reqRecord.approvalStatus, json, reqRecord.createdAt]
+          );
+        } catch (err) {
+          console.error('[UKG DB] MySQL saveRequirement error:', err);
+        }
+      }
+      const existing = this.readJsonFile(this.requirementsFilePath).filter((r: any) => r && r.id !== reqRecord.id);
+      const next = [reqRecord, ...existing].sort(
+        (a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+      );
+      this.writeJsonFileAtomically(this.requirementsFilePath, next);
+      return reqRecord;
+    });
+  }
+
+  public async deleteRequirement(id: string): Promise<boolean> {
+    if (!this.initialized) await this.initialize();
+    return this.withLock('requirements', async () => {
+      if (this.dbType === 'postgres' && this.pgPool) {
+        try {
+          await this.pgPool.query('DELETE FROM ukg_requirements WHERE id = $1', [id]);
+          await this.pgPool.query('DELETE FROM ukg_requirement_responses WHERE requirement_id = $1', [id]);
+        } catch (err) {
+          console.error('[UKG DB] PostgreSQL deleteRequirement error:', err);
+        }
+      } else if (this.dbType === 'mysql' && this.mysqlPool) {
+        try {
+          await this.mysqlPool.query('DELETE FROM ukg_requirements WHERE id = ?', [id]);
+          await this.mysqlPool.query('DELETE FROM ukg_requirement_responses WHERE requirement_id = ?', [id]);
+        } catch (err) {
+          console.error('[UKG DB] MySQL deleteRequirement error:', err);
+        }
+      }
+      const list = this.readJsonFile(this.requirementsFilePath).filter((r: any) => r && r.id !== id);
+      this.writeJsonFileAtomically(this.requirementsFilePath, list);
+      const responses = this.readJsonFile(this.requirementResponsesFilePath).filter(
+        (resp: any) => resp && resp.requirementId !== id
+      );
+      this.writeJsonFileAtomically(this.requirementResponsesFilePath, responses);
+      return true;
+    });
+  }
+
+  public async getAllRequirementResponses(): Promise<DbRequirementResponse[]> {
+    if (!this.initialized) await this.initialize();
+    if (this.dbType === 'postgres' && this.pgPool) {
+      try {
+        const res = await this.pgPool.query('SELECT data FROM ukg_requirement_responses ORDER BY created_at DESC');
+        return res.rows.map((r) => (typeof r.data === 'string' ? JSON.parse(r.data) : r.data));
+      } catch (err) {
+        console.error('[UKG DB] PostgreSQL getAllRequirementResponses error:', err);
+      }
+    }
+    if (this.dbType === 'mysql' && this.mysqlPool) {
+      try {
+        const [rows]: any = await this.mysqlPool.query(
+          'SELECT data FROM ukg_requirement_responses ORDER BY created_at DESC'
+        );
+        return rows.map((r: any) => (typeof r.data === 'string' ? JSON.parse(r.data) : r.data));
+      } catch (err) {
+        console.error('[UKG DB] MySQL getAllRequirementResponses error:', err);
+      }
+    }
+    return this.readJsonFile(this.requirementResponsesFilePath);
+  }
+
+  public async saveRequirementResponse(resp: DbRequirementResponse): Promise<DbRequirementResponse> {
+    if (!this.initialized) await this.initialize();
+    return this.withLock('requirement_responses', async () => {
+      const json = JSON.stringify(resp);
+      if (this.dbType === 'postgres' && this.pgPool) {
+        try {
+          await this.pgPool.query(
+            `INSERT INTO ukg_requirement_responses (id, requirement_id, responder_id, data, created_at)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (id) DO UPDATE SET data = $4`,
+            [resp.id, resp.requirementId, resp.responderId, json, resp.createdAt]
+          );
+        } catch (err) {
+          console.error('[UKG DB] PostgreSQL saveRequirementResponse error:', err);
+        }
+      } else if (this.dbType === 'mysql' && this.mysqlPool) {
+        try {
+          await this.mysqlPool.query(
+            `INSERT INTO ukg_requirement_responses (id, requirement_id, responder_id, data, created_at)
+             VALUES (?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE data = VALUES(data)`,
+            [resp.id, resp.requirementId, resp.responderId, json, resp.createdAt]
+          );
+        } catch (err) {
+          console.error('[UKG DB] MySQL saveRequirementResponse error:', err);
+        }
+      }
+      const existing = this.readJsonFile(this.requirementResponsesFilePath).filter(
+        (x: any) => x && x.id !== resp.id
+      );
+      this.writeJsonFileAtomically(this.requirementResponsesFilePath, [resp, ...existing]);
+      return resp;
+    });
   }
 }
 

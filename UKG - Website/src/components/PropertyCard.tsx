@@ -15,21 +15,15 @@ import {
   Share2,
   Eye,
   Sparkles,
-  Phone,
-  MessageCircle,
+  Calendar,
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import {
   isPropertyOwner,
   canManageProperty,
-  getPropertyOwnerDisplayName,
   formatCardDisplayViewsCount,
-  getPublicPropertyPhone,
-  formatPhoneForDisplay,
-  getTelHref,
-  buildDefaultWhatsAppMessage,
-  getWhatsAppContactUrl,
+  formatPropertyAge,
 } from '../utils/propertyOwnership';
 import { formatLocalizedPrice, translatePropertyType } from '../utils/language';
 import { getPropertySlugPath } from '../data/programmaticSeo';
@@ -69,10 +63,6 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
 
   const isDirectOwner = isPropertyOwner(property, currentUser);
   const isOwner = canManageProperty(property, currentUser);
-  const ownerDisplayName = getPropertyOwnerDisplayName(property, currentUser, isHindi);
-  const publicPhone = getPublicPropertyPhone(property);
-  const cardTelHref = getTelHref(publicPhone);
-  const cardWaHref = getWhatsAppContactUrl(publicPhone, buildDefaultWhatsAppMessage(property, isHindi));
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -107,6 +97,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
 
   const cleanArea = formatPropertyArea(property, isHindi);
   const rateDisplay = formatPropertyRate(property, isHindi);
+  const ageLabel = formatPropertyAge(property.propertyAgeYears, isHindi);
 
   const isForRent =
     property.type === 'Rent/Lease' ||
@@ -210,7 +201,15 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                       className="w-full px-3.5 py-2 text-left hover:bg-amber-50 dark:hover:bg-amber-950/60 flex items-center gap-2 cursor-pointer font-medium text-amber-700 dark:text-amber-300"
                     >
                       <Tag className="w-3.5 h-3.5" />
-                      <span>{localSold ? (isHindi ? 'उपलब्ध मार्क करें' : 'Mark Available') : (isHindi ? 'बिक चुका मार्क करें' : 'Mark as Sold')}</span>
+                      <span>
+                        {localSold
+                          ? isHindi
+                            ? 'उपलब्ध मार्क करें'
+                            : 'Mark Available'
+                          : isHindi
+                            ? 'बिक चुका मार्क करें'
+                            : 'Mark as Sold'}
+                      </span>
                     </button>
                   )}
 
@@ -277,8 +276,8 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
         </div>
       </div>
 
-      {/* 2. COMPACT, PROPORTIONAL CARD BODY (Zero Uncanny Empty Gaps) */}
-      <div className="p-3.5 flex-1 flex flex-col justify-between gap-2.5">
+      {/* 2. COMPACT CARD BODY (Zero Owner Name / Phone Exposed on Card) */}
+      <div className="p-3.5 flex-1 flex flex-col justify-between gap-3">
         <div className="space-y-2">
           {/* Title & Location */}
           <div>
@@ -309,9 +308,9 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
             </div>
           </div>
 
-          {/* Single-Row Key Specs + Card Views Pill */}
+          {/* Key Specs + Property Age + Views Pill */}
           <div className="flex items-center justify-between gap-1.5 pt-2 border-t border-slate-200/70 dark:border-emerald-800/50">
-            <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
+            <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
               {cleanArea && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/90 border border-emerald-200/90 dark:border-emerald-800 text-emerald-950 dark:text-emerald-200 text-[11px] font-bold whitespace-nowrap shrink-0">
                   <Maximize2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
@@ -333,6 +332,13 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                   {property.type === 'Studio' ? 'Studio' : translatePropertyType(property.type, isHindi ? 'hi' : 'en')}
                 </span>
               )}
+
+              {ageLabel && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/50 border border-amber-200/80 dark:border-amber-800/70 text-amber-900 dark:text-amber-200 text-[10.5px] font-bold whitespace-nowrap shrink-0">
+                  <Calendar className="w-2.5 h-2.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <span>{ageLabel}</span>
+                </span>
+              )}
             </div>
 
             <span
@@ -345,99 +351,59 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
           </div>
         </div>
 
-        {/* Compact Lister + Contact + Single-Line Actions Footer */}
-        <div className="pt-2 border-t border-slate-200/70 dark:border-emerald-800/50 space-y-2">
-          <div className="flex items-center justify-between gap-2 text-[11px]">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <span className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200 font-bold text-[10px] flex items-center justify-center shrink-0 uppercase">
-                {(ownerDisplayName || 'L').charAt(0)}
-              </span>
-              <span className="truncate text-slate-600 dark:text-slate-300">
-                <strong className="text-slate-800 dark:text-white font-semibold">{ownerDisplayName}</strong>
-              </span>
-            </div>
+        {/* Single-Line Actions Footer (Owner Name & Number Shown Only Inside Property Details) */}
+        <div className="pt-2 border-t border-slate-200/70 dark:border-emerald-800/50 flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              sharePropertyListing(property, { isHindi });
+            }}
+            className="h-9 w-9 shrink-0 rounded-xl bg-green-50 dark:bg-green-950/80 hover:bg-green-100 dark:hover:bg-green-900/80 text-green-700 dark:text-green-300 flex items-center justify-center border border-green-300 dark:border-green-800 cursor-pointer transition-all active:scale-95"
+            title={isHindi ? 'प्रॉपर्टी शेयर करें' : 'Share Property'}
+            aria-label={isHindi ? 'प्रॉपर्टी शेयर करें' : 'Share Property'}
+          >
+            <Share2 className="w-3.5 h-3.5" />
+          </button>
 
-            {publicPhone && cardTelHref && (
-              <div className="flex items-center gap-1.5 shrink-0">
-                <a
-                  href={cardTelHref}
-                  onClick={(e) => e.stopPropagation()}
-                  className="inline-flex items-center gap-1 font-mono font-bold text-[11px] text-emerald-800 dark:text-emerald-200 hover:underline whitespace-nowrap"
-                  title={isHindi ? 'कॉल करें' : 'Call Lister'}
-                >
-                  <Phone className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  <span>{formatPhoneForDisplay(publicPhone)}</span>
-                </a>
-                {cardWaHref && (
-                  <a
-                    href={cardWaHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-[#25D366] hover:bg-[#20ba59] text-white shrink-0 shadow-2xs"
-                    title={isHindi ? 'व्हाट्सएप पर संदेश भेजें' : 'Message on WhatsApp'}
-                    aria-label="WhatsApp"
-                  >
-                    <MessageCircle className="w-3.5 h-3.5" />
-                  </a>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-1.5">
+          {!isDirectOwner && onStartChat && (
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                sharePropertyListing(property, { isHindi });
-              }}
-              className="h-9 w-9 shrink-0 rounded-xl bg-green-50 dark:bg-green-950/80 hover:bg-green-100 dark:hover:bg-green-900/80 text-green-700 dark:text-green-300 flex items-center justify-center border border-green-300 dark:border-green-800 cursor-pointer transition-all active:scale-95"
-              title={isHindi ? 'प्रॉपर्टी शेयर करें' : 'Share Property'}
-              aria-label={isHindi ? 'प्रॉपर्टी शेयर करें' : 'Share Property'}
-            >
-              <Share2 className="w-3.5 h-3.5" />
-            </button>
-
-            {!isDirectOwner && onStartChat && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (!currentUser) {
-                    openAuthModal(
-                      'login',
-                      isHindi ? 'मालिक से सीधे चैट करने हेतु कृपया लॉगिन करें।' : 'Please log in to chat with property owner.',
-                      () => onStartChat(property)
-                    );
-                    return;
-                  }
-                  onStartChat(property);
-                }}
-                className="h-9 px-3 shrink-0 rounded-xl bg-emerald-50 dark:bg-emerald-950/80 hover:bg-emerald-100 dark:hover:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200 font-bold text-xs flex items-center justify-center gap-1 border border-emerald-300 dark:border-emerald-700 cursor-pointer transition-all active:scale-95 whitespace-nowrap"
-                title={isHindi ? 'मालिक से चैट करें' : 'Chat with owner'}
-              >
-                <MessageSquare className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span>{isHindi ? 'चैट' : 'Chat'}</span>
-              </button>
-            )}
-
-            <a
-              href={`/property/${encodeURIComponent(property.id)}`}
-              onClick={(e) => {
-                if (!e.ctrlKey && !e.metaKey && e.button === 0) {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onSelect(property);
+                if (!currentUser) {
+                  openAuthModal(
+                    'login',
+                    isHindi ? 'मालिक से सीधे चैट करने हेतु कृपया लॉगिन करें।' : 'Please log in to chat with property owner.',
+                    () => onStartChat(property)
+                  );
+                  return;
                 }
+                onStartChat(property);
               }}
-              className="flex-1 h-9 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-98 text-white font-extrabold text-xs transition-all flex items-center justify-center gap-1 shadow-sm cursor-pointer no-underline whitespace-nowrap"
-              title={isHindi ? 'पूरा विवरण देखें' : 'View Full Details'}
+              className="h-9 px-3 shrink-0 rounded-xl bg-emerald-50 dark:bg-emerald-950/80 hover:bg-emerald-100 dark:hover:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200 font-bold text-xs flex items-center justify-center gap-1 border border-emerald-300 dark:border-emerald-700 cursor-pointer transition-all active:scale-95 whitespace-nowrap"
+              title={isHindi ? 'मालिक से चैट करें' : 'Chat'}
             >
-              <span>{isHindi ? 'विवरण देखें' : 'View Details'}</span>
-              <ArrowRight className="w-3.5 h-3.5 text-emerald-100 shrink-0" />
-            </a>
-          </div>
+              <MessageSquare className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span>{isHindi ? 'चैट' : 'Chat'}</span>
+            </button>
+          )}
+
+          <a
+            href={`/property/${encodeURIComponent(property.id)}`}
+            onClick={(e) => {
+              if (!e.ctrlKey && !e.metaKey && e.button === 0) {
+                e.preventDefault();
+                e.stopPropagation();
+                onSelect(property);
+              }
+            }}
+            className="flex-1 h-9 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-98 text-white font-extrabold text-xs transition-all flex items-center justify-center gap-1 shadow-sm cursor-pointer no-underline whitespace-nowrap"
+            title={isHindi ? 'पूरा विवरण व संपर्क नंबर देखें' : 'View Full Details & Contact'}
+          >
+            <span>{isHindi ? 'विवरण देखें' : 'View Details'}</span>
+            <ArrowRight className="w-3.5 h-3.5 text-emerald-100 shrink-0" />
+          </a>
         </div>
       </div>
 

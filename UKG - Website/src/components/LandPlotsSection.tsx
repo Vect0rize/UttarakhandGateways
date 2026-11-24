@@ -19,7 +19,8 @@ import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { formatLocalizedPrice } from '../utils/language';
 import { isLandOrPlotProperty } from '../utils/areaUnits';
-import { isPropertyOwner, canManageProperty, getPropertyOwnerDisplayName, formatCardDisplayViewsCount } from '../utils/propertyOwnership';
+import { isPropertyOwner, canManageProperty, getPropertyOwnerDisplayName, formatCardDisplayViewsCount, formatPropertyAge } from '../utils/propertyOwnership';
+import { formatPostTime } from '../utils/timeAgo';
 
 interface LandPlotsSectionProps {
   properties: Property[];
@@ -135,7 +136,7 @@ export const LandPlotsSection: React.FC<LandPlotsSectionProps> = ({
         {landListings.map((property, idx) => {
           const isFav = favorites.includes(property.id);
           const isOwner = canManageProperty(property, currentUser) || isPropertyOwner(property, currentUser);
-          const ownerLabel = getPropertyOwnerDisplayName(property, currentUser, isHindi);
+          const ageLabel = formatPropertyAge(property.propertyAgeYears, isHindi);
           const primaryImage = Array.isArray(property.images) && property.images.length > 0 
             ? property.images[0] 
             : '/logo.png';
@@ -377,7 +378,7 @@ export const LandPlotsSection: React.FC<LandPlotsSectionProps> = ({
                   </div>
 
                   <div className="flex items-center justify-between gap-1.5 text-[10px] text-slate-500 dark:text-slate-400">
-                    <span className="truncate font-medium text-slate-700 dark:text-slate-200">{ownerLabel}</span>
+                    <span className="truncate font-medium text-slate-600 dark:text-emerald-200/80">{ageLabel ? `${ageLabel} • ${formatPostTime(property.createdAt || property.postedAt, property.id)}` : formatPostTime(property.createdAt || property.postedAt, property.id)}</span>
                     {(property.reraStatus || property.reraId || property.facing) && (
                       <span className="text-[9.5px] font-bold text-teal-800 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/70 px-1.5 py-0.5 rounded border border-teal-200/60 dark:border-teal-800/60 truncate max-w-[92px] shrink-0">
                         {property.reraStatus === 'RERA Approved' || property.reraId ? 'RERA Approved' : `${property.facing} Facing`}

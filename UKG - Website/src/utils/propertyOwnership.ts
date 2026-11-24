@@ -342,6 +342,27 @@ export const formatCardDisplayViewsCount = (
 };
 
 /**
+ * Formats optional property age in years ("How Old Is This Property?") for cards & detail pages.
+ * Returns null when unknown / not set.
+ */
+export const formatPropertyAge = (
+  ageYears?: number | string | null,
+  isHindi: boolean = false
+): string | null => {
+  if (ageYears === undefined || ageYears === null || ageYears === '') return null;
+  const parsed = Number(ageYears);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  const clean = Math.round(parsed * 10) / 10;
+  if (clean === 0) {
+    return isHindi ? 'नया निर्माण (0 वर्ष)' : 'New (0 yrs)';
+  }
+  if (clean === 1) {
+    return isHindi ? '1 वर्ष पुरानी' : '1 yr old';
+  }
+  return isHindi ? `${clean} वर्ष पुरानी` : `${clean} yrs old`;
+};
+
+/**
  * Returns a persistent visitor ID stored in localStorage for duplicate-view protection.
  */
 export const getOrCreateVisitorId = (): string => {

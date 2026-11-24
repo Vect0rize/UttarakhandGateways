@@ -6,6 +6,8 @@ import bcrypt from 'bcryptjs';
 import cookieParser from 'cookie-parser';
 import multer from 'multer';
 import sharp from 'sharp';
+import { execFile } from 'child_process';
+import { createRequire } from 'module';
 import dotenv from 'dotenv';
 import { GoogleGenAI, Type } from '@google/genai';
 import { db } from './db';
@@ -110,11 +112,14 @@ app.use((req, res, next) => {
   next();
 });
 
-const MAX_UPLOAD_FILE_BYTES = 20 * 1024 * 1024; // Strict 20 MB per-file upload limit
+const MAX_PHOTO_UPLOAD_BYTES = 50 * 1024 * 1024; // Strict 50 MB per photo
+const MAX_VIDEO_UPLOAD_BYTES = 500 * 1024 * 1024; // Strict 500 MB per video
+const MAX_DOC_UPLOAD_BYTES = 20 * 1024 * 1024; // Strict 20 MB per PDF document
+const MAX_UPLOAD_FILE_BYTES = MAX_PHOTO_UPLOAD_BYTES;
 
-// Protect against memory exhaustion while supporting rich listing payloads
-app.use(express.json({ limit: '25mb' }));
-app.use(express.urlencoded({ extended: true, limit: '25mb' }));
+// Protect against memory exhaustion while supporting rich listing payloads (large media streams via /api/upload)
+app.use(express.json({ limit: '70mb' }));
+app.use(express.urlencoded({ extended: true, limit: '70mb' }));
 app.use(cookieParser(SESSION_SECRET));
 
 // Return clean JSON 413 when any JSON/urlencoded/raw request exceeds body limits
@@ -122,13 +127,13 @@ app.use((err: any, _req: express.Request, res: express.Response, next: express.N
   if (err && (err.type === 'entity.too.large' || err.status === 413 || err.statusCode === 413)) {
     return res.status(413).json({
       success: false,
-      error: 'File or request payload exceeds the 20 MB maximum upload limit.',
+      error: 'Request payload exceeds the maximum allowed upload size limit (50 MB for photos, 500 MB for videos).',
     });
   }
   return next(err);
 });
 
-const uploadsDir = path.join(process.cwd(), 'uploads');
+const uploadsDir = process.env.UPLOADS_DIR ? path.resolve(process.env.UPLOADS_DIR) : path.join(process.cwd(), 'uploads');
 try {
   if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
@@ -384,14 +389,18 @@ function extractGenuineListerPhone(prop: any): string | undefined {
   return undefined;
 }
 
-function sanitizePublicProperty(prop: any, sessionUser: any): any {
+function sanitizePublicProperty(
+  prop: any,
+  sessionUser: any,
+  options?: { redactOwnerContact?: boolean }
+): any {
   if (!prop || typeof prop !== 'object') return prop;
 
   const normalizedViews = Math.max(0, Math.floor(Number(prop.views) || 0));
   const fullOwnerName = resolveCleanOwnerFullName(prop);
   const genuinePhone = extractGenuineListerPhone(prop);
 
-  // 1. Platform Administrator or Direct Property Owner receives complete unmasked details
+  // 1. Platform Administrator or Direct Property Owner receives complete unmasked details (needed for Listing Analysis & Edit)
   if (sessionUser && (isPlatformAdmin(sessionUser) || canUserManageProperty(prop, sessionUser))) {
     return {
       ...prop,
@@ -402,10 +411,25 @@ function sanitizePublicProperty(prop: any, sessionUser: any): any {
     };
   }
 
-  // 2. Public-facing data layer: expose genuine lister phone number publicly (never invent numbers, never expose login email)
-  const fallbackLabel = prop.sellerType === 'Broker' ? 'Property Broker' : 'Property Owner';
-  const { ownerContact, sellerEmail, sellerPhone: _rawPhone, ownerUsername, fullSellerName, ...safeProp } = prop;
+  // 2. Card / Catalog list endpoint: do NOT expose owner's name or phone number until visitor opens individual property details
+  const {
+    ownerContact,
+    sellerEmail,
+    sellerPhone: _rawPhone,
+    sellerWhatsApp: _rawWa,
+    ownerUsername,
+    fullSellerName,
+    sellerName: _rawSellerName,
+    ...safeProp
+  } = prop;
   safeProp.views = normalizedViews;
+
+  if (options?.redactOwnerContact) {
+    return safeProp;
+  }
+
+  // 3. Individual Property Details endpoint: expose genuine lister name & phone number (never login email)
+  const fallbackLabel = prop.sellerType === 'Broker' ? 'Property Broker' : 'Property Owner';
   safeProp.sellerName = maskOwnerNamePublic(fullOwnerName, fallbackLabel);
   if (genuinePhone) {
     safeProp.sellerPhone = genuinePhone;
@@ -444,7 +468,7 @@ app.get('/api/properties', async (req, res) => {
     const visibleList = list.filter((p) => isPropertyPubliclyVisible(p, settings));
     res.json({
       success: true,
-      properties: visibleList.map((p) => sanitizePublicProperty(p, sessionUser))
+      properties: visibleList.map((p) => sanitizePublicProperty(p, sessionUser, { redactOwnerContact: true }))
     });
   } catch (err: any) {
     console.error('Error fetching properties from db:', err);
@@ -534,6 +558,16 @@ function sanitizePropertyInput(obj: any): void {
   }
   if (typeof obj.videoUrl === 'string' && !isSafeMediaUrl(obj.videoUrl)) {
     obj.videoUrl = '';
+  }
+  if (obj.propertyAgeYears === null || obj.propertyAgeYears === '') {
+    obj.propertyAgeYears = null;
+  } else if (obj.propertyAgeYears !== undefined) {
+    const ageNum = Number(obj.propertyAgeYears);
+    if (Number.isFinite(ageNum) && ageNum >= 0 && ageNum <= 200) {
+      obj.propertyAgeYears = Math.round(ageNum * 10) / 10;
+    } else {
+      delete obj.propertyAgeYears;
+    }
   }
   if (Array.isArray(obj.documents)) {
     obj.documents = obj.documents
@@ -689,8 +723,8 @@ async function persistAndOptimizeInlineImages(prop: any): Promise<void> {
     }
     const rawBuf = Buffer.from(m[2], 'base64');
     if (rawBuf.length === 0) continue;
-    if (rawBuf.length > MAX_UPLOAD_FILE_BYTES) {
-      const err: any = new Error('An uploaded image exceeds the 20 MB maximum file size limit.');
+    if (rawBuf.length > MAX_PHOTO_UPLOAD_BYTES) {
+      const err: any = new Error('An uploaded image exceeds the 50 MB maximum photo size limit.');
       err.statusCode = 413;
       throw err;
     }
@@ -713,8 +747,8 @@ function persistInlineVideos(prop: any): void {
     const m = dataUrl.match(/^data:(video\/[a-z0-9.+-]+);base64,(.+)$/i);
     if (!m) return dataUrl;
     const buf = Buffer.from(m[2], 'base64');
-    if (buf.length > MAX_UPLOAD_FILE_BYTES) {
-      const err: any = new Error('Video file exceeds the 20 MB maximum upload limit.');
+    if (buf.length > MAX_VIDEO_UPLOAD_BYTES) {
+      const err: any = new Error('Video file exceeds the 500 MB maximum upload limit.');
       err.statusCode = 413;
       throw err;
     }
@@ -739,18 +773,134 @@ function persistInlineVideos(prop: any): void {
   }
 }
 
+function safeUnlinkFile(targetPath?: string | null): void {
+  if (!targetPath) return;
+  try {
+    if (fs.existsSync(targetPath)) fs.unlinkSync(targetPath);
+  } catch {}
+}
+
+function readHeaderMagicBytes(filePath: string, length = 64): Buffer {
+  const fd = fs.openSync(filePath, 'r');
+  try {
+    const buf = Buffer.alloc(length);
+    const bytesRead = fs.readSync(fd, buf, 0, length, 0);
+    return buf.subarray(0, bytesRead);
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
+let cachedFfmpegPath: string | null | undefined;
+function resolveFfmpegExecutable(): string | null {
+  if (cachedFfmpegPath !== undefined) return cachedFfmpegPath;
+  try {
+    const reqMod = createRequire(typeof __filename !== 'undefined' ? __filename : path.join(process.cwd(), 'server.ts'));
+    const staticBin = reqMod('ffmpeg-static');
+    if (typeof staticBin === 'string' && fs.existsSync(staticBin)) {
+      cachedFfmpegPath = staticBin;
+      return cachedFfmpegPath;
+    }
+  } catch {}
+  cachedFfmpegPath = 'ffmpeg';
+  return cachedFfmpegPath;
+}
+
+async function compressVideoOnDisk(inputPath: string, detectedExt: string): Promise<{ finalPath: string; finalName: string; mimeType: string; optimizedSize: number }> {
+  const rawSize = fs.statSync(inputPath).size;
+  const baseId = `ukg-vid-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+  const outMp4Name = `${baseId}.mp4`;
+  const outMp4Path = path.join(uploadsDir, outMp4Name);
+  const ffmpegBin = resolveFfmpegExecutable();
+
+  // Attempt fast H.264 720p web-streaming compression via FFmpeg when available & file > 512 KB
+  if (ffmpegBin && rawSize > 512 * 1024) {
+    const transcodedOk = await new Promise<boolean>((resolve) => {
+      execFile(
+        ffmpegBin,
+        [
+          '-y',
+          '-i',
+          inputPath,
+          '-vf',
+          "scale='min(1280,iw)':-2",
+          '-c:v',
+          'libx264',
+          '-preset',
+          'ultrafast',
+          '-crf',
+          '28',
+          '-movflags',
+          '+faststart',
+          '-c:a',
+          'aac',
+          '-b:a',
+          '96k',
+          outMp4Path,
+        ],
+        { timeout: 10 * 60 * 1000 },
+        (err) => {
+          if (err || !fs.existsSync(outMp4Path)) {
+            safeUnlinkFile(outMp4Path);
+            resolve(false);
+            return;
+          }
+          const outStat = fs.statSync(outMp4Path);
+          if (outStat.size > 0 && outStat.size < rawSize) {
+            resolve(true);
+          } else {
+            safeUnlinkFile(outMp4Path);
+            resolve(false);
+          }
+        }
+      );
+    });
+
+    if (transcodedOk) {
+      safeUnlinkFile(inputPath);
+      const optSize = fs.statSync(outMp4Path).size;
+      return {
+        finalPath: outMp4Path,
+        finalName: outMp4Name,
+        mimeType: 'video/mp4',
+        optimizedSize: optSize,
+      };
+    }
+  }
+
+  // Fallback: move streamed validated video directly to final destination with zero RAM copy
+  const fallbackName = `${baseId}.${detectedExt}`;
+  const fallbackPath = path.join(uploadsDir, fallbackName);
+  fs.renameSync(inputPath, fallbackPath);
+  return {
+    finalPath: fallbackPath,
+    finalName: fallbackName,
+    mimeType: `video/${detectedExt === 'mov' ? 'quicktime' : detectedExt}`,
+    optimizedSize: rawSize,
+  };
+}
+
+const uploadDiskStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadsDir),
+  filename: (_req, _file, cb) =>
+    cb(null, `tmp-upload-${Date.now()}-${crypto.randomBytes(6).toString('hex')}.bin`),
+});
+
 const uploadMiddleware = multer({
-  storage: multer.memoryStorage(),
+  storage: uploadDiskStorage,
   limits: {
-    fileSize: MAX_UPLOAD_FILE_BYTES,
+    fileSize: MAX_VIDEO_UPLOAD_BYTES, // 500 MB max (per-kind limits strictly enforced below)
     files: 1,
   },
 }).single('file');
 
-// Unified 20 MB Multipart Upload Endpoint (Photos -> WebP via Sharp, Videos -> Validated Media, Documents -> Validated PDF)
+// Streaming Multipart Upload Endpoint:
+// - Photos: up to 50 MB -> Compressed & converted to WebP via Sharp
+// - Videos: up to 500 MB -> Streamed to disk (no OOM) & compressed via FFmpeg
+// - Documents: up to 20 MB -> Validated PDF
 app.post('/api/upload', async (req, res) => {
   const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
-  const limit = checkRateLimit(`upload_file_${clientIp}`, 60, 15 * 60 * 1000);
+  const limit = checkRateLimit(`upload_file_${clientIp}`, 80, 15 * 60 * 1000);
   if (limit.limited) {
     return res.status(429).json({
       success: false,
@@ -767,20 +917,22 @@ app.post('/api/upload', async (req, res) => {
   }
 
   const declaredLen = Number(req.headers['content-length'] || 0);
-  if (declaredLen > MAX_UPLOAD_FILE_BYTES + 256 * 1024) {
+  if (declaredLen > MAX_VIDEO_UPLOAD_BYTES + 2 * 1024 * 1024) {
     return res.status(413).json({
       success: false,
-      error: 'File exceeds the 20 MB maximum upload size limit. Please choose a file under 20 MB.',
+      error: 'File exceeds the 500 MB maximum upload size limit.',
     });
   }
 
   uploadMiddleware(req, res, async (uploadErr: any) => {
+    const tempPath = req.file?.path;
     try {
       if (uploadErr) {
+        safeUnlinkFile(tempPath);
         if (uploadErr instanceof multer.MulterError && uploadErr.code === 'LIMIT_FILE_SIZE') {
           return res.status(413).json({
             success: false,
-            error: 'File exceeds the 20 MB maximum upload size limit. Please choose a file under 20 MB.',
+            error: 'File exceeds the maximum allowed upload limit (50 MB for photos, 500 MB for videos).',
           });
         }
         return res.status(400).json({
@@ -790,17 +942,11 @@ app.post('/api/upload', async (req, res) => {
       }
 
       const file = req.file;
-      if (!file || !Buffer.isBuffer(file.buffer) || file.buffer.length === 0) {
+      if (!file || !tempPath || !fs.existsSync(tempPath) || file.size === 0) {
+        safeUnlinkFile(tempPath);
         return res.status(400).json({
           success: false,
           error: 'No valid file received or the uploaded file is empty.',
-        });
-      }
-
-      if (file.size > MAX_UPLOAD_FILE_BYTES || file.buffer.length > MAX_UPLOAD_FILE_BYTES) {
-        return res.status(413).json({
-          success: false,
-          error: 'File exceeds the 20 MB maximum upload size limit.',
         });
       }
 
@@ -815,66 +961,104 @@ app.post('/api/upload', async (req, res) => {
         mimeType.includes('executable') ||
         mimeType.includes('x-msdownload')
       ) {
+        safeUnlinkFile(tempPath);
         return res.status(400).json({
           success: false,
-          error: 'Unsupported or unsafe file type rejected. Allowed formats: JPG, PNG, WEBP, AVIF, GIF, PDF, MP4, MOV, WEBM (max 20 MB).',
+          error: 'Unsupported or unsafe file type rejected. Allowed formats: JPG, PNG, WEBP, AVIF, GIF (max 50 MB), MP4, MOV, WEBM (max 500 MB), PDF (max 20 MB).',
         });
       }
 
-      // 1. Image Upload -> Automatic Server-Side Compression & WebP Conversion
-      const imgFormat = detectImageFormatFromMagic(file.buffer);
+      const headerBytes = readHeaderMagicBytes(tempPath, 64);
+
+      // 1. Image Upload (Strict 50 MB max) -> Sharp WebP Compression
+      const imgFormat = detectImageFormatFromMagic(headerBytes);
       if (imgFormat) {
-        const optimized = await optimizeAndSaveImageBuffer(file.buffer);
+        if (file.size > MAX_PHOTO_UPLOAD_BYTES) {
+          safeUnlinkFile(tempPath);
+          return res.status(413).json({
+            success: false,
+            error: 'Photo exceeds the 50 MB maximum image size limit. Please upload an image under 50 MB.',
+          });
+        }
+        const outName = `ukg-img-${Date.now()}-${crypto.randomBytes(5).toString('hex')}.webp`;
+        const outPath = path.join(uploadsDir, outName);
+        const info = await sharp(tempPath, { failOn: 'error', limitInputPixels: 12000 * 12000 })
+          .rotate()
+          .resize({
+            width: 1920,
+            height: 1920,
+            fit: 'inside',
+            withoutEnlargement: true,
+          })
+          .webp({ quality: 82, effort: 4 })
+          .toFile(outPath);
+        safeUnlinkFile(tempPath);
         return res.json({
           success: true,
           kind: 'image',
-          url: optimized.url,
+          url: `/uploads/${outName}`,
           name: originalName,
-          originalSize: file.buffer.length,
-          optimizedSize: optimized.optimizedSize,
-          width: optimized.width,
-          height: optimized.height,
+          originalSize: file.size,
+          optimizedSize: info.size,
+          width: info.width || 0,
+          height: info.height || 0,
           mimeType: 'image/webp',
         });
       }
 
-      // 2. PDF Document Upload -> Validated PDF Magic Header
-      if (isPdfMagic(file.buffer)) {
+      // 2. PDF Document Upload (Strict 20 MB max)
+      if (isPdfMagic(headerBytes)) {
+        if (file.size > MAX_DOC_UPLOAD_BYTES) {
+          safeUnlinkFile(tempPath);
+          return res.status(413).json({
+            success: false,
+            error: 'Document exceeds the 20 MB maximum PDF size limit.',
+          });
+        }
         const safeDocName = originalName.toLowerCase().endsWith('.pdf') ? originalName : `${originalName}.pdf`;
         const fileName = `ukg-doc-${Date.now()}-${crypto.randomBytes(4).toString('hex')}.pdf`;
-        fs.writeFileSync(path.join(uploadsDir, fileName), file.buffer);
+        const finalDocPath = path.join(uploadsDir, fileName);
+        fs.renameSync(tempPath, finalDocPath);
         return res.json({
           success: true,
           kind: 'document',
           url: `/uploads/${fileName}`,
           name: safeDocName,
-          originalSize: file.buffer.length,
-          optimizedSize: file.buffer.length,
+          originalSize: file.size,
+          optimizedSize: file.size,
           mimeType: 'application/pdf',
         });
       }
 
-      // 3. Video Upload -> Validated Video Container Magic Bytes
-      const vidExt = detectVideoExtensionFromMagic(file.buffer);
+      // 3. Video Upload (Strict 500 MB max) -> Streamed & Compressed on Disk
+      const vidExt = detectVideoExtensionFromMagic(headerBytes);
       if (vidExt) {
-        const fileName = `ukg-vid-${Date.now()}-${crypto.randomBytes(4).toString('hex')}.${vidExt}`;
-        fs.writeFileSync(path.join(uploadsDir, fileName), file.buffer);
+        if (file.size > MAX_VIDEO_UPLOAD_BYTES) {
+          safeUnlinkFile(tempPath);
+          return res.status(413).json({
+            success: false,
+            error: 'Video exceeds the 500 MB maximum upload size limit.',
+          });
+        }
+        const compressedVid = await compressVideoOnDisk(tempPath, vidExt);
         return res.json({
           success: true,
           kind: 'video',
-          url: `/uploads/${fileName}`,
+          url: `/uploads/${compressedVid.finalName}`,
           name: originalName,
-          originalSize: file.buffer.length,
-          optimizedSize: file.buffer.length,
-          mimeType: `video/${vidExt === 'mov' ? 'quicktime' : vidExt}`,
+          originalSize: file.size,
+          optimizedSize: compressedVid.optimizedSize,
+          mimeType: compressedVid.mimeType,
         });
       }
 
+      safeUnlinkFile(tempPath);
       return res.status(400).json({
         success: false,
-        error: 'Unsupported or corrupted file format. Allowed formats: JPG, PNG, WEBP, AVIF, GIF, PDF, MP4, MOV, WEBM (max 20 MB per file).',
+        error: 'Unsupported or corrupted file format. Allowed formats: JPG, PNG, WEBP, AVIF, GIF (max 50 MB), MP4, MOV, WEBM (max 500 MB), PDF (max 20 MB).',
       });
     } catch (err: any) {
+      safeUnlinkFile(tempPath);
       const code = err?.statusCode === 413 ? 413 : 500;
       console.error('[UKG Upload Error]', err);
       return res.status(code).json({
@@ -885,50 +1069,81 @@ app.post('/api/upload', async (req, res) => {
   });
 });
 
-app.post(
-  '/api/upload-video',
-  (req, res, next) => {
-    const contentLen = Number(req.headers['content-length'] || 0);
-    if (contentLen > MAX_UPLOAD_FILE_BYTES) {
-      return res.status(413).json({
-        success: false,
-        error: 'Video file exceeds the 20 MB maximum upload limit. Please select a video under 20 MB.',
-      });
+// Streaming Raw Video Upload Fallback (up to 500 MB, zero heap buffering)
+app.post('/api/upload-video', async (req, res) => {
+  const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
+  const limit = checkRateLimit(`upload_vid_${clientIp}`, 20, 15 * 60 * 1000);
+  if (limit.limited) {
+    return res.status(429).json({
+      success: false,
+      error: `Too many video uploads. Please wait ${limit.retryAfterSeconds} seconds.`,
+    });
+  }
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser) {
+    return res.status(401).json({ success: false, error: 'Authentication required to upload property videos.' });
+  }
+  const declaredLen = Number(req.headers['content-length'] || 0);
+  if (declaredLen > MAX_VIDEO_UPLOAD_BYTES) {
+    return res.status(413).json({
+      success: false,
+      error: 'Video file exceeds the 500 MB maximum upload limit.',
+    });
+  }
+
+  const tempVidPath = path.join(uploadsDir, `tmp-rawvid-${Date.now()}-${crypto.randomBytes(5).toString('hex')}.bin`);
+  const ws = fs.createWriteStream(tempVidPath);
+  let bytesReceived = 0;
+  let aborted = false;
+
+  req.on('data', (chunk: Buffer) => {
+    bytesReceived += chunk.length;
+    if (bytesReceived > MAX_VIDEO_UPLOAD_BYTES && !aborted) {
+      aborted = true;
+      ws.destroy();
+      safeUnlinkFile(tempVidPath);
+      res.status(413).json({ success: false, error: 'Video file exceeds the 500 MB maximum upload limit.' });
     }
-    return next();
-  },
-  express.raw({ type: ['video/*', 'application/octet-stream'], limit: MAX_UPLOAD_FILE_BYTES }),
-  async (req, res) => {
+  });
+
+  req.pipe(ws);
+
+  ws.on('finish', async () => {
+    if (aborted) return;
     try {
-      const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
-      const limit = checkRateLimit(`upload_vid_${clientIp}`, 15, 15 * 60 * 1000);
-      if (limit.limited) {
-        return res.status(429).json({ success: false, error: `Too many video uploads. Please wait ${limit.retryAfterSeconds} seconds.` });
-      }
-      const sessionUser = await getSessionUser(req);
-      if (!sessionUser) {
-        return res.status(401).json({ success: false, error: 'Authentication required to upload property videos.' });
-      }
-      const body = req.body;
-      if (!Buffer.isBuffer(body) || body.length === 0) {
+      if (!fs.existsSync(tempVidPath) || bytesReceived === 0) {
+        safeUnlinkFile(tempVidPath);
         return res.status(400).json({ success: false, error: 'Empty video file uploaded.' });
       }
-      if (body.length > MAX_UPLOAD_FILE_BYTES) {
-        return res.status(413).json({ success: false, error: 'Video file exceeds the 20 MB maximum upload limit.' });
-      }
-      const detectedExt = detectVideoExtensionFromMagic(body);
+      const header = readHeaderMagicBytes(tempVidPath, 64);
+      const detectedExt = detectVideoExtensionFromMagic(header);
       if (!detectedExt) {
-        return res.status(400).json({ success: false, error: 'Invalid or unsupported video binary format. Only real MP4, MOV, WebM, AVI, or Ogg videos are allowed.' });
+        safeUnlinkFile(tempVidPath);
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid or unsupported video binary format. Only real MP4, MOV, WebM, AVI, or Ogg videos are allowed.',
+        });
       }
-      const fileName = `ukg-vid-${Date.now()}-${crypto.randomBytes(4).toString('hex')}.${detectedExt}`;
-      fs.writeFileSync(path.join(uploadsDir, fileName), body);
-      res.json({ success: true, url: `/uploads/${fileName}` });
+      const compressed = await compressVideoOnDisk(tempVidPath, detectedExt);
+      return res.json({
+        success: true,
+        url: `/uploads/${compressed.finalName}`,
+        originalSize: bytesReceived,
+        optimizedSize: compressed.optimizedSize,
+      });
     } catch (err: any) {
-      console.error('[UKG Video Upload Error]', err);
-      res.status(500).json({ success: false, error: err?.message || 'Video upload failed' });
+      safeUnlinkFile(tempVidPath);
+      return res.status(500).json({ success: false, error: err?.message || 'Video upload failed.' });
     }
-  }
-);
+  });
+
+  ws.on('error', () => {
+    safeUnlinkFile(tempVidPath);
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, error: 'Failed to write video stream.' });
+    }
+  });
+});
 
 app.post('/api/properties', async (req, res) => {
   try {
@@ -2512,7 +2727,7 @@ function formatAdminProperty(prop: any): any {
 async function logAdminAction(
   adminUser: any,
   action: string,
-  targetType: 'property' | 'user' | 'report' | 'settings' | 'bulk',
+  targetType: 'property' | 'user' | 'report' | 'settings' | 'bulk' | 'requirement',
   targetId: string,
   targetTitle: string | undefined,
   details: string
@@ -2550,14 +2765,495 @@ function propertyBelongsToUser(prop: any, u: any): boolean {
   return false;
 }
 
+
+// =================================================================
+// POST YOUR REQUIREMENTS API SUITE (Separate from Property Listings)
+// - Public board hides personal phone numbers & private emails
+// - 30-day automatic expiry with 1-click renewal
+// - Duplicate & spam submission protection
+// - Secure property-owner response channel
+// - Complete Admin approval, rejection, editing & deletion controls
+// =================================================================
+
+const ALLOWED_REQ_TYPES = new Set(['Buy', 'Rent']);
+const ALLOWED_REQ_PROP_TYPES = new Set(['Plot', 'House', 'Flat', 'Villa', 'Commercial', 'Other']);
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+function sanitizePublicRequirement(reqItem: any, responsesCount = 0): any {
+  // Strictly strip userEmail, userPhone, and private contact details from public payloads
+  return {
+    id: reqItem.id,
+    requirementType: reqItem.requirementType,
+    propertyType: reqItem.propertyType,
+    city: reqItem.city,
+    preferredLocation: reqItem.preferredLocation,
+    minBudget: Number(reqItem.minBudget) || 0,
+    maxBudget: Number(reqItem.maxBudget) || 0,
+    bedrooms: reqItem.bedrooms ?? null,
+    requiredSize: reqItem.requiredSize || null,
+    description: reqItem.description || '',
+    userId: reqItem.userId,
+    approvalStatus: reqItem.approvalStatus,
+    isFulfilled: Boolean(reqItem.isFulfilled),
+    createdAt: reqItem.createdAt,
+    updatedAt: reqItem.updatedAt,
+    expiresAt: reqItem.expiresAt,
+    responsesCount,
+  };
+}
+
+app.get('/api/requirements', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const sessionUser = await getSessionUser(req).catch(() => null);
+    const [allReqs, allResponses] = await Promise.all([
+      db.getAllRequirements(),
+      db.getAllRequirementResponses(),
+    ]);
+    const now = Date.now();
+
+    const countByReq = new Map<string, number>();
+    for (const resp of allResponses) {
+      countByReq.set(resp.requirementId, (countByReq.get(resp.requirementId) || 0) + 1);
+    }
+
+    const publicApproved = allReqs
+      .filter((r) => {
+        if (!r || r.approvalStatus !== 'approved') return false;
+        if (r.isFulfilled) return false;
+        const exp = r.expiresAt ? new Date(r.expiresAt).getTime() : now + THIRTY_DAYS_MS;
+        return exp > now;
+      })
+      .map((r) => sanitizePublicRequirement(r, countByReq.get(r.id) || 0));
+
+    let myRequirements: any[] = [];
+    if (sessionUser) {
+      myRequirements = allReqs
+        .filter((r) => r && r.userId === sessionUser.id)
+        .map((r) => ({
+          ...r,
+          responses: allResponses.filter((resp) => resp.requirementId === r.id),
+          responsesCount: countByReq.get(r.id) || 0,
+        }));
+    }
+
+    return res.json({
+      success: true,
+      requirements: publicApproved,
+      myRequirements,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Failed to load requirements.' });
+  }
+});
+
+app.post('/api/requirements', async (req, res) => {
+  try {
+    const sessionUser = await getSessionUser(req);
+    if (!sessionUser) {
+      return res.status(401).json({
+        success: false,
+        error: 'Please sign in with your registered account to post a requirement.',
+      });
+    }
+
+    // Honeypot spam check
+    if (req.body?.websiteUrl && String(req.body.websiteUrl).trim() !== '') {
+      return res.status(400).json({ success: false, error: 'Spam submission rejected.' });
+    }
+
+    const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
+    const limit = checkRateLimit(`post_req_${sessionUser.id}_${clientIp}`, 5, 15 * 60 * 1000);
+    if (limit.limited) {
+      return res.status(429).json({
+        success: false,
+        error: `Too many requirement submissions. Please wait ${limit.retryAfterSeconds} seconds.`,
+      });
+    }
+
+    const requirementType = ALLOWED_REQ_TYPES.has(req.body?.requirementType)
+      ? req.body.requirementType
+      : null;
+    const propertyType = ALLOWED_REQ_PROP_TYPES.has(req.body?.propertyType)
+      ? req.body.propertyType
+      : null;
+
+    if (!requirementType || !propertyType) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please select a valid requirement type (Buy/Rent) and property type.',
+      });
+    }
+
+    const city = stripHtmlTags(String(req.body?.city || '')).trim().slice(0, 80);
+    const preferredLocation = stripHtmlTags(String(req.body?.preferredLocation || city)).trim().slice(0, 160);
+    if (preferredLocation.length < 2) {
+      return res.status(400).json({ success: false, error: 'Please specify a preferred location in Uttarakhand.' });
+    }
+
+    const minBudget = Math.max(0, Math.round(Number(req.body?.minBudget) || 0));
+    const maxBudget = Math.max(0, Math.round(Number(req.body?.maxBudget) || 0));
+    if (maxBudget <= 0 || maxBudget > 10000000000 || minBudget > maxBudget) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please enter a valid budget range where Maximum Budget is greater than or equal to Minimum Budget.',
+      });
+    }
+
+    const rawBedrooms = req.body?.bedrooms;
+    const bedrooms =
+      rawBedrooms === null || rawBedrooms === undefined || rawBedrooms === ''
+        ? null
+        : Math.max(0, Math.min(20, Math.floor(Number(rawBedrooms) || 0)));
+
+    const requiredSize = req.body?.requiredSize
+      ? stripHtmlTags(String(req.body.requiredSize)).trim().slice(0, 60)
+      : null;
+    const description = stripHtmlTags(String(req.body?.description || '')).trim().slice(0, 2500);
+    const optionalPhone = stripHtmlTags(String(req.body?.contactPhone || (sessionUser as any).phone || '')).trim().slice(0, 20);
+
+    // Duplicate submission protection (same user + same criteria within 24 hours)
+    const existingAll = await db.getAllRequirements();
+    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+    const duplicate = existingAll.find(
+      (r) =>
+        r.userId === sessionUser.id &&
+        !r.isFulfilled &&
+        r.requirementType === requirementType &&
+        r.propertyType === propertyType &&
+        r.preferredLocation.toLowerCase() === preferredLocation.toLowerCase() &&
+        r.minBudget === minBudget &&
+        r.maxBudget === maxBudget &&
+        new Date(r.createdAt).getTime() > oneDayAgo
+    );
+    if (duplicate) {
+      return res.status(409).json({
+        success: false,
+        error: 'You have already submitted an identical requirement recently.',
+      });
+    }
+
+    const nowIso = new Date().toISOString();
+    const expiresIso = new Date(Date.now() + THIRTY_DAYS_MS).toISOString();
+    const isAdmin = isPlatformAdmin(sessionUser);
+
+    const record = await db.saveRequirement({
+      id: `req-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`,
+      requirementType,
+      propertyType,
+      city: city || preferredLocation,
+      preferredLocation,
+      minBudget,
+      maxBudget,
+      bedrooms,
+      requiredSize,
+      description,
+      userId: sessionUser.id,
+      userName: sessionUser.username || 'Registered User',
+      userEmail: sessionUser.contact || '',
+      userPhone: optionalPhone || undefined,
+      approvalStatus: isAdmin ? 'approved' : 'pending',
+      isFulfilled: false,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+      expiresAt: expiresIso,
+    });
+
+    return res.status(201).json({ success: true, requirement: record });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Failed to submit requirement.' });
+  }
+});
+
+app.put('/api/requirements/:id', async (req, res) => {
+  try {
+    const sessionUser = await getSessionUser(req);
+    if (!sessionUser) {
+      return res.status(401).json({ success: false, error: 'Authentication required.' });
+    }
+    const targetId = decodeURIComponent(req.params.id || '').trim();
+    const existing = await db.getRequirementById(targetId);
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Requirement not found.' });
+    }
+    const isAdmin = isPlatformAdmin(sessionUser);
+    if (existing.userId !== sessionUser.id && !isAdmin) {
+      return res.status(403).json({ success: false, error: 'You can only edit your own requirements.' });
+    }
+
+    const requirementType = ALLOWED_REQ_TYPES.has(req.body?.requirementType)
+      ? req.body.requirementType
+      : existing.requirementType;
+    const propertyType = ALLOWED_REQ_PROP_TYPES.has(req.body?.propertyType)
+      ? req.body.propertyType
+      : existing.propertyType;
+    const city = req.body?.city !== undefined
+      ? stripHtmlTags(String(req.body.city)).trim().slice(0, 80)
+      : existing.city;
+    const preferredLocation = req.body?.preferredLocation !== undefined
+      ? stripHtmlTags(String(req.body.preferredLocation)).trim().slice(0, 160)
+      : existing.preferredLocation;
+    const minBudget = req.body?.minBudget !== undefined
+      ? Math.max(0, Math.round(Number(req.body.minBudget) || 0))
+      : existing.minBudget;
+    const maxBudget = req.body?.maxBudget !== undefined
+      ? Math.max(0, Math.round(Number(req.body.maxBudget) || 0))
+      : existing.maxBudget;
+
+    if (maxBudget <= 0 || minBudget > maxBudget) {
+      return res.status(400).json({ success: false, error: 'Invalid minimum/maximum budget values.' });
+    }
+
+    const bedrooms =
+      req.body?.bedrooms === undefined
+        ? existing.bedrooms
+        : req.body.bedrooms === null || req.body.bedrooms === ''
+          ? null
+          : Math.max(0, Math.min(20, Math.floor(Number(req.body.bedrooms) || 0)));
+
+    const requiredSize =
+      req.body?.requiredSize !== undefined
+        ? req.body.requiredSize
+          ? stripHtmlTags(String(req.body.requiredSize)).trim().slice(0, 60)
+          : null
+        : existing.requiredSize;
+
+    const description =
+      req.body?.description !== undefined
+        ? stripHtmlTags(String(req.body.description)).trim().slice(0, 2500)
+        : existing.description;
+
+    const nextApproval =
+      isAdmin && ['pending', 'approved', 'rejected'].includes(req.body?.approvalStatus)
+        ? req.body.approvalStatus
+        : existing.approvalStatus;
+
+    const updated = await db.saveRequirement({
+      ...existing,
+      requirementType,
+      propertyType,
+      city: city || preferredLocation,
+      preferredLocation,
+      minBudget,
+      maxBudget,
+      bedrooms,
+      requiredSize,
+      description,
+      approvalStatus: nextApproval,
+      updatedAt: new Date().toISOString(),
+    });
+
+    if (isAdmin && existing.userId !== sessionUser.id) {
+      await logAdminAction(
+        sessionUser,
+        'EDIT_REQUIREMENT',
+        'requirement',
+        updated.id,
+        updated.preferredLocation,
+        `Edited requirement ${updated.requirementType} ${updated.propertyType} in ${updated.preferredLocation}`
+      );
+    }
+
+    return res.json({ success: true, requirement: updated });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Failed to update requirement.' });
+  }
+});
+
+app.patch('/api/requirements/:id/status', async (req, res) => {
+  try {
+    const sessionUser = await getSessionUser(req);
+    if (!sessionUser) {
+      return res.status(401).json({ success: false, error: 'Authentication required.' });
+    }
+    const targetId = decodeURIComponent(req.params.id || '').trim();
+    const existing = await db.getRequirementById(targetId);
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Requirement not found.' });
+    }
+    const isAdmin = isPlatformAdmin(sessionUser);
+    if (existing.userId !== sessionUser.id && !isAdmin) {
+      return res.status(403).json({ success: false, error: 'Permission denied.' });
+    }
+
+    let approvalStatus = existing.approvalStatus;
+    if (isAdmin && ['pending', 'approved', 'rejected'].includes(req.body?.approvalStatus)) {
+      approvalStatus = req.body.approvalStatus;
+    }
+
+    const isFulfilled =
+      typeof req.body?.isFulfilled === 'boolean' ? req.body.isFulfilled : existing.isFulfilled;
+
+    const expiresAt = req.body?.renew === true
+      ? new Date(Date.now() + THIRTY_DAYS_MS).toISOString()
+      : existing.expiresAt;
+
+    const updated = await db.saveRequirement({
+      ...existing,
+      approvalStatus,
+      isFulfilled,
+      expiresAt,
+      updatedAt: new Date().toISOString(),
+    });
+
+    if (isAdmin) {
+      await logAdminAction(
+        sessionUser,
+        'UPDATE_REQUIREMENT_STATUS',
+        'requirement',
+        updated.id,
+        updated.preferredLocation,
+        `Status updated (approval=${updated.approvalStatus}, fulfilled=${updated.isFulfilled}) on requirement in ${updated.preferredLocation}`
+      );
+    }
+
+    return res.json({ success: true, requirement: updated });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Failed to update requirement status.' });
+  }
+});
+
+app.delete('/api/requirements/:id', async (req, res) => {
+  try {
+    const sessionUser = await getSessionUser(req);
+    if (!sessionUser) {
+      return res.status(401).json({ success: false, error: 'Authentication required.' });
+    }
+    const targetId = decodeURIComponent(req.params.id || '').trim();
+    const existing = await db.getRequirementById(targetId);
+    if (!existing) {
+      return res.json({ success: true, id: targetId });
+    }
+    const isAdmin = isPlatformAdmin(sessionUser);
+    if (existing.userId !== sessionUser.id && !isAdmin) {
+      return res.status(403).json({ success: false, error: 'Permission denied.' });
+    }
+    await db.deleteRequirement(targetId);
+    if (isAdmin) {
+      await logAdminAction(
+        sessionUser,
+        'DELETE_REQUIREMENT',
+        'requirement',
+        targetId,
+        existing.preferredLocation,
+        `Deleted requirement (${existing.requirementType} ${existing.propertyType} in ${existing.preferredLocation})`
+      );
+    }
+    return res.json({ success: true, id: targetId });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Failed to delete requirement.' });
+  }
+});
+
+app.post('/api/requirements/:id/respond', async (req, res) => {
+  try {
+    const sessionUser = await getSessionUser(req);
+    if (!sessionUser) {
+      return res.status(401).json({
+        success: false,
+        error: 'Please sign in as a property owner or lister to respond.',
+      });
+    }
+
+    const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
+    const limit = checkRateLimit(`resp_req_${sessionUser.id}_${clientIp}`, 12, 15 * 60 * 1000);
+    if (limit.limited) {
+      return res.status(429).json({
+        success: false,
+        error: `Too many responses sent recently. Please wait ${limit.retryAfterSeconds} seconds.`,
+      });
+    }
+
+    const targetId = decodeURIComponent(req.params.id || '').trim();
+    const requirement = await db.getRequirementById(targetId);
+    if (!requirement || requirement.approvalStatus !== 'approved' || requirement.isFulfilled) {
+      return res.status(404).json({ success: false, error: 'This requirement is no longer active.' });
+    }
+    if (requirement.userId === sessionUser.id) {
+      return res.status(400).json({ success: false, error: 'You cannot respond to your own requirement.' });
+    }
+
+    const message = stripHtmlTags(String(req.body?.message || '')).trim().slice(0, 1500);
+    if (message.length < 10) {
+      return res.status(400).json({ success: false, error: 'Please write a response message of at least 10 characters.' });
+    }
+
+    const responderPhone = stripHtmlTags(String(req.body?.responderPhone || '')).trim();
+    const digits = responderPhone.replace(/\D/g, '');
+    if (digits.length < 10 || digits.length > 15) {
+      return res.status(400).json({ success: false, error: 'Please provide a valid 10-digit contact phone number.' });
+    }
+
+    // Prevent duplicate spam response from same responder on same requirement
+    const existingResponses = await db.getAllRequirementResponses();
+    const recentDup = existingResponses.find(
+      (x) =>
+        x.requirementId === targetId &&
+        x.responderId === sessionUser.id &&
+        x.message.toLowerCase() === message.toLowerCase()
+    );
+    if (recentDup) {
+      return res.status(409).json({ success: false, error: 'You have already sent this response.' });
+    }
+
+    let propertyId: string | undefined;
+    let propertyTitle: string | undefined;
+    if (req.body?.propertyId) {
+      const prop = await db.getPropertyById(String(req.body.propertyId).trim());
+      if (prop) {
+        propertyId = prop.id;
+        propertyTitle = prop.title;
+      }
+    }
+
+    const savedResp = await db.saveRequirementResponse({
+      id: `reqresp-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`,
+      requirementId: targetId,
+      responderId: sessionUser.id,
+      responderName: sessionUser.username || 'Property Owner',
+      responderEmail: sessionUser.contact || '',
+      responderPhone,
+      propertyId,
+      propertyTitle,
+      message,
+      createdAt: new Date().toISOString(),
+    });
+
+    return res.status(201).json({ success: true, response: savedResp });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Failed to send response.' });
+  }
+});
+
+app.get('/api/admin/requirements', requirePlatformAdmin, async (_req, res) => {
+  try {
+    const [reqs, responses] = await Promise.all([
+      db.getAllRequirements(),
+      db.getAllRequirementResponses(),
+    ]);
+    return res.json({
+      success: true,
+      requirements: reqs.map((r) => ({
+        ...r,
+        responses: responses.filter((resp) => resp.requirementId === r.id),
+        responsesCount: responses.filter((resp) => resp.requirementId === r.id).length,
+      })),
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Failed to load requirements.' });
+  }
+});
+
 app.get('/api/admin/overview', requirePlatformAdmin, async (_req, res) => {
   try {
-    const [rawProperties, rawUsers, rawReports, settings, auditLogs] = await Promise.all([
+    const [rawProperties, rawUsers, rawReports, settings, auditLogs, rawRequirements, rawReqResponses] = await Promise.all([
       db.getAllProperties(),
       db.getAllUsers(),
       db.getAllReports(),
       db.getPlatformSettings(),
       db.getAuditLogs(250),
+      db.getAllRequirements(),
+      db.getAllRequirementResponses(),
     ]);
 
     const adminProperties = rawProperties.map((p) => formatAdminProperty(p));
@@ -2638,6 +3334,8 @@ app.get('/api/admin/overview', requirePlatformAdmin, async (_req, res) => {
       suspendedUsers: enrichedUsers.filter((u) => u.isSuspended).length,
       openReports: enrichedReports.filter((r) => r.status === 'open').length,
       totalReports: enrichedReports.length,
+      pendingRequirements: rawRequirements.filter((r) => r.approvalStatus === 'pending').length,
+      totalRequirements: rawRequirements.length,
       totalPropertyViews: nonDeletedProperties.reduce((sum, p) => sum + (Number(p.views) || 0), 0),
       totalInquiries: nonDeletedProperties.reduce((sum, p) => sum + (Number(p.inquiries) || 0), 0),
       totalShares: nonDeletedProperties.reduce((sum, p) => sum + (Number(p.shares) || 0), 0),
@@ -2650,6 +3348,11 @@ app.get('/api/admin/overview', requirePlatformAdmin, async (_req, res) => {
       properties: adminProperties,
       users: enrichedUsers,
       reports: enrichedReports,
+      requirements: rawRequirements.map((r) => ({
+        ...r,
+        responses: rawReqResponses.filter((resp) => resp.requirementId === r.id),
+        responsesCount: rawReqResponses.filter((resp) => resp.requirementId === r.id).length,
+      })),
       settings,
       auditLogs,
     });
@@ -2764,7 +3467,7 @@ app.put('/api/admin/properties/:id', requirePlatformAdmin, async (req, res) => {
       }
       updates.price = p;
     }
-    const numericFields = ['areaSqFt', 'areaValue', 'landMeasureInNali', 'bedrooms', 'bathrooms', 'balconies', 'monthlyRent'];
+    const numericFields = ['areaSqFt', 'areaValue', 'landMeasureInNali', 'bedrooms', 'bathrooms', 'balconies', 'monthlyRent', 'propertyAgeYears'];
     for (const nf of numericFields) {
       if (updates[nf] !== undefined && updates[nf] !== null && updates[nf] !== '') {
         const parsedNum = Number(updates[nf]);
@@ -4766,6 +5469,10 @@ async function handleSeoPageRender(req: express.Request, res: express.Response, 
   }
 
   // 8. Core Marketplace Routes (/list, /list/buy, /list/rent, /buy, /rent, /home-loan)
+  if (normalizedPath === '/requirements' || normalizedPath === '/post-requirement' || normalizedPath === '/post-requirements' || pageParam === 'requirements') {
+    applyRouteSeoMeta('requirements');
+    return res.send(html);
+  }
   if (normalizedPath === '/list' || pageParam === 'list') {
     applyRouteSeoMeta('list');
     return res.send(html);

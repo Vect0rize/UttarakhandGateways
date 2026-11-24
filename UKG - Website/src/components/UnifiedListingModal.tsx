@@ -56,7 +56,9 @@ import {
 } from '../utils/areaUnits';
 import { formatEnhancedDescription } from '../utils/descriptionEnhancer';
 import {
-  MAX_UPLOAD_FILE_MB,
+  MAX_PHOTO_UPLOAD_MB,
+  MAX_VIDEO_UPLOAD_MB,
+  compressVideoBeforeUpload,
   compressImageToWebpFile,
   formatFileSizeMB,
   moderateImageWithAI,
@@ -207,6 +209,7 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
   const [balconies, setBalconies] = useState<number>(1);
   const [areaValue, setAreaValue] = useState<string>('');
   const [areaUnit, setAreaUnit] = useState<AreaUnit>('sqft');
+  const [propertyAgeInput, setPropertyAgeInput] = useState<string>('');
   const [furnishing, setFurnishing] = useState<'Furnished' | 'Semi-Furnished' | 'Unfurnished'>('Semi-Furnished');
 
   // Pricing (Sale vs Rent) — genuinely empty by default
@@ -303,6 +306,11 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
       setAreaUnit(savedAreaUnit || 'sqft');
 
       setFurnishing(property.furnishing || 'Semi-Furnished');
+      setPropertyAgeInput(
+        property.propertyAgeYears !== undefined && property.propertyAgeYears !== null
+          ? String(property.propertyAgeYears)
+          : ''
+      );
 
       if (isRental) {
         let defaultPeriod: 'monthly' | 'quarterly' | 'yearly' = 'monthly';
@@ -370,6 +378,7 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
       setBalconies(1);
       setAreaValue('');
       setAreaUnit('sqft');
+      setPropertyAgeInput('');
       setFurnishing('Semi-Furnished');
       setRentPeriod('monthly');
       setTotalPriceInput('');
@@ -684,19 +693,44 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
         continue;
       }
 
-      const uploaded = await uploadFileWithProgress(file, file.name, (pct) => {
+      try {
         setUploadProgress({
           label: isHindi
-            ? `वीडियो अपलोड हो रहा है (${i + 1}/${filesToProcess.length}): ${file.name}`
-            : `Uploading video (${i + 1}/${filesToProcess.length}): ${file.name}`,
-          percent: pct,
+            ? `वीडियो संपीड़ित हो रहा है (${i + 1}/${filesToProcess.length}): ${file.name}`
+            : `Compressing video (${i + 1}/${filesToProcess.length}): ${file.name} (${formatFileSizeMB(file.size)})`,
+          percent: 5,
         });
-      });
 
-      if (uploaded.success && uploaded.url) {
-        uploadedUrls.push(uploaded.url);
-      } else {
-        errors.push(uploaded.error || `Failed to upload "${file.name}".`);
+        const compressedVid = await compressVideoBeforeUpload(file, (compPct) => {
+          setUploadProgress({
+            label: isHindi
+              ? `वीडियो संपीड़ित हो रहा है (${i + 1}/${filesToProcess.length}): ${file.name}`
+              : `Compressing video (${i + 1}/${filesToProcess.length}): ${file.name}`,
+            percent: compPct,
+          });
+        });
+
+        const uploaded = await uploadFileWithProgress(
+          compressedVid.blob,
+          compressedVid.filename,
+          (pct) => {
+            setUploadProgress({
+              label: isHindi
+                ? `वीडियो अपलोड हो रहा है (${i + 1}/${filesToProcess.length}): ${compressedVid.filename}`
+                : `Uploading video (${i + 1}/${filesToProcess.length}): ${compressedVid.filename} (${formatFileSizeMB(compressedVid.compressedSize)})`,
+              percent: pct,
+            });
+          },
+          'video'
+        );
+
+        if (uploaded.success && uploaded.url) {
+          uploadedUrls.push(uploaded.url);
+        } else {
+          errors.push(uploaded.error || `Failed to upload "${file.name}".`);
+        }
+      } catch (vidErr: any) {
+        errors.push(vidErr?.message || `Failed to compress or upload "${file.name}".`);
       }
     }
 
@@ -1062,6 +1096,10 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
         areaValue: parsedArea,
         areaDisplay: formatAreaValueWithUnit(parsedArea, areaUnit, false),
         areaUnit,
+        propertyAgeYears:
+          propertyAgeInput.trim() === ''
+            ? null
+            : Math.max(0, Math.min(200, Math.round(parseFloat(propertyAgeInput) * 10) / 10)),
         ratePerSqFt: saleRatePerSqFt,
         ratePerGajOrNali: saleRatePerUnit,
         pricingUnit: transactionType === 'rent'
@@ -1684,6 +1722,32 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
               </div>
             </>
           )}
+
+          {/* How Old Is This Property? (Optional Age in Years) */}
+          <div className="pt-1">
+            <label
+              htmlFor="ukg-property-age-input"
+              className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1"
+            >
+              {isHindi
+                ? 'यह प्रॉपर्टी कितनी पुरानी है? (वर्षों में — वैकल्पिक)'
+                : 'How Old Is This Property? (in years — optional)'}
+            </label>
+            <input
+              id="ukg-property-age-input"
+              type="text"
+              inputMode="decimal"
+              value={propertyAgeInput}
+              onWheel={(e) => e.currentTarget.blur()}
+              onChange={(e) => setPropertyAgeInput(sanitizeDecimalInput(e.target.value))}
+              placeholder={
+                isHindi
+                  ? 'आयु वर्षों में दर्ज करें (जैसे 0 नया निर्माण, 5 — अज्ञात हो तो खाली छोड़ें)'
+                  : 'Enter age in years (e.g. 0 for new, 5 — leave blank if unknown)'
+              }
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-900/80 bg-white dark:bg-slate-900 text-xs sm:text-sm font-semibold focus:ring-2 focus:ring-emerald-500 outline-none"
+            />
+          </div>
         </div>
 
         {/* SECTION 3: PRICING & COMMERCIAL TERMS */}
@@ -2027,7 +2091,7 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
               <span>4. {isHindi ? 'प्रॉपर्टी की तस्वीरें, वीडियो व दस्तावेज़' : 'Property Photos, Videos & Documents'}</span>
             </div>
             <span className="text-xs font-bold text-slate-500">
-              {images.length}/15 {isHindi ? 'तस्वीरें' : 'Photos'} • {videos.length}/3 {isHindi ? 'वीडियो' : 'Videos'} • {isHindi ? `अधिकतम ${MAX_UPLOAD_FILE_MB} MB/फ़ाइल` : `Max ${MAX_UPLOAD_FILE_MB} MB/file`}
+              {images.length}/15 {isHindi ? 'तस्वीरें' : 'Photos'} (Max {MAX_PHOTO_UPLOAD_MB} MB) • {videos.length}/3 {isHindi ? 'वीडियो' : 'Videos'} (Max {MAX_VIDEO_UPLOAD_MB} MB)
             </span>
           </div>
 
@@ -2099,8 +2163,8 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
                   </span>
                   <span className="text-[11px] text-slate-500 dark:text-slate-400">
                     {isHindi
-                      ? 'JPG, PNG, WEBP, AVIF • स्वचालित WebP संपीड़न • अधिकतम 20 MB प्रति फ़ाइल'
-                      : 'JPG, PNG, WEBP, AVIF • Auto-optimized to WebP • Max 20 MB per photo'}
+                      ? 'JPG, PNG, WEBP, AVIF • स्वचालित WebP संपीड़न • अधिकतम 50 MB प्रति तस्वीर'
+                      : 'JPG, PNG, WEBP, AVIF • Auto-compressed to WebP • Max 50 MB per photo'}
                   </span>
                 </div>
               </div>
@@ -2211,7 +2275,7 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
                     {isHindi ? 'प्रॉपर्टी वीडियो अपलोड करें' : 'Upload Property Videos from Device'}
                   </span>
                   <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                    {isHindi ? 'MP4, MOV, WEBM (अधिकतम 3 वीडियो • 20 MB प्रति फ़ाइल)' : 'MP4, MOV, WEBM (Up to 3 videos • max 20 MB each)'}
+                    {isHindi ? 'MP4, MOV, WEBM • स्वचालित वीडियो संपीड़न • अधिकतम 500 MB प्रति वीडियो' : 'MP4, MOV, WEBM • Auto-compressed • Max 500 MB per video'}
                   </span>
                 </div>
               )}

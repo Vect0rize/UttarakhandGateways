@@ -137,9 +137,57 @@ export interface Property {
   maintenanceCharges?: number | string;
   availableFrom?: string;
   preferredTenants?: string[];
+  propertyAgeYears?: number | null;
   createdAt?: string;
   updatedAt?: string;
   postedAt?: string;
+}
+
+export type RequirementType = 'Buy' | 'Rent';
+
+export type RequirementPropertyType =
+  | 'Plot'
+  | 'House'
+  | 'Flat'
+  | 'Villa'
+  | 'Commercial'
+  | 'Other';
+
+export interface RequirementResponseRecord {
+  id: string;
+  requirementId: string;
+  responderId: string;
+  responderName: string;
+  responderEmail?: string;
+  responderPhone: string;
+  propertyId?: string;
+  propertyTitle?: string;
+  message: string;
+  createdAt: string;
+}
+
+export interface PropertyRequirement {
+  id: string;
+  requirementType: RequirementType;
+  propertyType: RequirementPropertyType;
+  city: string;
+  preferredLocation: string;
+  minBudget: number;
+  maxBudget: number;
+  bedrooms?: number | null;
+  requiredSize?: string | null;
+  description?: string;
+  userId: string;
+  userName?: string;
+  userEmail?: string;
+  userPhone?: string;
+  approvalStatus: 'pending' | 'approved' | 'rejected';
+  isFulfilled: boolean;
+  createdAt: string;
+  updatedAt?: string;
+  expiresAt: string;
+  responsesCount?: number;
+  responses?: RequirementResponseRecord[];
 }
 
 export interface ChatMessage {

@@ -21,7 +21,8 @@ import {
   IndianRupee,
   Download,
   BookOpen,
-  MapPin
+  MapPin,
+  ClipboardList
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
@@ -61,6 +62,7 @@ interface NavbarProps {
   totalPages?: number;
   onPageChange?: (page: number) => void;
   onOpenListChooser?: () => void;
+  onOpenRequirements?: () => void;
   onOpenSignIn?: () => void;
   onOpenRegister?: () => void;
   onOpenHomeLoanPage?: () => void;
@@ -79,6 +81,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenSellModal,
   onOpenRentalModal,
   onOpenListChooser,
+  onOpenRequirements,
   onOpenSignIn,
   onOpenRegister,
   onOpenHomeLoanPage,
@@ -274,6 +277,20 @@ export const Navbar: React.FC<NavbarProps> = ({
                 )}
               </button>
             </div>
+
+            {/* Post Your Requirements Link in Main Navigation */}
+            <button
+              type="button"
+              onClick={() => {
+                if (onOpenRequirements) onOpenRequirements();
+                else window.location.href = '/requirements';
+              }}
+              className="hidden md:flex items-center gap-1.5 px-3 py-1.5 sm:py-2 rounded-full bg-white/90 dark:bg-[#0C3628]/90 hover:bg-emerald-50 dark:hover:bg-emerald-900/70 text-emerald-900 dark:text-emerald-200 border border-emerald-300/80 dark:border-[#32463D] font-bold text-xs shadow-2xs transition-all cursor-pointer whitespace-nowrap"
+              title={isHindi ? 'अपनी प्रॉपर्टी आवश्यकता पोस्ट करें' : 'Post Your Requirements'}
+            >
+              <ClipboardList className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span>{isHindi ? 'आवश्यकता पोस्ट करें' : 'Post Your Requirements'}</span>
+            </button>
 
             {/* Common List Button -> navigates to /list page */}
             <button
@@ -535,6 +552,25 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             </div>
 
+            {/* Mobile Post Your Requirements CTA */}
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                if (onOpenRequirements) onOpenRequirements();
+                else window.location.href = '/requirements';
+              }}
+              className="w-full p-2.5 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-950 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800 font-extrabold rounded-xl text-xs flex items-center justify-between shadow-2xs cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <ClipboardList className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span>{isHindi ? 'अपनी प्रॉपर्टी आवश्यकता पोस्ट करें' : 'Post Your Requirements'}</span>
+              </div>
+              <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-bold">
+                {isHindi ? 'पोस्ट करें' : 'Post'}
+              </span>
+            </button>
+
             {/* Mobile Admin Dashboard Button */}
             {isOwner && (onOpenAdminDashboard || onOpenAdminAccounts) && (
               <button
@@ -649,26 +685,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
               <span className="text-[10px] bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300 px-2 py-0.5 rounded-md font-bold border border-teal-200 dark:border-teal-800">
                 {isHindi ? 'व्यूज व आंकड़े' : 'Views & Insights'}
-              </span>
-            </button>
-
-            {/* Home Loan & EMI Calculator Option */}
-            <button
-              type="button"
-              onClick={() => {
-                setMobileMenuOpen(false);
-                if (onOpenHomeLoanPage) onOpenHomeLoanPage();
-                else if (onOpenEmiCalculator) onOpenEmiCalculator();
-                else window.location.href = '/home-loan';
-              }}
-              className="text-left py-2.5 px-3 bg-white dark:bg-[#0a271d] hover:bg-emerald-50 dark:hover:bg-[#0f3427] rounded-xl text-sm font-bold flex items-center justify-between text-slate-800 dark:text-emerald-100 border border-emerald-200/80 dark:border-emerald-800 cursor-pointer shadow-xs"
-            >
-              <span className="flex items-center gap-2">
-                <IndianRupee className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                <span>{isHindi ? 'ईएमआई कैलकुलेटर' : 'EMI Calculator'}</span>
-              </span>
-              <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 rounded-md font-bold border border-emerald-200 dark:border-emerald-800">
-                {isHindi ? 'अनुमान' : 'Estimator'}
               </span>
             </button>
 

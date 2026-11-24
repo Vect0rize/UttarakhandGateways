@@ -1,8 +1,18 @@
-// File Upload Validation, Client-Side WebP Compression & AI Safety Moderation Utility
-import { resolveApiUrl } from '../config/apiConfig';
+// File Upload Validation, Client-Side Image (WebP) & Video Compression, and AI Safety Moderation Utility
+import { resolveApiUrl, isNativeAndroidApp } from '../config/apiConfig';
 
-export const MAX_UPLOAD_FILE_BYTES = 20 * 1024 * 1024; // Strict 20 MB per-file limit
-export const MAX_UPLOAD_FILE_MB = 20;
+export const MAX_PHOTO_UPLOAD_MB = 50;
+export const MAX_PHOTO_UPLOAD_BYTES = MAX_PHOTO_UPLOAD_MB * 1024 * 1024; // Strict 50 MB per photo
+
+export const MAX_VIDEO_UPLOAD_MB = 500;
+export const MAX_VIDEO_UPLOAD_BYTES = MAX_VIDEO_UPLOAD_MB * 1024 * 1024; // Strict 500 MB per video
+
+export const MAX_DOC_UPLOAD_MB = 20;
+export const MAX_DOC_UPLOAD_BYTES = MAX_DOC_UPLOAD_MB * 1024 * 1024; // Strict 20 MB per PDF document
+
+// Backwards-compatible alias for photo limit
+export const MAX_UPLOAD_FILE_MB = MAX_PHOTO_UPLOAD_MB;
+export const MAX_UPLOAD_FILE_BYTES = MAX_PHOTO_UPLOAD_BYTES;
 
 export type UploadMediaKind = 'image' | 'video' | 'document';
 
@@ -16,6 +26,15 @@ export interface CompressedImageResult {
   dataUrl: string;
   width: number;
   height: number;
+  mimeType: string;
+}
+
+export interface CompressedVideoResult {
+  blob: Blob;
+  filename: string;
+  originalSize: number;
+  compressedSize: number;
+  compressed: boolean;
   mimeType: string;
 }
 
@@ -52,7 +71,7 @@ const ALLOWED_IMAGE_MIMES = new Set([
   'image/heif',
 ]);
 
-const ALLOWED_VIDEO_EXT = /\.(mp4|mov|webm|avi|ogv|m4v)$/i;
+const ALLOWED_VIDEO_EXT = /\.(mp4|mov|webm|avi|ogv|m4v|mkv)$/i;
 const ALLOWED_VIDEO_MIMES = new Set([
   'video/mp4',
   'video/quicktime',
@@ -60,6 +79,8 @@ const ALLOWED_VIDEO_MIMES = new Set([
   'video/x-msvideo',
   'video/avi',
   'video/ogg',
+  'video/x-m4v',
+  'video/x-matroska',
 ]);
 
 const ALLOWED_DOC_EXT = /\.pdf$/i;
@@ -73,8 +94,18 @@ export function formatFileSizeMB(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+export function getMaxBytesForKind(kind: UploadMediaKind): { maxBytes: number; maxMB: number } {
+  if (kind === 'video') {
+    return { maxBytes: MAX_VIDEO_UPLOAD_BYTES, maxMB: MAX_VIDEO_UPLOAD_MB };
+  }
+  if (kind === 'document') {
+    return { maxBytes: MAX_DOC_UPLOAD_BYTES, maxMB: MAX_DOC_UPLOAD_MB };
+  }
+  return { maxBytes: MAX_PHOTO_UPLOAD_BYTES, maxMB: MAX_PHOTO_UPLOAD_MB };
+}
+
 /**
- * Strictly validates file size (max 20 MB per file), safe extension, and MIME type on the client.
+ * Strictly validates file size (50 MB photos, 500 MB videos, 20 MB PDFs), safe extension, and MIME type.
  */
 export function validateUploadFile(
   file: File | null | undefined,
@@ -100,7 +131,13 @@ export function validateUploadFile(
     };
   }
 
-  if (DANGEROUS_EXT_REGEX.test(name) || mime === 'image/svg+xml' || mime === 'text/html' || mime.includes('javascript') || mime.includes('executable')) {
+  if (
+    DANGEROUS_EXT_REGEX.test(name) ||
+    mime === 'image/svg+xml' ||
+    mime === 'text/html' ||
+    mime.includes('javascript') ||
+    mime.includes('executable')
+  ) {
     return {
       valid: false,
       error: isHindi
@@ -109,13 +146,14 @@ export function validateUploadFile(
     };
   }
 
-  if (file.size > MAX_UPLOAD_FILE_BYTES) {
+  const { maxBytes, maxMB } = getMaxBytesForKind(expectedKind);
+  if (file.size > maxBytes) {
     const actualSize = formatFileSizeMB(file.size);
     return {
       valid: false,
       error: isHindi
-        ? `"${name}" (${actualSize}) 20 MB की अधिकतम फ़ाइल सीमा से अधिक है। कृपया 20 MB से कम की फ़ाइल चुनें।`
-        : `"${name}" (${actualSize}) exceeds the 20 MB maximum file size limit. Please upload a file under 20 MB.`,
+        ? `"${name}" (${actualSize}) अधिकतम ${maxMB} MB सीमा से अधिक है। कृपया ${maxMB} MB से कम की फ़ाइल चुनें।`
+        : `"${name}" (${actualSize}) exceeds the ${maxMB} MB maximum file size limit. Please upload a file under ${maxMB} MB.`,
     };
   }
 
@@ -126,8 +164,8 @@ export function validateUploadFile(
       return {
         valid: false,
         error: isHindi
-          ? `"${name}": केवल JPG, PNG, WEBP, AVIF या HEIC तस्वीरें अनुमत हैं (अधिकतम 20 MB)।`
-          : `"${name}": Unsupported image format. Allowed formats: JPG, PNG, WEBP, AVIF, GIF, or HEIC (max 20 MB).`,
+          ? `"${name}": केवल JPG, PNG, WEBP, AVIF या HEIC तस्वीरें अनुमत हैं (अधिकतम 50 MB)।`
+          : `"${name}": Unsupported image format. Allowed formats: JPG, PNG, WEBP, AVIF, GIF, or HEIC (max 50 MB).`,
       };
     }
   } else if (expectedKind === 'video') {
@@ -137,8 +175,8 @@ export function validateUploadFile(
       return {
         valid: false,
         error: isHindi
-          ? `"${name}": केवल MP4, MOV या WEBM वीडियो फ़ाइलें अनुमत हैं (अधिकतम 20 MB)।`
-          : `"${name}": Unsupported video format. Allowed formats: MP4, MOV, or WEBM (max 20 MB).`,
+          ? `"${name}": केवल MP4, MOV या WEBM वीडियो फ़ाइलें अनुमत हैं (अधिकतम 500 MB)।`
+          : `"${name}": Unsupported video format. Allowed formats: MP4, MOV, or WEBM (max 500 MB).`,
       };
     }
   } else if (expectedKind === 'document') {
@@ -173,8 +211,8 @@ function canvasToBlob(canvas: HTMLCanvasElement, mimeType: string, quality: numb
 }
 
 /**
- * Resizes and compresses a property photo on the client while preserving EXIF orientation
- * and encoding an optimized WebP image (with JPEG fallback if browser lacks WebP canvas encode).
+ * Resizes and compresses a property photo (up to 50 MB) on the client while preserving EXIF orientation
+ * and aspect ratio, encoding an optimized WebP image (with JPEG fallback).
  */
 export async function compressImageToWebpFile(
   file: File,
@@ -191,7 +229,6 @@ export async function compressImageToWebpFile(
   let drawable: CanvasImageSource | null = null;
   let closeBitmap: (() => void) | null = null;
 
-  // Prefer createImageBitmap with EXIF orientation preservation where supported
   if (typeof createImageBitmap === 'function') {
     try {
       const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' } as ImageBitmapOptions);
@@ -289,9 +326,6 @@ export async function compressImageToWebpFile(
   }
 }
 
-/**
- * Backwards-compatible helper returning a compressed WebP data URL.
- */
 export async function compressAndNormalizeImage(
   file: File,
   maxDimension = 1600,
@@ -302,18 +336,338 @@ export async function compressAndNormalizeImage(
 }
 
 /**
- * Uploads an image, video, or PDF document to POST /api/upload with real XHR progress tracking (0-100%).
+ * Compresses a video on the client BEFORE upload without freezing or crashing memory:
+ * - Uses streaming `URL.createObjectURL(file)` (zero full-file ArrayBuffer allocation in JS RAM).
+ * - Scales down to max 1280x720 (preserving aspect ratio) at ~1.8 Mbps via MediaRecorder when beneficial.
+ * - Reports live compression progress (0-100%).
+ * - For already-compact clips or very long videos where real-time browser re-encode isn't advantageous,
+ *   hands off seamlessly so server-side FFmpeg handles multi-core H.264 compression on upload.
+ * - Strictly rejects if resulting video still exceeds the 500 MB limit.
+ */
+export async function compressVideoBeforeUpload(
+  file: File,
+  onCompressionProgress?: (percent: number) => void
+): Promise<CompressedVideoResult> {
+  const baseName = (file.name || 'property-video').replace(/\.[^.]+$/, '') || 'property-video';
+  if (onCompressionProgress) onCompressionProgress(5);
+
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    if (file.size > MAX_VIDEO_UPLOAD_BYTES) {
+      throw new Error(`"${file.name}" (${formatFileSizeMB(file.size)}) exceeds the 500 MB maximum video limit.`);
+    }
+    if (onCompressionProgress) onCompressionProgress(100);
+    return {
+      blob: file,
+      filename: file.name || `${baseName}.mp4`,
+      originalSize: file.size,
+      compressedSize: file.size,
+      compressed: false,
+      mimeType: file.type || 'video/mp4',
+    };
+  }
+
+  // Pick supported MediaRecorder codec
+  const supportedMime =
+    typeof MediaRecorder !== 'undefined'
+      ? [
+          'video/webm;codecs=vp9,opus',
+          'video/webm;codecs=vp8,opus',
+          'video/webm',
+          'video/mp4',
+        ].find((m) => {
+          try {
+            return MediaRecorder.isTypeSupported(m);
+          } catch {
+            return false;
+          }
+        }) || ''
+      : '';
+
+  // Videos under 2 MB are already tiny; skip client transcode and let server store/optimize quickly
+  if (!supportedMime || file.size < 2 * 1024 * 1024) {
+    if (file.size > MAX_VIDEO_UPLOAD_BYTES) {
+      throw new Error(
+        `Compressed video "${file.name}" (${formatFileSizeMB(file.size)}) still exceeds the 500 MB maximum limit.`
+      );
+    }
+    if (onCompressionProgress) onCompressionProgress(100);
+    return {
+      blob: file,
+      filename: file.name || `${baseName}.mp4`,
+      originalSize: file.size,
+      compressedSize: file.size,
+      compressed: false,
+      mimeType: file.type || 'video/mp4',
+    };
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+  let audioCtx: AudioContext | null = null;
+
+  try {
+    const videoEl = document.createElement('video');
+    videoEl.preload = 'metadata';
+    videoEl.playsInline = true;
+    videoEl.crossOrigin = 'anonymous';
+    videoEl.src = objectUrl;
+
+    const metaLoaded = await new Promise<boolean>((resolve) => {
+      const timer = window.setTimeout(() => resolve(false), 8000);
+      videoEl.onloadedmetadata = () => {
+        window.clearTimeout(timer);
+        resolve(true);
+      };
+      videoEl.onerror = () => {
+        window.clearTimeout(timer);
+        resolve(false);
+      };
+    });
+
+    if (!metaLoaded || !Number.isFinite(videoEl.duration) || videoEl.duration <= 0) {
+      if (file.size > MAX_VIDEO_UPLOAD_BYTES) {
+        throw new Error(`"${file.name}" (${formatFileSizeMB(file.size)}) exceeds the 500 MB maximum video limit.`);
+      }
+      if (onCompressionProgress) onCompressionProgress(100);
+      return {
+        blob: file,
+        filename: file.name || `${baseName}.mp4`,
+        originalSize: file.size,
+        compressedSize: file.size,
+        compressed: false,
+        mimeType: file.type || 'video/mp4',
+      };
+    }
+
+    const duration = videoEl.duration;
+    const srcW = videoEl.videoWidth || 1280;
+    const srcH = videoEl.videoHeight || 720;
+    const estimatedBps = (file.size * 8) / Math.max(1, duration);
+
+    // If clip is already <= 720p & <= 2.2 Mbps, OR longer than 75s (where server-side multi-core FFmpeg is 10x faster and avoids mobile tab sleep), delegate compression to server FFmpeg
+    if ((Math.max(srcW, srcH) <= 1280 && estimatedBps <= 2_200_000) || duration > 75) {
+      if (file.size > MAX_VIDEO_UPLOAD_BYTES) {
+        throw new Error(`"${file.name}" (${formatFileSizeMB(file.size)}) exceeds the 500 MB maximum video limit.`);
+      }
+      if (onCompressionProgress) onCompressionProgress(100);
+      return {
+        blob: file,
+        filename: file.name || `${baseName}.mp4`,
+        originalSize: file.size,
+        compressedSize: file.size,
+        compressed: false,
+        mimeType: file.type || 'video/mp4',
+      };
+    }
+
+    // Compute aspect-preserving 720p even dimensions
+    const maxDim = 1280;
+    let targetW = srcW;
+    let targetH = srcH;
+    if (targetW > maxDim || targetH > maxDim) {
+      if (targetW >= targetH) {
+        targetH = Math.round((targetH * maxDim) / targetW);
+        targetW = maxDim;
+      } else {
+        targetW = Math.round((targetW * maxDim) / targetH);
+        targetH = maxDim;
+      }
+    }
+    targetW = Math.max(2, targetW - (targetW % 2));
+    targetH = Math.max(2, targetH - (targetH % 2));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = targetW;
+    canvas.height = targetH;
+    const ctx = canvas.getContext('2d');
+    if (!ctx || typeof (canvas as any).captureStream !== 'function') {
+      if (onCompressionProgress) onCompressionProgress(100);
+      return {
+        blob: file,
+        filename: file.name || `${baseName}.mp4`,
+        originalSize: file.size,
+        compressedSize: file.size,
+        compressed: false,
+        mimeType: file.type || 'video/mp4',
+      };
+    }
+
+    const canvasStream: MediaStream = (canvas as any).captureStream(24);
+
+    // Route audio track silently into MediaRecorder (zero speaker output, preserves audio)
+    try {
+      const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContextCtor) {
+        audioCtx = new AudioContextCtor();
+        const sourceNode = audioCtx.createMediaElementSource(videoEl);
+        const destNode = audioCtx.createMediaStreamDestination();
+        sourceNode.connect(destNode);
+        destNode.stream.getAudioTracks().forEach((track) => canvasStream.addTrack(track));
+      } else {
+        videoEl.muted = true;
+      }
+    } catch {
+      videoEl.muted = true;
+    }
+
+    const chunks: BlobPart[] = [];
+    let totalBytesRecorded = 0;
+
+    const recorder = new MediaRecorder(canvasStream, {
+      mimeType: supportedMime,
+      videoBitsPerSecond: 1_800_000,
+      audioBitsPerSecond: 96_000,
+    });
+
+    const compressedBlob = await new Promise<Blob | null>((resolve) => {
+      let finished = false;
+      let drawTimer: number | null = null;
+
+      const finish = (result: Blob | null) => {
+        if (finished) return;
+        finished = true;
+        if (drawTimer !== null) window.clearInterval(drawTimer);
+        try {
+          canvasStream.getTracks().forEach((t) => t.stop());
+        } catch {}
+        resolve(result);
+      };
+
+      recorder.ondataavailable = (ev) => {
+        if (ev.data && ev.data.size > 0) {
+          chunks.push(ev.data);
+          totalBytesRecorded += ev.data.size;
+          if (totalBytesRecorded > MAX_VIDEO_UPLOAD_BYTES) {
+            try {
+              recorder.stop();
+              videoEl.pause();
+            } catch {}
+            finish(null);
+          }
+        }
+      };
+
+      recorder.onerror = () => finish(null);
+      recorder.onstop = () => {
+        if (chunks.length === 0) {
+          finish(null);
+          return;
+        }
+        const outType = supportedMime.startsWith('video/mp4') ? 'video/mp4' : 'video/webm';
+        finish(new Blob(chunks, { type: outType }));
+      };
+
+      drawTimer = window.setInterval(() => {
+        if (!videoEl.paused && !videoEl.ended) {
+          try {
+            ctx.drawImage(videoEl, 0, 0, targetW, targetH);
+          } catch {}
+          if (onCompressionProgress && duration > 0) {
+            const pct = Math.min(98, Math.max(8, Math.round((videoEl.currentTime / duration) * 100)));
+            onCompressionProgress(pct);
+          }
+        }
+      }, 42);
+
+      videoEl.onended = () => {
+        try {
+          if (recorder.state !== 'inactive') recorder.stop();
+        } catch {
+          finish(null);
+        }
+      };
+
+      videoEl.onerror = () => {
+        try {
+          if (recorder.state !== 'inactive') recorder.stop();
+        } catch {}
+        finish(null);
+      };
+
+      try {
+        recorder.start(1000);
+        videoEl.play().catch(() => {
+          videoEl.muted = true;
+          videoEl.play().catch(() => {
+            try {
+              if (recorder.state !== 'inactive') recorder.stop();
+            } catch {}
+            finish(null);
+          });
+        });
+      } catch {
+        finish(null);
+      }
+    });
+
+    if (onCompressionProgress) onCompressionProgress(100);
+
+    // Keep compressed output only if valid and smaller than original
+    if (compressedBlob && compressedBlob.size > 1024 && compressedBlob.size < file.size) {
+      if (compressedBlob.size > MAX_VIDEO_UPLOAD_BYTES) {
+        throw new Error(
+          `Compressed video "${file.name}" (${formatFileSizeMB(compressedBlob.size)}) still exceeds the 500 MB maximum limit.`
+        );
+      }
+      const ext = compressedBlob.type.includes('mp4') ? 'mp4' : 'webm';
+      return {
+        blob: compressedBlob,
+        filename: `${baseName}.${ext}`,
+        originalSize: file.size,
+        compressedSize: compressedBlob.size,
+        compressed: true,
+        mimeType: compressedBlob.type,
+      };
+    }
+
+    if (file.size > MAX_VIDEO_UPLOAD_BYTES) {
+      throw new Error(
+        `Compressed video "${file.name}" (${formatFileSizeMB(file.size)}) still exceeds the 500 MB maximum limit.`
+      );
+    }
+
+    return {
+      blob: file,
+      filename: file.name || `${baseName}.mp4`,
+      originalSize: file.size,
+      compressedSize: file.size,
+      compressed: false,
+      mimeType: file.type || 'video/mp4',
+    };
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+    if (audioCtx) {
+      try {
+        await audioCtx.close();
+      } catch {}
+    }
+  }
+}
+
+/**
+ * Uploads an image (up to 50 MB), video (up to 500 MB), or PDF document (up to 20 MB)
+ * to POST /api/upload with real XHR progress tracking (0-100%).
  */
 export function uploadFileWithProgress(
   blobOrFile: Blob | File,
   filename: string,
-  onProgress?: (percent: number) => void
+  onProgress?: (percent: number) => void,
+  kindHint?: UploadMediaKind
 ): Promise<UploadedServerFile> {
   return new Promise((resolve) => {
-    if (blobOrFile.size > MAX_UPLOAD_FILE_BYTES) {
+    const inferredKind: UploadMediaKind =
+      kindHint ||
+      (ALLOWED_VIDEO_EXT.test(filename) || (blobOrFile.type || '').startsWith('video/')
+        ? 'video'
+        : ALLOWED_DOC_EXT.test(filename) || blobOrFile.type === 'application/pdf'
+          ? 'document'
+          : 'image');
+
+    const { maxBytes, maxMB } = getMaxBytesForKind(inferredKind);
+
+    if (blobOrFile.size > maxBytes) {
       resolve({
         success: false,
-        error: `"${filename}" (${formatFileSizeMB(blobOrFile.size)}) exceeds the 20 MB maximum upload limit.`,
+        error: `"${filename}" (${formatFileSizeMB(blobOrFile.size)}) exceeds the ${maxMB} MB maximum upload limit.`,
       });
       return;
     }
@@ -323,12 +677,13 @@ export function uploadFileWithProgress(
 
     const xhr = new XMLHttpRequest();
     xhr.open('POST', resolveApiUrl('/api/upload'), true);
-    xhr.withCredentials = true;
+    xhr.withCredentials = !isNativeAndroidApp();
 
     try {
       const token = localStorage.getItem('ukg_session_token');
       if (token) {
         xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        xhr.setRequestHeader('X-Session-Token', token);
       }
     } catch {}
 
@@ -361,10 +716,10 @@ export function uploadFileWithProgress(
       } else {
         const defaultErr =
           xhr.status === 413
-            ? `"${filename}" exceeds the 20 MB maximum upload limit.`
+            ? `"${filename}" exceeds the ${maxMB} MB maximum upload limit.`
             : xhr.status === 401
-            ? 'Please sign in to upload property files.'
-            : `Failed to upload "${filename}" (HTTP ${xhr.status || 'error'}).`;
+              ? 'Please sign in to upload property files.'
+              : `Failed to upload "${filename}" (HTTP ${xhr.status || 'error'}).`;
         resolve({
           success: false,
           error: parsed?.error || defaultErr,
@@ -386,7 +741,8 @@ export function uploadFileWithProgress(
       });
     };
 
-    xhr.timeout = 120000;
+    // 20 minutes timeout to support large 500 MB video uploads over residential/mobile networks
+    xhr.timeout = 20 * 60 * 1000;
     xhr.send(formData);
   });
 }

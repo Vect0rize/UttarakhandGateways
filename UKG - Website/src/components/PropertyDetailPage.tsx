@@ -45,7 +45,7 @@ import {
   Flag,
   Eye
 } from 'lucide-react';
-import { resolveApiUrl } from '../config/apiConfig';
+import { resolveApiUrl, isNativeAndroidApp } from '../config/apiConfig';
 import { SeoKeywordsSection } from './SeoKeywordsSection';
 import type { AppPageRouteKey } from '../data/seoMetadata';
 import { EmiCalculatorModal } from './EmiCalculatorModal';
@@ -57,6 +57,7 @@ import {
   getPropertyOwnerDisplayName,
   isAppOwner,
   formatPropertyViewsCount,
+  formatPropertyAge,
   getOrCreateVisitorId,
   getPublicPropertyPhone,
   formatPhoneForDisplay,
@@ -106,7 +107,7 @@ const parseSafeNumber = (val: any, fallback = 0): number => {
 };
 
 export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
-  property,
+  property: propertyProp,
   onBack,
   isFavorite,
   onToggleFavorite,
@@ -123,6 +124,47 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
   onNavigatePath,
   onPropertyViewed,
 }) => {
+  // Hydrate full property details (including owner name & phone) when individual detail page opens
+  const [hydratedProperty, setHydratedProperty] = useState<Property>(propertyProp);
+  useEffect(() => {
+    setHydratedProperty(propertyProp);
+    if (!propertyProp?.id) return;
+    let cancelled = false;
+    const headers: Record<string, string> = {};
+    try {
+      const token = localStorage.getItem('ukg_session_token');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+        headers['X-Session-Token'] = token;
+      }
+    } catch {}
+    fetch(resolveApiUrl(`/api/properties/${encodeURIComponent(propertyProp.id)}`), {
+      credentials: isNativeAndroidApp() ? 'omit' : 'include',
+      headers,
+      cache: 'no-store',
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.success && data?.property) {
+          setHydratedProperty((prev) => ({ ...prev, ...data.property }));
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [propertyProp]);
+
+  const property = hydratedProperty || propertyProp;
+  const formattedPropertyAge = formatPropertyAge(property?.propertyAgeYears, isHindiCaseSafe());
+  function isHindiCaseSafe(): boolean {
+    try {
+      return typeof document !== 'undefined' && document.documentElement.lang === 'hi';
+    } catch {
+      return false;
+    }
+  }
+
   // Safe Image & Amenities Guards to guarantee zero runtime crashes
   const safeImages = useMemo(() => {
     if (Array.isArray(property?.images) && property.images.length > 0) {
@@ -883,6 +925,23 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
                 </div>
               </div>)}
 
+              {/* Property Age */}
+              {formatPropertyAge(property.propertyAgeYears, isHindi) && (
+                <div className="p-4 rounded-2xl bg-white dark:bg-[#0c241c] border border-slate-200 dark:border-emerald-800/60 shadow-xs flex flex-col justify-between">
+                  <div className="flex items-center justify-between text-slate-500 dark:text-emerald-300/80">
+                    <span className="text-[11px] font-bold uppercase tracking-wider">
+                      {isHindi ? 'प्रॉपर्टी की आयु' : 'Property Age'}
+                    </span>
+                    <Calendar className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <div className="mt-2">
+                    <span className="text-base sm:text-lg font-black text-slate-900 dark:text-white block truncate">
+                      {formatPropertyAge(property.propertyAgeYears, isHindi)}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Possession */}
               {property.possession && (<div className="p-4 rounded-2xl bg-white dark:bg-[#0c241c] border border-slate-200 dark:border-emerald-800/60 shadow-xs flex flex-col justify-between">
                 <div className="flex items-center justify-between text-slate-500 dark:text-emerald-300/80">
@@ -930,6 +989,17 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
                   <span className="text-slate-500 dark:text-emerald-300/80 font-medium">{isHindi ? 'श्रेणी' : 'Category'}</span>
                   <span className="font-bold text-slate-900 dark:text-white">{property.category}</span>
                 </div>
+
+                {formatPropertyAge(property.propertyAgeYears, isHindi) && (
+                  <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-emerald-900/40">
+                    <span className="text-slate-500 dark:text-emerald-300/80 font-medium">
+                      {isHindi ? 'प्रॉपर्टी कितनी पुरानी है' : 'Property Age'}
+                    </span>
+                    <span className="font-bold text-slate-900 dark:text-white">
+                      {formatPropertyAge(property.propertyAgeYears, isHindi)}
+                    </span>
+                  </div>
+                )}
 
                 {!isLandOrPlot && (
                   <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-emerald-900/40">
@@ -1081,37 +1151,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
                 </span>
               </div>
 
-              {/* Home Loan & EMI Quick Estimate Card */}
-              {!isForRent && property.price > 0 && estimatedMonthlyEmi > 0 && (
-                <div className="p-3.5 rounded-2xl bg-gradient-to-br from-emerald-50 via-teal-50 to-white dark:from-[#09291e] dark:via-[#071d15] dark:to-[#051810] border border-emerald-300 dark:border-emerald-700/80 space-y-1.5 shadow-2xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300 flex items-center gap-1">
-                      <IndianRupee className="w-3.5 h-3.5" />
-                      <span>{isHindi ? 'अनुमानित गृह ऋण ईएमआई' : 'Est. Home Loan EMI'}</span>
-                    </span>
-                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-200 dark:bg-emerald-900 text-emerald-950 dark:text-emerald-200">
-                      @ 8.5% p.a.
-                    </span>
-                  </div>
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-xl font-black text-emerald-950 dark:text-white">
-                      ₹{estimatedMonthlyEmi.toLocaleString('en-IN')}{' '}
-                      <span className="text-xs font-normal text-slate-500 dark:text-emerald-300">/ {isHindi ? 'माह' : 'mo'}</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setShowEmiModal(true)}
-                      className="text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:underline cursor-pointer flex items-center gap-0.5"
-                    >
-                      <span>{isHindi ? 'कैलकुलेटर' : 'Customize'}</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </button>
-                  </div>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                    {isHindi ? 'केवल सामान्य सूचनात्मक अनुमान (UKG ऋण प्रदान नहीं करता है)' : 'Informational estimate only. UKG does not provide loans.'}
-                  </p>
-                </div>
-              )}
+
 
               {/* Public Lister Information & Direct Phone / WhatsApp Contact */}
               <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200 dark:border-emerald-900/50 space-y-3">
@@ -1425,12 +1465,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
         </div>
       )}
 
-      {/* Home Loan & EMI Calculator Modal */}
-      <EmiCalculatorModal
-        isOpen={showEmiModal}
-        onClose={() => setShowEmiModal(false)}
-        initialPrice={property.price}
-      />
+
 
       {/* Uttarakhand Real Estate SEO Keyword Links */}
       {/* Related Properties & Buyer Verification Notice */}

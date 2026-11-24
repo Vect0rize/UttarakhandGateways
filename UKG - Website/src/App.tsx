@@ -86,6 +86,9 @@ const ProgrammaticLandingPage = lazy(() =>
 const AdminDashboardPage = lazy(() =>
   import('./components/AdminDashboardPage').then((m) => ({ default: m.AdminDashboardPage }))
 );
+const RequirementsPage = lazy(() =>
+  import('./components/RequirementsPage').then((m) => ({ default: m.RequirementsPage }))
+);
 import { LoginPage } from './components/LoginPage';
 import { EmiCalculatorModal } from './components/EmiCalculatorModal';
 import { ListChooserModal } from './components/ListChooserModal';
@@ -100,7 +103,7 @@ import {
   syncListingsUrlParams,
 } from './utils/scrollToListings';
 
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 5;
 
 const INITIAL_FILTERS: FilterState = {
   region: 'All',
@@ -183,6 +186,7 @@ export default function App() {
     const path = rawPath === '' ? '/' : rawPath;
 
     if (path === '/' && !p) return { page: 'home', cleanPath: '/' };
+    if (p === 'requirements' || path === '/requirements' || path === '/post-requirement' || path === '/post-requirements') return { page: 'requirements', cleanPath: '/requirements' };
     if (p === 'list' || path === '/list') return { page: 'list', cleanPath: '/list' };
     if (p === 'buy' || path === '/buy' || path === '/lbuy' || path === '/buy-property') return { page: 'buy', cleanPath: '/buy' };
     if (p === 'rent' || path === '/rent' || p === 'rent-property' || path === '/rent-property') return { page: 'rent', cleanPath: '/rent' };
@@ -1763,6 +1767,26 @@ export default function App() {
     );
   }
 
+  if (activePage === 'requirements' && !selectedProperty) {
+    return (
+      <ErrorBoundary fallbackTitle="Unable to load Property Requirements" onReset={() => navigateToPage('home')}>
+        <Suspense fallback={lazyFallback}>
+          <RequirementsPage
+            allProperties={properties}
+            onBackToMain={() => navigateToPage('home')}
+            onSelectProperty={handleSelectProperty}
+            onNavigatePage={(page) => navigateToPage(page as ActivePageView)}
+            onNavigateCity={navigateToCity}
+            isDark={isDark}
+            onToggleTheme={toggleTheme}
+            favoriteCount={favorites.length}
+          />
+        </Suspense>
+        <AuthModal />
+      </ErrorBoundary>
+    );
+  }
+
   if (activePage === 'inbox') {
     return (
       <ErrorBoundary fallbackTitle="Unable to load Inbox" onReset={() => navigateToPage('home')}>
@@ -2068,6 +2092,7 @@ export default function App() {
         onOpenSellModal={() => navigateToPage('sell-gui')}
         onOpenRentalModal={() => navigateToPage('rent-gui')}
         onOpenListChooser={() => navigateToPage('list')}
+        onOpenRequirements={() => navigateToPage('requirements')}
         onOpenSignIn={() => navigateToPage('login')}
         onOpenRegister={() => navigateToPage('register')}
         onOpenHomeLoanPage={() => navigateToPage('home-loan')}
@@ -2488,12 +2513,26 @@ export default function App() {
           <PropertyCalculator isModal={false} />
         </div>
 
-        {/* Banner beneath Land Calculator: Home Loan Graphics & Check Eligibility */}
-        <HomeLoanBanner
-          isDark={isDark}
-          onOpenEligibility={() => navigateToPage('home-loan')}
-          onOpenBankOffers={() => navigateToPage('home-loan', '#banks')}
-        />
+        {/* Post Your Requirement CTA Section */}
+        <section className="my-12 p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-[#0E3A2B] via-[#0B3124] to-[#072118] text-white border border-emerald-800/80 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="space-y-1.5 max-w-2xl">
+            <h3 className="font-serif-luxury text-xl sm:text-2xl font-bold">
+              {isHindi ? 'मनपसंद प्रॉपर्टी नहीं मिली? अपनी आवश्यकता पोस्ट करें' : "Can't Find What You Need? Post Your Requirement"}
+            </h3>
+            <p className="text-xs sm:text-sm text-emerald-100/85">
+              {isHindi
+                ? 'खरीदने या किराये हेतु अपना बजट व पसंदीदा स्थान बताएं — आपका निजी नंबर सार्वजनिक रूप से छिपा रहता है।'
+                : 'Share your budget, preferred Uttarakhand location, and property type. Your phone number stays private.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigateToPage('requirements')}
+            className="px-5 py-3 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs sm:text-sm shadow-md transition active:scale-95 cursor-pointer whitespace-nowrap shrink-0"
+          >
+            {isHindi ? 'अपनी आवश्यकता पोस्ट करें →' : 'Post Your Requirement →'}
+          </button>
+        </section>
 
         {/* Authoritative SEO Knowledge & FAQ Guide */}
         <HomeSeoGuideSection />

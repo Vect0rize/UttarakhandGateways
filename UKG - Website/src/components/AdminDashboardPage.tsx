@@ -42,12 +42,13 @@ import {
   Globe,
   Tag,
   SlidersHorizontal,
+  ClipboardList,
 } from 'lucide-react';
-import { Property, PropertyCategory, PropertyType, UttarakhandCity, Region } from '../types';
+import { Property, PropertyCategory, PropertyType, UttarakhandCity, Region, PropertyRequirement, RequirementType, RequirementPropertyType } from '../types';
 import { compressImageToWebpFile, uploadFileWithProgress, validateUploadFile } from '../utils/imageModeration';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { isAppOwner, formatPropertyViewsCount } from '../utils/propertyOwnership';
+import { isAppOwner, formatPropertyViewsCount, formatPropertyAge } from '../utils/propertyOwnership';
 import { getPropertySlugPath } from '../data/programmaticSeo';
 import { resolveApiUrl, isNativeAndroidApp } from '../config/apiConfig';
 
@@ -67,6 +68,8 @@ interface AdminStats {
   suspendedUsers: number;
   openReports: number;
   totalReports: number;
+  pendingRequirements?: number;
+  totalRequirements?: number;
   totalPropertyViews: number;
   totalInquiries: number;
   totalShares: number;
@@ -131,7 +134,7 @@ interface AdminAuditLogRecord {
   adminEmail: string;
   adminName: string;
   action: string;
-  targetType: 'property' | 'user' | 'report' | 'settings' | 'bulk';
+  targetType: 'property' | 'user' | 'report' | 'settings' | 'bulk' | 'requirement';
   targetId: string;
   targetTitle?: string;
   details: string;
@@ -274,7 +277,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
   const isAdmin = isAppOwner(currentUser);
 
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'properties' | 'users' | 'reports' | 'platform' | 'audit'
+    'overview' | 'properties' | 'requirements' | 'users' | 'reports' | 'platform' | 'audit'
   >('properties');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -285,6 +288,9 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
   const [properties, setProperties] = useState<AdminPropertyRecord[]>([]);
   const [users, setUsers] = useState<AdminUserRecord[]>([]);
   const [reports, setReports] = useState<AdminReportRecord[]>([]);
+  const [requirements, setRequirements] = useState<PropertyRequirement[]>([]);
+  const [reqFilter, setReqFilter] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'fulfilled'>('all');
+  const [editingAdminReq, setEditingAdminReq] = useState<PropertyRequirement | null>(null);
   const [auditLogs, setAuditLogs] = useState<AdminAuditLogRecord[]>([]);
   const [settings, setSettings] = useState<PlatformSettings>({
     enabledCategories: ['Residential', 'Commercial', 'Agriculture'],
@@ -410,6 +416,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
         setProperties(Array.isArray(data.properties) ? data.properties : []);
         setUsers(Array.isArray(data.users) ? data.users : []);
         setReports(Array.isArray(data.reports) ? data.reports : []);
+        setRequirements(Array.isArray(data.requirements) ? data.requirements : []);
         setAuditLogs(Array.isArray(data.auditLogs) ? data.auditLogs : []);
         if (data.settings) setSettings(data.settings);
       } catch (err: any) {
@@ -866,6 +873,62 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
     } catch {}
   };
 
+  // Admin Requirement Management Actions (Approve, Reject, Edit, Fulfill, Renew, Delete)
+  const handleAdminReqStatus = async (
+    reqId: string,
+    patch: { approvalStatus?: 'pending' | 'approved' | 'rejected'; isFulfilled?: boolean; renew?: boolean },
+    label: string
+  ) => {
+    try {
+      const res = await adminFetch(`/api/requirements/${encodeURIComponent(reqId)}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || 'Failed to update requirement.');
+      }
+      showToast(label);
+      await loadAdminOverview(true);
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Requirement update failed.');
+    }
+  };
+
+  const handleAdminSaveReqEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingAdminReq) return;
+    try {
+      const res = await adminFetch(`/api/requirements/${encodeURIComponent(editingAdminReq.id)}`, {
+        method: 'PUT',
+        body: JSON.stringify(editingAdminReq),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || 'Failed to save requirement changes.');
+      }
+      setEditingAdminReq(null);
+      showToast('Requirement updated by administrator.');
+      await loadAdminOverview(true);
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Failed to save requirement.');
+    }
+  };
+
+  const handleAdminDeleteReq = async (reqId: string) => {
+    try {
+      const res = await adminFetch(`/api/requirements/${encodeURIComponent(reqId)}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        showToast('Requirement removed.');
+        await loadAdminOverview(true);
+      }
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Failed to delete requirement.');
+    }
+  };
+
   // Platform Settings Save
   const handleSaveSettings = async (nextSettings: PlatformSettings) => {
     setSavingSettings(true);
@@ -1166,6 +1229,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
         <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8 flex items-center gap-1 overflow-x-auto no-scrollbar pt-0.5">
           {[
             { id: 'properties', label: `Properties Control (${statusCounts.all})`, icon: Building2 },
+            { id: 'requirements', label: `Requirements (${requirements.filter((r) => r.approvalStatus === 'pending').length} Pending)`, icon: ClipboardList },
             { id: 'overview', label: 'Marketplace Stats', icon: BarChart3 },
             { id: 'users', label: `Users & Owners (${stats?.registeredUsers ?? users.length})`, icon: Users },
             { id: 'reports', label: `Reports (${stats?.openReports ?? 0} Open)`, icon: Flag },
@@ -1612,6 +1676,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                                   <span className="font-medium">
                                     {prop.type} ({prop.category}) • {prop.areaDisplay || `${prop.areaSqFt || 0} Sq.Ft`}
                                     {prop.bedrooms ? ` • ${prop.bedrooms} BHK` : ''}
+                                    {formatPropertyAge(prop.propertyAgeYears) ? ` • ${formatPropertyAge(prop.propertyAgeYears)}` : ''}
                                   </span>
                                 </div>
                               </div>
@@ -1874,6 +1939,188 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                         </div>
                       );
                     })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ================= TAB: BUYER & TENANT REQUIREMENTS CONTROL ================= */}
+            {activeTab === 'requirements' && (
+              <div className="space-y-4">
+                <div className="p-4 rounded-2xl bg-white dark:bg-[#082218] border border-emerald-200/80 dark:border-emerald-800/80 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                    {(
+                      [
+                        { id: 'all', label: `All (${requirements.length})` },
+                        { id: 'pending', label: `Pending (${requirements.filter((r) => r.approvalStatus === 'pending').length})` },
+                        { id: 'approved', label: `Approved (${requirements.filter((r) => r.approvalStatus === 'approved' && !r.isFulfilled).length})` },
+                        { id: 'fulfilled', label: `Fulfilled (${requirements.filter((r) => r.isFulfilled).length})` },
+                        { id: 'rejected', label: `Rejected (${requirements.filter((r) => r.approvalStatus === 'rejected').length})` },
+                      ] as const
+                    ).map((f) => (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => setReqFilter(f.id)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap cursor-pointer ${
+                          reqFilter === f.id
+                            ? 'bg-[#0E3A2B] text-white dark:bg-amber-400 dark:text-slate-950'
+                            : 'bg-slate-100 dark:bg-[#051811] text-slate-600 dark:text-slate-300'
+                        }`}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {requirements.filter((r) => {
+                  if (reqFilter === 'fulfilled') return r.isFulfilled;
+                  if (reqFilter === 'pending') return r.approvalStatus === 'pending';
+                  if (reqFilter === 'approved') return r.approvalStatus === 'approved' && !r.isFulfilled;
+                  if (reqFilter === 'rejected') return r.approvalStatus === 'rejected';
+                  return true;
+                }).length === 0 ? (
+                  <div className="p-10 rounded-3xl bg-white dark:bg-[#082218] border border-emerald-200/80 dark:border-emerald-800/80 text-center text-xs sm:text-sm text-slate-500">
+                    No property requirements in this filter yet.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {requirements
+                      .filter((r) => {
+                        if (reqFilter === 'fulfilled') return r.isFulfilled;
+                        if (reqFilter === 'pending') return r.approvalStatus === 'pending';
+                        if (reqFilter === 'approved') return r.approvalStatus === 'approved' && !r.isFulfilled;
+                        if (reqFilter === 'rejected') return r.approvalStatus === 'rejected';
+                        return true;
+                      })
+                      .map((reqItem) => (
+                        <div
+                          key={reqItem.id}
+                          className="p-4 rounded-2xl bg-white dark:bg-[#082218] border border-emerald-200/80 dark:border-emerald-800/80 shadow-xs space-y-3"
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                            <div className="space-y-1 min-w-0">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-600 text-white">
+                                  {reqItem.requirementType} • {reqItem.propertyType}
+                                </span>
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                                    reqItem.approvalStatus === 'approved'
+                                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                                      : reqItem.approvalStatus === 'rejected'
+                                        ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                                        : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                                  }`}
+                                >
+                                  {reqItem.approvalStatus}
+                                </span>
+                                {reqItem.isFulfilled && (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-purple-600 text-white">
+                                    Fulfilled
+                                  </span>
+                                )}
+                                <span className="text-[11px] text-slate-500">
+                                  Posted {formatDateTimeShort(reqItem.createdAt)} • Expires {formatDateTimeShort(reqItem.expiresAt)}
+                                </span>
+                              </div>
+
+                              <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white">
+                                {reqItem.preferredLocation} — ₹{Number(reqItem.minBudget || 0).toLocaleString('en-IN')} to ₹
+                                {Number(reqItem.maxBudget || 0).toLocaleString('en-IN')}
+                              </h3>
+
+                              <div className="text-xs text-slate-600 dark:text-slate-300 flex flex-wrap gap-3">
+                                {reqItem.bedrooms ? <span>Bedrooms: {reqItem.bedrooms} BHK</span> : null}
+                                {reqItem.requiredSize ? <span>Size: {reqItem.requiredSize}</span> : null}
+                                <span>Responses: {reqItem.responsesCount || 0}</span>
+                              </div>
+
+                              {reqItem.description && (
+                                <p className="text-xs text-slate-700 dark:text-slate-300 pt-1">{reqItem.description}</p>
+                              )}
+
+                              <div className="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-[#051811] border border-slate-200/70 dark:border-emerald-900/60 text-[11px] flex flex-wrap gap-3">
+                                <span>
+                                  <strong>User:</strong> {reqItem.userName || 'User'}
+                                </span>
+                                {reqItem.userEmail && <span className="break-all">✉️ {reqItem.userEmail}</span>}
+                                {reqItem.userPhone && <span className="font-mono">📞 {reqItem.userPhone}</span>}
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                              {reqItem.approvalStatus !== 'approved' && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    void handleAdminReqStatus(
+                                      reqItem.id,
+                                      { approvalStatus: 'approved' },
+                                      'Requirement approved & published!'
+                                    )
+                                  }
+                                  className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer"
+                                >
+                                  Approve
+                                </button>
+                              )}
+                              {reqItem.approvalStatus !== 'rejected' && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    void handleAdminReqStatus(
+                                      reqItem.id,
+                                      { approvalStatus: 'rejected' },
+                                      'Requirement rejected.'
+                                    )
+                                  }
+                                  className="px-3 py-1.5 rounded-xl bg-rose-100 dark:bg-rose-950/70 text-rose-800 dark:text-rose-200 text-xs font-bold cursor-pointer"
+                                >
+                                  Reject
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setEditingAdminReq({ ...reqItem })}
+                                className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  void handleAdminReqStatus(
+                                    reqItem.id,
+                                    { isFulfilled: !reqItem.isFulfilled },
+                                    reqItem.isFulfilled ? 'Requirement reopened.' : 'Marked fulfilled.'
+                                  )
+                                }
+                                className="px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-800 dark:text-purple-200 border border-purple-200 dark:border-purple-800 text-xs font-bold cursor-pointer"
+                              >
+                                {reqItem.isFulfilled ? 'Reopen' : 'Mark Fulfilled'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  void handleAdminReqStatus(reqItem.id, { renew: true }, 'Extended expiry by 30 days.')
+                                }
+                                className="px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-xs font-bold cursor-pointer"
+                              >
+                                Renew 30d
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void handleAdminDeleteReq(reqItem.id)}
+                                className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold cursor-pointer"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                   </div>
                 )}
               </div>
@@ -2611,6 +2858,119 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
         )}
       </main>
 
+      {/* ================= MODAL: ADMIN REQUIREMENT EDITOR ================= */}
+      {editingAdminReq && (
+        <div
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4"
+          onClick={() => setEditingAdminReq(null)}
+        >
+          <div
+            className="w-full max-w-lg bg-white dark:bg-[#082218] rounded-3xl border border-emerald-300 dark:border-emerald-800 shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 bg-[#0E3A2B] text-white flex items-center justify-between">
+              <h3 className="text-sm sm:text-base font-black">Edit User Requirement</h3>
+              <button type="button" onClick={() => setEditingAdminReq(null)} className="cursor-pointer">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form onSubmit={handleAdminSaveReqEdit} className="p-5 space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="font-bold block mb-1">Requirement Type</label>
+                  <select
+                    value={editingAdminReq.requirementType}
+                    onChange={(e) =>
+                      setEditingAdminReq({ ...editingAdminReq, requirementType: e.target.value as RequirementType })
+                    }
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-[#051811]"
+                  >
+                    <option value="Buy">Buy</option>
+                    <option value="Rent">Rent</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="font-bold block mb-1">Property Type</label>
+                  <select
+                    value={editingAdminReq.propertyType}
+                    onChange={(e) =>
+                      setEditingAdminReq({
+                        ...editingAdminReq,
+                        propertyType: e.target.value as RequirementPropertyType,
+                      })
+                    }
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-[#051811]"
+                  >
+                    {['Plot', 'House', 'Flat', 'Villa', 'Commercial', 'Other'].map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="font-bold block mb-1">Preferred Location</label>
+                <input
+                  type="text"
+                  value={editingAdminReq.preferredLocation}
+                  onChange={(e) => setEditingAdminReq({ ...editingAdminReq, preferredLocation: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-[#051811]"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="font-bold block mb-1">Min Budget (₹)</label>
+                  <input
+                    type="number"
+                    value={editingAdminReq.minBudget}
+                    onChange={(e) =>
+                      setEditingAdminReq({ ...editingAdminReq, minBudget: Number(e.target.value) || 0 })
+                    }
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-[#051811]"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold block mb-1">Max Budget (₹)</label>
+                  <input
+                    type="number"
+                    value={editingAdminReq.maxBudget}
+                    onChange={(e) =>
+                      setEditingAdminReq({ ...editingAdminReq, maxBudget: Number(e.target.value) || 0 })
+                    }
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-[#051811]"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="font-bold block mb-1">Description</label>
+                <textarea
+                  rows={3}
+                  value={editingAdminReq.description || ''}
+                  onChange={(e) => setEditingAdminReq({ ...editingAdminReq, description: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-[#051811]"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingAdminReq(null)}
+                  className="px-4 py-2 rounded-xl border border-slate-300 dark:border-emerald-800 font-bold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-emerald-600 text-white font-bold cursor-pointer"
+                >
+                  Save Requirement
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* ================= MODAL: COMPLETE ALL-FIELDS ADMIN PROPERTY EDITOR ================= */}
       {editorProperty && (
         <div
@@ -3130,6 +3490,25 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                       value={editorProperty.facing || ''}
                       onChange={(e) => setEditorProperty({ ...editorProperty, facing: e.target.value })}
                       placeholder="East / North-East / Valley Facing"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-800 bg-slate-50 dark:bg-[#051811]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold block mb-1">How Old Is This Property? (Years)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={200}
+                      step="any"
+                      value={editorProperty.propertyAgeYears ?? ''}
+                      onChange={(e) =>
+                        setEditorProperty({
+                          ...editorProperty,
+                          propertyAgeYears: e.target.value === '' ? null : Number(e.target.value),
+                        })
+                      }
+                      placeholder="e.g. 0 (New), 5 — blank if unknown"
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-800 bg-slate-50 dark:bg-[#051811]"
                     />
                   </div>

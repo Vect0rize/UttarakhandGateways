@@ -2,6 +2,7 @@ export type AppPageRouteKey =
   | 'home'
   | 'buy'
   | 'rent'
+  | 'requirements'
   | 'list'
   | 'sell-gui'
   | 'rent-gui'
@@ -71,6 +72,7 @@ export const ROUTE_PATH_MAP: Record<
   home: '/',
   buy: '/buy',
   rent: '/rent',
+  requirements: '/requirements',
   list: '/list',
   'sell-gui': '/list/buy',
   'rent-gui': '/list/rent',
@@ -122,6 +124,14 @@ export function getPageSeoMeta(
           'Find rental houses, flats, rooms, cottages, PG accommodations, and commercial spaces in Dehradun, Rishikesh, Haridwar, Haldwani & Nainital with direct lister contact.',
         keywords: `rent property in uttarakhand, pg in uttarakhand, house for rent in dehradun, flats for rent in rishikesh, rooms for rent in haridwar, ${coreKw}`,
         canonicalPath: '/rent',
+      };
+    case 'requirements':
+      return {
+        title: 'Post Your Property Requirements in Uttarakhand | Buy or Rent | Uttarakhand Gateways',
+        description:
+          'Share your property requirement to buy or rent plots, houses, flats, villas, or commercial properties across Uttarakhand while keeping your private phone number hidden publicly.',
+        keywords: `post property requirement uttarakhand, looking to buy property in dehradun, looking to rent flat in rishikesh, ${coreKw}`,
+        canonicalPath: '/requirements',
       };
     case 'list':
       return {
