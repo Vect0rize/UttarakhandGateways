@@ -2256,10 +2256,10 @@ export default function App() {
           </div>
         )}
 
-        {/* SECTION: Featured Properties Carousel (Like Mobile App) */}
+        {/* SECTION: Featured Properties Carousel */}
         {!showingFavoritesOnly && featuredProperties.length > 0 && (
-          <section className="mb-10 sm:mb-12">
-            <div className="mb-4 px-1">
+          <section className="mb-8 sm:mb-10">
+            <div className="mb-3.5">
               <h3 className="font-serif-luxury font-bold text-xl sm:text-2xl text-slate-900 dark:text-white flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-amber-500 fill-amber-500 shrink-0" />
                 <span>{isHindi ? 'फीचर्ड संपत्तियां' : 'Featured Properties'}</span>
@@ -2282,15 +2282,21 @@ export default function App() {
           </section>
         )}
 
-        {/* Scroll Anchor at Start of Property Listings */}
+        {/* Scroll Anchor & "Showing All Properties" Heading directly below Featured Properties */}
         <div id="all-properties-heading" className="scroll-mt-24 sm:scroll-mt-28" />
-        {showingFavoritesOnly && (
-          <div className="mb-6 pb-4 border-b border-emerald-200/80 dark:border-emerald-950/80">
+        {showingFavoritesOnly ? (
+          <div className="mb-5 pb-3 border-b border-emerald-200/80 dark:border-emerald-950/80">
             <h3 className="text-xl sm:text-2xl font-bold text-[#0E3A2B] dark:text-[#F4F3EF] font-serif-luxury">
               {isHindi ? 'सहेजी गई संपत्तियां' : 'Saved for Later'}
             </h3>
           </div>
-        )}
+        ) : displayedProperties.length > 0 ? (
+          <div className="mb-5 flex items-center justify-between">
+            <h3 className="text-xl sm:text-2xl font-bold text-[#0E3A2B] dark:text-[#F4F3EF] font-serif-luxury tracking-tight">
+              {isHindi ? 'सभी प्रॉपर्टीज' : 'Showing All Properties'}
+            </h3>
+          </div>
+        ) : null}
 
         {/* Properties Grid: 10 properties per page */}
         {displayedProperties.length > 0 ? (

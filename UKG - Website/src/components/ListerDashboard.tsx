@@ -191,8 +191,8 @@ export const ListerDashboard: React.FC<ListerDashboardProps> = ({
               {totalViews.toLocaleString()}
             </div>
             <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-2">
-              <TrendingUp className="w-3.5 h-3.5" />
-              <span>+24.8% {isHindi ? 'इस सप्ताह' : 'this week'}</span>
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>{isHindi ? '100% वास्तविक व्यूज' : '100% real unique views'}</span>
             </div>
           </div>
 

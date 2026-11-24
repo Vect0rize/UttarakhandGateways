@@ -1703,195 +1703,105 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
           </div>
 
           {transactionType === 'sale' ? (
-            /* SALE PRICING (Two-way Auto Calculator between Value per Unit & Total Price) */
+            /* SALE PRICING: Stacked Editable Total Price Box + Editable Rate Per Unit Box (Auto-Synced Both Ways) */
             <div className="space-y-3.5">
+              {/* BOX 1 (TOP): TOTAL SELLING PRICE */}
               <div>
                 <div className="flex flex-wrap justify-between items-center gap-2 mb-1.5">
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                    {isHindi ? 'कुल बिक्री मूल्य (Total Price in ₹) *' : 'Total Property Price (in ₹) *'}
+                    {isHindi ? 'कुल बिक्री मूल्य (Total Price in ₹) *' : 'Total Price (in ₹) *'}
                   </label>
-                  <div className="flex items-center gap-2">
-                    {/* Live Conversion Badge */}
-                    {parsedSalePriceNum > 0 && (
-                      <span className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
-                        {parsedSalePriceNum >= 10000000
-                          ? `₹${(parsedSalePriceNum / 10000000).toFixed(2)} Cr`
-                          : parsedSalePriceNum >= 100000
-                          ? `₹${(parsedSalePriceNum / 100000).toFixed(2)} Lakh`
-                          : `₹${parsedSalePriceNum.toLocaleString('en-IN')}`}
-                      </span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowAutoCalculator((prev) => {
-                          const next = !prev;
-                          if (next) {
-                            setTimeout(() => rateInputRef.current?.focus(), 40);
-                          }
-                          return next;
-                        });
-                      }}
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-extrabold border transition-all cursor-pointer active:scale-95 ${
-                        showAutoCalculator
-                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-                          : 'bg-emerald-50 dark:bg-emerald-950/80 hover:bg-emerald-100 dark:hover:bg-emerald-900 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
-                      }`}
-                    >
-                      <Calculator className="w-3.5 h-3.5" />
-                      <span>{isHindi ? 'ऑटो कैलकुलेट (प्रति इकाई)' : 'Auto Calculate'}</span>
-                    </button>
-                  </div>
+                  {parsedSalePriceNum > 0 && (
+                    <span className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                      {parsedSalePriceNum >= 10000000
+                        ? `₹${(parsedSalePriceNum / 10000000).toFixed(2).replace(/\.00$/, '')} Cr`
+                        : parsedSalePriceNum >= 100000
+                        ? `₹${(parsedSalePriceNum / 100000).toFixed(2).replace(/\.00$/, '')} Lakh`
+                        : `₹${parsedSalePriceNum.toLocaleString('en-IN')}`}
+                    </span>
+                  )}
                 </div>
                 <div className="relative">
                   <span className="absolute left-3.5 top-2.5 text-slate-400 font-bold text-sm">₹</span>
                   <input
+                    id="sale-total-price-input"
                     type="text"
                     inputMode="numeric"
                     required
                     value={totalPriceInput}
                     onWheel={(e) => e.currentTarget.blur()}
                     onChange={(e) => handleTotalPriceChange(e.target.value)}
-                    placeholder={isHindi ? 'कुल मूल्य दर्ज करें' : 'Enter property amount'}
+                    placeholder={isHindi ? 'कुल मूल्य दर्ज करें' : 'Enter total selling price'}
                     className="w-full pl-8 pr-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-900/80 bg-white dark:bg-slate-900 text-xs sm:text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
                   />
                 </div>
+              </div>
 
-                {/* Interactive Auto Calculator Panel: Enter Value per Unit -> Auto-calculates Total Price */}
-                {showAutoCalculator ? (
-                  <div
-                    id="sell-auto-calculator-panel"
-                    className="mt-2.5 p-3.5 rounded-xl bg-emerald-50/90 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 space-y-3"
+              {/* BOX 2 (BELOW): EDITABLE RATE PER UNIT (Synced Automatically with Total Price) */}
+              <div>
+                <div className="flex flex-wrap justify-between items-center gap-2 mb-1.5">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    {isHindi
+                      ? `प्रति ${selectedAreaUnitConfig.shortHi} दर (Rate per ${selectedAreaUnitConfig.shortEn} in ₹)`
+                      : `Rate per ${selectedAreaUnitConfig.shortEn} (in ₹)`}
+                  </label>
+                  <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                    {parsedAreaInputNum > 0
+                      ? isHindi
+                        ? `क्षेत्रफल: ${parsedAreaInputNum} ${selectedAreaUnitConfig.shortHi} के अनुसार स्वतः अपडेट`
+                        : `Auto-syncs with ${parsedAreaInputNum} ${selectedAreaUnitConfig.shortEn} area`
+                      : isHindi
+                      ? 'स्वतः गणना हेतु ऊपर क्षेत्रफल दर्ज करें'
+                      : 'Enter property area above to auto-calculate'}
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  <div className="relative flex-1 min-w-0">
+                    <span className="absolute left-3.5 top-2.5 text-slate-400 font-bold text-sm">₹</span>
+                    <input
+                      id="sale-rate-per-unit-input"
+                      ref={rateInputRef}
+                      type="text"
+                      inputMode="decimal"
+                      value={ratePerUnitInput}
+                      onWheel={(e) => e.currentTarget.blur()}
+                      onChange={(e) => handleRatePerUnitChange(e.target.value)}
+                      placeholder={
+                        isHindi
+                          ? `प्रति ${selectedAreaUnitConfig.shortHi} दर दर्ज करें`
+                          : `Enter rate per ${selectedAreaUnitConfig.shortEn}`
+                      }
+                      className="w-full pl-8 pr-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-900/80 bg-white dark:bg-slate-900 text-xs sm:text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
+                    />
+                  </div>
+                  <select
+                    value={areaUnit}
+                    onChange={(e) => handleAreaUnitChange(e.target.value as AreaUnit)}
+                    aria-label="Rate Unit"
+                    className="w-28 sm:w-36 shrink-0 px-2.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-900/80 bg-white dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer"
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-extrabold text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5">
-                        <Calculator className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                        <span>
-                          {isHindi
-                            ? `प्रति ${selectedAreaUnitConfig.shortHi} मूल्य से कुल कीमत ऑटो-कैलकुलेट करें`
-                            : `Auto Calculate Total Price from Value per ${selectedAreaUnitConfig.shortEn}`}
-                        </span>
+                    {AREA_UNITS.map((u) => (
+                      <option key={u.value} value={u.value}>
+                        / {isHindi ? u.shortHi : u.shortEn}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {parsedSalePriceNum > 0 && parsedAreaInputNum > 0 && (
+                  <div className="mt-2 px-3 py-2 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/50 border border-emerald-200/80 dark:border-emerald-800/70 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <span className="font-semibold text-emerald-800 dark:text-emerald-300">
+                      {parsedAreaInputNum.toLocaleString('en-IN')}{' '}
+                      {isHindi ? selectedAreaUnitConfig.shortHi : selectedAreaUnitConfig.shortEn} × ₹
+                      {(parseFloat(ratePerUnitInput) || pricePerSelectedUnit).toLocaleString('en-IN')} = ₹
+                      {parsedSalePriceNum.toLocaleString('en-IN')}
+                    </span>
+                    {areaUnit !== 'sqft' && pricePerSqFtSale > 0 && (
+                      <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
+                        ≈ ₹{pricePerSqFtSale.toLocaleString('en-IN')} / Sq.Ft
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => setShowAutoCalculator(false)}
-                        className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-0.5 cursor-pointer"
-                        aria-label="Close Auto Calculator"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      <div>
-                        <label className="block text-[11px] font-bold text-emerald-900 dark:text-emerald-300 mb-1">
-                          {isHindi
-                            ? `मूल्य प्रति ${selectedAreaUnitConfig.shortHi} (₹) *`
-                            : `Value / Rate per ${selectedAreaUnitConfig.shortEn} (₹)`}
-                        </label>
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-600 dark:text-emerald-400 font-bold text-xs">
-                            ₹
-                          </span>
-                          <input
-                            ref={rateInputRef}
-                            type="text"
-                            inputMode="decimal"
-                            value={ratePerUnitInput}
-                            onWheel={(e) => e.currentTarget.blur()}
-                            onChange={(e) => handleRatePerUnitChange(e.target.value)}
-                            placeholder={isHindi ? 'प्रति इकाई दर दर्ज करें' : 'Enter rate per unit'}
-                            className="w-full pl-7 pr-3 py-2 rounded-xl border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-900 text-xs sm:text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-[11px] font-bold text-emerald-900 dark:text-emerald-300 mb-1">
-                          {isHindi
-                            ? `कुल क्षेत्रफल (${selectedAreaUnitConfig.shortHi})`
-                            : `Area (${selectedAreaUnitConfig.shortEn})`}
-                        </label>
-                        <div className="flex gap-1.5">
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            value={areaValue}
-                            onWheel={(e) => e.currentTarget.blur()}
-                            onChange={(e) => handleAreaValueChange(e.target.value)}
-                            placeholder={isHindi ? 'क्षेत्रफल' : 'Enter area'}
-                            className="w-1/2 px-3 py-2 rounded-xl border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-900 text-xs sm:text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                          />
-                          <select
-                            value={areaUnit}
-                            onChange={(e) => handleAreaUnitChange(e.target.value as AreaUnit)}
-                            className="w-1/2 px-2 py-2 rounded-xl border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer truncate"
-                          >
-                            {AREA_UNITS.map((u) => (
-                              <option key={u.value} value={u.value}>
-                                {isHindi ? u.shortHi : u.shortEn}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-
-                    {parsedSalePriceNum > 0 && parsedAreaInputNum > 0 && (
-                      <div className="pt-2 border-t border-emerald-200/80 dark:border-emerald-800/80 flex flex-wrap items-center justify-between gap-2 text-xs">
-                        <span className="font-semibold text-emerald-800 dark:text-emerald-300">
-                          {parsedAreaInputNum.toLocaleString('en-IN')}{' '}
-                          {isHindi ? selectedAreaUnitConfig.shortHi : selectedAreaUnitConfig.shortEn} × ₹
-                          {(parseFloat(ratePerUnitInput) || pricePerSelectedUnit).toLocaleString('en-IN')} =
-                        </span>
-                        <div className="flex items-center gap-2 font-black text-emerald-950 dark:text-emerald-200">
-                          <span>₹{parsedSalePriceNum.toLocaleString('en-IN')}</span>
-                          {areaUnit !== 'sqft' && pricePerSqFtSale > 0 && (
-                            <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-white/80 dark:bg-slate-900/70 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
-                              ≈ ₹{pricePerSqFtSale.toLocaleString('en-IN')} / Sq.Ft
-                            </span>
-                          )}
-                        </div>
-                      </div>
                     )}
                   </div>
-                ) : (
-                  /* Clickable Auto-calculated Price Per Unit Bar (Click to enter Value per Unit) */
-                  <button
-                    type="button"
-                    id="sell-price-per-unit-box"
-                    onClick={() => {
-                      setShowAutoCalculator(true);
-                      setTimeout(() => rateInputRef.current?.focus(), 40);
-                    }}
-                    className="mt-2 w-full px-3.5 py-2 rounded-xl bg-emerald-50/90 dark:bg-emerald-950/60 hover:bg-emerald-100/90 dark:hover:bg-emerald-900/60 border border-emerald-200 dark:border-emerald-800/80 flex flex-wrap items-center justify-between gap-2 text-xs text-left transition-colors cursor-pointer"
-                  >
-                    <span className="font-semibold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
-                      <Calculator className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                      <span>
-                        {pricePerSelectedUnit > 0
-                          ? isHindi
-                            ? `ऑटो-कैलकुलेटेड दर (${selectedAreaUnitConfig.shortHi} के अनुसार — बदलने हेतु क्लिक करें):`
-                            : `Auto-calculated Price per ${selectedAreaUnitConfig.shortEn} (click to enter rate):`
-                          : isHindi
-                          ? `प्रति ${selectedAreaUnitConfig.shortHi} दर लिखकर कुल कीमत ऑटो-कैलकुलेट करने हेतु क्लिक करें`
-                          : `Click to enter value per ${selectedAreaUnitConfig.shortEn} & auto-calculate total price`}
-                      </span>
-                    </span>
-                    {pricePerSelectedUnit > 0 && (
-                      <div className="flex items-center gap-2 font-black text-emerald-900 dark:text-emerald-200">
-                        <span>
-                          ₹{pricePerSelectedUnit.toLocaleString('en-IN')} /{' '}
-                          {isHindi ? selectedAreaUnitConfig.shortHi : selectedAreaUnitConfig.shortEn}
-                        </span>
-                        {areaUnit !== 'sqft' && pricePerSqFtSale > 0 && (
-                          <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-white/80 dark:bg-slate-900/70 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
-                            ≈ ₹{pricePerSqFtSale.toLocaleString('en-IN')} / Sq.Ft
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </button>
                 )}
               </div>
 

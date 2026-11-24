@@ -19,7 +19,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { formatLocalizedPrice } from '../utils/language';
 import { isLandOrPlotProperty } from '../utils/areaUnits';
-import { isPropertyOwner, canManageProperty, getPropertyOwnerDisplayName, formatPropertyViewsCount } from '../utils/propertyOwnership';
+import { isPropertyOwner, canManageProperty, getPropertyOwnerDisplayName, formatCardDisplayViewsCount } from '../utils/propertyOwnership';
 
 interface LandPlotsSectionProps {
   properties: Property[];
@@ -372,7 +372,7 @@ export const LandPlotsSection: React.FC<LandPlotsSectionProps> = ({
 
                     <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 dark:text-emerald-200/80 tabular-nums shrink-0">
                       <Eye className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                      <span>{formatPropertyViewsCount(property.views, isHindi)}</span>
+                      <span>{formatCardDisplayViewsCount(property, isHindi)}</span>
                     </span>
                   </div>
 

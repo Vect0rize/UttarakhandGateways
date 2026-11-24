@@ -49,6 +49,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { isAppOwner, formatPropertyViewsCount } from '../utils/propertyOwnership';
 import { getPropertySlugPath } from '../data/programmaticSeo';
+import { resolveApiUrl, isNativeAndroidApp } from '../config/apiConfig';
 
 interface AdminStats {
   totalProperties: number;
@@ -355,10 +356,27 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     try {
       const token = localStorage.getItem('ukg_session_token');
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+        headers['X-Session-Token'] = token;
+      }
     } catch {}
     return headers;
   }, []);
+
+  const adminFetch = useCallback(
+    (endpoint: string, init: RequestInit = {}) => {
+      return fetch(resolveApiUrl(endpoint), {
+        ...init,
+        credentials: isNativeAndroidApp() ? 'omit' : 'include',
+        headers: {
+          ...getAuthHeaders(),
+          ...((init.headers as Record<string, string>) || {}),
+        },
+      });
+    },
+    [getAuthHeaders]
+  );
 
   const notifyPublicCatalogChanged = useCallback(() => {
     onCatalogChanged?.();
@@ -383,11 +401,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
       setErrorMsg(null);
 
       try {
-        const res = await fetch('/api/admin/overview', {
-          credentials: 'include',
-          headers: getAuthHeaders(),
-          cache: 'no-store',
-        });
+        const res = await adminFetch('/api/admin/overview', { cache: 'no-store' });
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data?.success) {
           throw new Error(data?.error || `Failed to load admin dashboard (${res.status})`);
@@ -426,10 +440,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
     successLabel: string
   ) => {
     try {
-      const res = await fetch(`/api/admin/properties/${encodeURIComponent(propId)}/status`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: getAuthHeaders(),
+      const res = await adminFetch(`/api/admin/properties/${encodeURIComponent(propId)}/status`, { method: 'PATCH',
         body: JSON.stringify(patch),
       });
       const data = await res.json().catch(() => ({}));
@@ -447,10 +458,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
   // Restore Soft-Deleted Property
   const handleRestoreProperty = async (prop: AdminPropertyRecord) => {
     try {
-      const res = await fetch(`/api/admin/properties/${encodeURIComponent(prop.id)}/restore`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: getAuthHeaders(),
+      const res = await adminFetch(`/api/admin/properties/${encodeURIComponent(prop.id)}/restore`, { method: 'POST',
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data?.success) {
@@ -471,10 +479,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
     setConfirmDeleteProp(null);
     try {
       const query = permanent ? '?permanent=true' : '';
-      const res = await fetch(`/api/admin/properties/${encodeURIComponent(target.id)}${query}`, {
-        method: 'DELETE',
-        credentials: 'include',
-        headers: getAuthHeaders(),
+      const res = await adminFetch(`/api/admin/properties/${encodeURIComponent(target.id)}${query}`, { method: 'DELETE',
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data?.success) {
@@ -499,10 +504,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
     setBulkBusy(true);
     setPendingBulkConfirm(null);
     try {
-      const res = await fetch('/api/admin/properties/bulk', {
-        method: 'POST',
-        credentials: 'include',
-        headers: getAuthHeaders(),
+      const res = await adminFetch('/api/admin/properties/bulk', { method: 'POST',
         body: JSON.stringify({
           propertyIds: selectedPropertyIds,
           action,
@@ -738,10 +740,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
         : `/api/admin/properties/${encodeURIComponent(String(editorProperty.id))}`;
       const method = isCreatingProperty ? 'POST' : 'PUT';
 
-      const res = await fetch(url, {
-        method,
-        credentials: 'include',
-        headers: getAuthHeaders(),
+      const res = await adminFetch(url, { method,
         body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
@@ -766,10 +765,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
     if (!editingUser) return;
     setSavingUser(true);
     try {
-      const res = await fetch(`/api/admin/users/${encodeURIComponent(editingUser.id)}`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: getAuthHeaders(),
+      const res = await adminFetch(`/api/admin/users/${encodeURIComponent(editingUser.id)}`, { method: 'PUT',
         body: JSON.stringify({
           username: editUserName.trim(),
           phone: editUserPhone.trim(),
@@ -797,10 +793,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
     hideListings?: boolean
   ) => {
     try {
-      const res = await fetch(`/api/admin/users/${encodeURIComponent(target.id)}`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: getAuthHeaders(),
+      const res = await adminFetch(`/api/admin/users/${encodeURIComponent(target.id)}`, { method: 'PUT',
         body: JSON.stringify({
           isSuspended: suspend,
           suspendedReason: reason || 'Policy violation',
@@ -826,10 +819,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
     const target = confirmDeleteUser;
     setConfirmDeleteUser(null);
     try {
-      const res = await fetch(`/api/admin/users/${encodeURIComponent(target.id)}`, {
-        method: 'DELETE',
-        credentials: 'include',
-        headers: getAuthHeaders(),
+      const res = await adminFetch(`/api/admin/users/${encodeURIComponent(target.id)}`, { method: 'DELETE',
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data?.success) {
@@ -850,10 +840,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
     label: string
   ) => {
     try {
-      const res = await fetch(`/api/admin/reports/${encodeURIComponent(reportId)}`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: getAuthHeaders(),
+      const res = await adminFetch(`/api/admin/reports/${encodeURIComponent(reportId)}`, { method: 'PATCH',
         body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
@@ -870,10 +857,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
 
   const handleDeleteReport = async (reportId: string) => {
     try {
-      const res = await fetch(`/api/admin/reports/${encodeURIComponent(reportId)}`, {
-        method: 'DELETE',
-        credentials: 'include',
-        headers: getAuthHeaders(),
+      const res = await adminFetch(`/api/admin/reports/${encodeURIComponent(reportId)}`, { method: 'DELETE',
       });
       if (res.ok) {
         showToast('Report record deleted.');
@@ -886,10 +870,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
   const handleSaveSettings = async (nextSettings: PlatformSettings) => {
     setSavingSettings(true);
     try {
-      const res = await fetch('/api/admin/settings', {
-        method: 'PUT',
-        credentials: 'include',
-        headers: getAuthHeaders(),
+      const res = await adminFetch('/api/admin/settings', { method: 'PUT',
         body: JSON.stringify(nextSettings),
       });
       const data = await res.json().catch(() => ({}));
@@ -1120,59 +1101,69 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
 
   return (
     <div className="min-h-screen bg-[#f4f5f2] dark:bg-[#051a12] text-slate-900 dark:text-slate-100">
-      {/* Top Admin Command Header */}
-      <header className="sticky top-0 z-40 bg-[#0E3A2B] text-white border-b border-emerald-800 shadow-lg safe-top">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3.5 flex flex-wrap items-center justify-between gap-2.5">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <button
-              type="button"
-              onClick={onBackToMain}
-              className="px-2.5 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-bold flex items-center gap-1 transition cursor-pointer shrink-0"
-            >
-              <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
-              <span>Back</span>
-            </button>
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center shadow-md">
-                <Crown className="w-5 h-5" />
+      {/* Top Admin Command Header (Safe-Area & Mobile Optimized) */}
+      <header
+        className="sticky top-0 z-40 bg-[#0E3A2B] text-white border-b border-emerald-800 shadow-lg"
+        style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top, 0px))' }}
+      >
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2 sm:py-3 space-y-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <button
+                type="button"
+                onClick={onBackToMain}
+                className="px-2.5 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-bold flex items-center gap-1 transition cursor-pointer shrink-0 active:scale-95"
+              >
+                <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
+                <span>Back</span>
+              </button>
+
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center shadow-md shrink-0">
+                <Crown className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
-              <div>
-                <h1 className="text-base sm:text-lg font-black tracking-tight flex items-center gap-2">
-                  <span>Uttarakhand Gateways Central Control Panel</span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 font-black uppercase">
+
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <h1 className="text-sm sm:text-lg font-black tracking-tight truncate">
+                    <span className="sm:hidden">Admin Control Panel</span>
+                    <span className="hidden sm:inline">Uttarakhand Gateways Central Control Panel</span>
+                  </h1>
+                  <span className="hidden xs:inline-block text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-full bg-amber-400 text-slate-950 font-black uppercase shrink-0">
                     Admin
                   </span>
-                </h1>
-                <p className="text-[11px] text-emerald-200/80">
-                  Signed in as {currentUser.username} ({currentUser.contact})
+                </div>
+                <p className="text-[10px] sm:text-[11px] text-emerald-200/85 truncate">
+                  {currentUser.username} ({currentUser.contact})
                 </p>
               </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => void loadAdminOverview(true)}
-              className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
-              title="Refresh live data"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">Refresh</span>
-            </button>
-            <button
-              type="button"
-              onClick={openCreatePropertyEditor}
-              className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black flex items-center gap-1.5 shadow-md transition cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Property</span>
-            </button>
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => void loadAdminOverview(true)}
+                className="p-2 sm:px-3 sm:py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer active:scale-95"
+                title="Refresh live data"
+                aria-label="Refresh live data"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">Refresh</span>
+              </button>
+              <button
+                type="button"
+                onClick={openCreatePropertyEditor}
+                className="px-2.5 sm:px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black flex items-center gap-1 shadow-md transition cursor-pointer active:scale-95 whitespace-nowrap"
+              >
+                <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                <span className="sm:hidden">Add</span>
+                <span className="hidden sm:inline">Add Property</span>
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-1 overflow-x-auto no-scrollbar pt-1">
+        <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8 flex items-center gap-1 overflow-x-auto no-scrollbar pt-0.5">
           {[
             { id: 'properties', label: `Properties Control (${statusCounts.all})`, icon: Building2 },
             { id: 'overview', label: 'Marketplace Stats', icon: BarChart3 },
@@ -1203,7 +1194,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 pb-20 space-y-4 sm:space-y-6 overflow-x-hidden">
         {toastMsg && (
           <div className="p-3.5 rounded-2xl bg-emerald-600 text-white text-xs sm:text-sm font-bold flex items-center justify-between shadow-lg">
             <span className="flex items-center gap-2">
@@ -1238,8 +1229,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
             {activeTab === 'properties' && (
               <div className="space-y-4">
                 {/* 8 Status View Tabs */}
-                <div className="p-4 rounded-3xl bg-white dark:bg-[#082218] border border-emerald-200/80 dark:border-emerald-800/80 shadow-xs space-y-3.5">
-                  <div className="flex flex-wrap items-center gap-1.5">
+                <div className="p-3 sm:p-4 rounded-2xl sm:rounded-3xl bg-white dark:bg-[#082218] border border-emerald-200/80 dark:border-emerald-800/80 shadow-xs space-y-3">
+                  <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 sm:pb-0 sm:flex-wrap">
                     {(
                       [
                         { id: 'all', label: `All Properties (${statusCounts.all})` },
@@ -1259,7 +1250,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                           setPropStatusView(pill.id);
                           setSelectedPropertyIds([]);
                         }}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0 ${
                           propStatusView === pill.id
                             ? 'bg-[#0E3A2B] text-white dark:bg-amber-400 dark:text-slate-950 shadow-xs'
                             : 'bg-slate-100 dark:bg-[#051811] text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/60'
@@ -1271,8 +1262,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                   </div>
 
                   {/* Search, Category, Submission Date & Sort Controls */}
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5">
-                    <div className="relative md:col-span-5">
+                  <div className="grid grid-cols-2 md:grid-cols-12 gap-2">
+                    <div className="relative col-span-2 md:col-span-5">
                       <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                       <input
                         type="text"
@@ -1315,7 +1306,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                       </select>
                     </div>
 
-                    <div className="md:col-span-3">
+                    <div className="col-span-2 md:col-span-3">
                       <select
                         value={propSortBy}
                         onChange={(e) => setPropSortBy(e.target.value as PropertySortOption)}
@@ -1562,7 +1553,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                       return (
                         <div
                           key={prop.id}
-                          className={`p-4 rounded-3xl bg-white dark:bg-[#082218] border shadow-xs flex flex-col lg:flex-row gap-4 justify-between transition ${
+                          className={`p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white dark:bg-[#082218] border shadow-xs flex flex-col lg:flex-row gap-3.5 sm:gap-4 justify-between transition ${
                             isSelected
                               ? 'border-amber-400 ring-2 ring-amber-400/30'
                               : isDeleted
@@ -1570,139 +1561,139 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                                 : 'border-emerald-200/80 dark:border-emerald-800/80'
                           }`}
                         >
-                          <div className="flex items-start gap-3.5 min-w-0 flex-1">
-                            <button
-                              type="button"
-                              onClick={() => toggleSelectProperty(prop.id)}
-                              className="mt-1 text-slate-400 hover:text-emerald-600 cursor-pointer shrink-0"
-                              aria-label={`Select ${prop.title}`}
-                            >
-                              {isSelected ? (
-                                <CheckSquare className="w-5 h-5 text-emerald-600 dark:text-amber-400" />
-                              ) : (
-                                <Square className="w-5 h-5" />
-                              )}
-                            </button>
+                          <div className="space-y-2.5 min-w-0 flex-1">
+                            {/* Top Row: Checkbox + Thumbnail + Title/Price/Location */}
+                            <div className="flex items-start gap-2.5 sm:gap-3.5 min-w-0">
+                              <button
+                                type="button"
+                                onClick={() => toggleSelectProperty(prop.id)}
+                                className="mt-1 text-slate-400 hover:text-emerald-600 cursor-pointer shrink-0"
+                                aria-label={`Select ${prop.title}`}
+                              >
+                                {isSelected ? (
+                                  <CheckSquare className="w-5 h-5 text-emerald-600 dark:text-amber-400" />
+                                ) : (
+                                  <Square className="w-5 h-5" />
+                                )}
+                              </button>
 
-                            <div className="relative w-24 h-24 rounded-2xl overflow-hidden shrink-0 border border-slate-200 dark:border-emerald-800">
-                              <img src={img} alt={prop.title} className="w-full h-full object-cover" />
-                              {Array.isArray(prop.images) && prop.images.length > 1 && (
-                                <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/75 text-white text-[9px] font-bold">
-                                  {prop.images.length} photos
-                                </span>
-                              )}
+                              <div className="relative w-16 h-16 sm:w-24 sm:h-24 rounded-xl sm:rounded-2xl overflow-hidden shrink-0 border border-slate-200 dark:border-emerald-800">
+                                <img src={img} alt={prop.title} className="w-full h-full object-cover" />
+                                {Array.isArray(prop.images) && prop.images.length > 1 && (
+                                  <span className="absolute bottom-1 right-1 px-1 py-0.2 rounded bg-black/75 text-white text-[8.5px] font-bold">
+                                    {prop.images.length}
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="min-w-0 flex-1 space-y-1">
+                                <div className="flex items-start justify-between gap-2">
+                                  <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white line-clamp-2 sm:truncate leading-snug">
+                                    {prop.title}{' '}
+                                    <span className="text-emerald-700 dark:text-emerald-400 whitespace-nowrap">
+                                      • {prop.priceDisplay}
+                                    </span>
+                                  </h3>
+                                  <span
+                                    className="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-[10.5px] font-bold flex items-center gap-1 tabular-nums shrink-0 whitespace-nowrap"
+                                    title="100% Real Unique Visitor Views"
+                                  >
+                                    <Eye className="w-3 h-3" />
+                                    {formatPropertyViewsCount(prop.views, false)}
+                                  </span>
+                                </div>
+
+                                <div className="text-xs text-slate-600 dark:text-slate-300 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                                  <span className="inline-flex items-center gap-1 min-w-0">
+                                    <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
+                                    <span className="truncate">{[prop.location, prop.district, prop.city].filter(Boolean).join(', ')}</span>
+                                  </span>
+                                  <span>•</span>
+                                  <span className="font-medium">
+                                    {prop.type} ({prop.category}) • {prop.areaDisplay || `${prop.areaSqFt || 0} Sq.Ft`}
+                                    {prop.bedrooms ? ` • ${prop.bedrooms} BHK` : ''}
+                                  </span>
+                                </div>
+                              </div>
                             </div>
 
-                            <div className="space-y-1.5 min-w-0 flex-1">
-                              {/* Status & Metrics Badges */}
-                              <div className="flex flex-wrap items-center gap-1.5">
-                                {isDeleted ? (
-                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-rose-600 text-white">
-                                    Deleted / Archived
-                                  </span>
-                                ) : (
-                                  <>
-                                    <span
-                                      className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                                        status === 'approved'
-                                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                                          : status === 'pending'
-                                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                                            : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
-                                      }`}
-                                    >
-                                      {status}
-                                    </span>
-
-                                    <span
-                                      className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                                        isPublished && !prop.isHidden
-                                          ? 'bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300'
-                                          : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
-                                      }`}
-                                    >
-                                      {isPublished && !prop.isHidden ? 'Published' : 'Unpublished'}
-                                    </span>
-                                  </>
-                                )}
-
-                                {prop.isHidden && !isDeleted && (
-                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200">
-                                    Hidden
-                                  </span>
-                                )}
-
-                                {prop.featured && (
-                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-400 text-slate-950 flex items-center gap-1">
-                                    <Sparkles className="w-2.5 h-2.5 fill-slate-950" />
-                                    Featured
-                                  </span>
-                                )}
-
-                                {prop.isSold && (
-                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-purple-600 text-white">
-                                    Sold / Unavailable
-                                  </span>
-                                )}
-
-                                <span className="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-[11px] font-bold flex items-center gap-1 tabular-nums">
-                                  <Eye className="w-3 h-3" />
-                                  {formatPropertyViewsCount(prop.views, false)}
+                            {/* Full-Width Status Badges & Timestamps */}
+                            <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-100 dark:border-emerald-900/50">
+                              {isDeleted ? (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-rose-600 text-white">
+                                  Deleted / Archived
                                 </span>
-
-                                <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                                  <Clock className="w-3 h-3" />
-                                  Created: {createdDate}
-                                  {updatedDate !== createdDate && ` • Updated: ${updatedDate}`}
-                                </span>
-                              </div>
-
-                              <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white truncate">
-                                {prop.title}{' '}
-                                <span className="text-emerald-700 dark:text-emerald-400">• {prop.priceDisplay}</span>
-                              </h3>
-
-                              <div className="text-xs text-slate-600 dark:text-slate-300 flex flex-wrap items-center gap-x-3 gap-y-1">
-                                <span className="flex items-center gap-1">
-                                  <MapPin className="w-3.5 h-3.5 text-emerald-600" />
-                                  {[prop.location, prop.district, prop.city].filter(Boolean).join(', ')}
-                                </span>
-                                <span>•</span>
-                                <span>
-                                  {prop.type} ({prop.category}) • {prop.areaDisplay || `${prop.areaSqFt || 0} Sq.Ft`}
-                                  {prop.bedrooms ? ` • ${prop.bedrooms} BHK` : ''}
-                                </span>
-                                <span className="text-[10px] font-mono text-slate-400">ID: {prop.id}</span>
-                              </div>
-
-                              {/* Complete Unmasked Owner Details for Admin */}
-                              <div className="pt-1 text-xs text-slate-700 dark:text-emerald-200 flex flex-wrap items-center gap-x-4 gap-y-1">
-                                <span>
-                                  <strong>Owner:</strong> {prop.fullSellerName || prop.sellerName || 'N/A'} (
-                                  {prop.sellerType || 'Owner'})
-                                  {prop.publicMaskedSellerName &&
-                                    prop.publicMaskedSellerName !== (prop.fullSellerName || prop.sellerName) && (
-                                      <span className="text-[11px] text-slate-500 ml-1">
-                                        [Public: {prop.publicMaskedSellerName}]
-                                      </span>
-                                    )}
-                                </span>
-                                {prop.sellerPhone && (
-                                  <span className="font-mono text-emerald-700 dark:text-emerald-300">
-                                    📞 {prop.sellerPhone}
+                              ) : (
+                                <>
+                                  <span
+                                    className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                                      status === 'approved'
+                                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                                        : status === 'pending'
+                                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                                          : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                                    }`}
+                                  >
+                                    {status}
                                   </span>
-                                )}
-                                {(prop.ownerContact || prop.sellerEmail) && (
-                                  <span className="text-slate-500 dark:text-slate-400">
-                                    ✉️ {prop.sellerEmail || prop.ownerContact}
+
+                                  <span
+                                    className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                                      isPublished && !prop.isHidden
+                                        ? 'bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300'
+                                        : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                                    }`}
+                                  >
+                                    {isPublished && !prop.isHidden ? 'Published' : 'Unpublished'}
                                   </span>
-                                )}
-                              </div>
+                                </>
+                              )}
+
+                              {prop.isHidden && !isDeleted && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200">
+                                  Hidden
+                                </span>
+                              )}
+
+                              {prop.featured && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-400 text-slate-950 flex items-center gap-1">
+                                  <Sparkles className="w-2.5 h-2.5 fill-slate-950" />
+                                  Featured
+                                </span>
+                              )}
+
+                              {prop.isSold && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-purple-600 text-white">
+                                  Sold
+                                </span>
+                              )}
+
+                              <span className="text-[10.5px] font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1 ml-auto">
+                                <Clock className="w-3 h-3 shrink-0" />
+                                <span>{createdDate}</span>
+                              </span>
+                            </div>
+
+                            {/* Full-Width Unmasked Owner Contact Box */}
+                            <div className="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-[#051811] border border-slate-200/70 dark:border-emerald-900/60 text-[11px] text-slate-700 dark:text-emerald-200 flex flex-wrap items-center gap-x-3 gap-y-1">
+                              <span>
+                                <strong>Owner:</strong> {prop.fullSellerName || prop.sellerName || 'N/A'} ({prop.sellerType || 'Owner'})
+                              </span>
+                              {prop.sellerPhone && (
+                                <a href={`tel:${prop.sellerPhone}`} className="font-mono font-bold text-emerald-700 dark:text-emerald-300 hover:underline">
+                                  📞 {prop.sellerPhone}
+                                </a>
+                              )}
+                              {(prop.ownerContact || prop.sellerEmail) && (
+                                <span className="text-slate-500 dark:text-slate-400 break-all">
+                                  ✉️ {prop.sellerEmail || prop.ownerContact}
+                                </span>
+                              )}
                             </div>
                           </div>
 
                           {/* Quick Admin Action Controls */}
-                          <div className="flex flex-wrap lg:flex-col justify-end gap-1.5 shrink-0">
+                          <div className="flex flex-col justify-end gap-1.5 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100 dark:border-emerald-900/50">
                             {isDeleted ? (
                               <div className="flex flex-wrap gap-1.5">
                                 <button
@@ -1836,7 +1827,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                                   </button>
                                 </div>
 
-                                <div className="flex flex-wrap gap-1.5 justify-end">
+                                <div className="flex flex-wrap gap-1.5 lg:justify-end">
                                   <button
                                     type="button"
                                     onClick={() => openEditPropertyEditor(prop)}
@@ -2127,8 +2118,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                               </div>
 
                               <div className="text-xs text-slate-600 dark:text-slate-300 flex flex-wrap items-center gap-x-3 gap-y-1">
-                                <span className="flex items-center gap-1">
-                                  <Mail className="w-3 h-3 text-emerald-600" />
+                                <span className="flex items-center gap-1 break-all">
+                                  <Mail className="w-3 h-3 text-emerald-600 shrink-0" />
                                   {u.contact}
                                 </span>
                                 {u.phone && (
@@ -2623,15 +2614,18 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
       {/* ================= MODAL: COMPLETE ALL-FIELDS ADMIN PROPERTY EDITOR ================= */}
       {editorProperty && (
         <div
-          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto"
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden"
           onClick={() => setEditorProperty(null)}
         >
           <div
-            className="w-full max-w-4xl bg-white dark:bg-[#082218] rounded-3xl border border-emerald-300 dark:border-emerald-800 shadow-2xl overflow-hidden max-h-[94vh] flex flex-col"
+            className="w-full max-w-4xl bg-white dark:bg-[#082218] rounded-none sm:rounded-3xl border-0 sm:border border-emerald-300 dark:border-emerald-800 shadow-2xl overflow-hidden h-[100dvh] sm:h-auto sm:max-h-[94vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="px-5 sm:px-6 py-4 bg-[#0E3A2B] text-white flex items-center justify-between gap-3">
+            <div
+              className="px-4 sm:px-6 py-3.5 bg-[#0E3A2B] text-white flex items-center justify-between gap-3 shrink-0"
+              style={{ paddingTop: 'max(0.85rem, env(safe-area-inset-top, 0px))' }}
+            >
               <div className="min-w-0">
                 <h3 className="font-black text-sm sm:text-base flex items-center gap-2 truncate">
                   <SlidersHorizontal className="w-4 h-4 text-amber-400 shrink-0" />
@@ -3682,11 +3676,14 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
               )}
 
               {/* Modal Footer */}
-              <div className="pt-4 border-t border-slate-200 dark:border-emerald-900 flex items-center justify-between gap-2.5">
-                <div className="text-[11px] text-slate-500">
+              <div
+                className="pt-3.5 border-t border-slate-200 dark:border-emerald-900 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+                style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom, 0px))' }}
+              >
+                <div className="text-[11px] text-slate-500 hidden sm:block">
                   Changes take effect immediately across all public pages upon saving.
                 </div>
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center justify-end gap-2 w-full sm:w-auto">
                   <button
                     type="button"
                     onClick={() => setEditorProperty(null)}

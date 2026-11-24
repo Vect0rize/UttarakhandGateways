@@ -960,11 +960,11 @@ export const UploadPropertyModal: React.FC<UploadPropertyModalProps> = ({
                   <span>3. {isHindi ? 'कीमत एवं दर' : 'Pricing & Rate per Unit'}</span>
                 </h4>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-3.5">
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <label className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                        {isHindi ? 'कुल मांग कीमत (₹) *' : 'Total Asking Price (₹) *'}
+                        {isHindi ? 'कुल बिक्री मूल्य (Total Price in ₹) *' : 'Total Price (in ₹) *'}
                       </label>
                       {calculatedTotalPrice > 0 && (
                         <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300">

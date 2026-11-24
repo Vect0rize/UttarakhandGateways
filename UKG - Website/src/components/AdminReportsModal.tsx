@@ -88,7 +88,7 @@ export const AdminReportsModal: React.FC<AdminReportsModalProps> = ({
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
       <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-gray-900">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 px-4 sm:px-6 py-3.5 dark:border-gray-700">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">
               <Flag size={20} />
@@ -121,7 +121,7 @@ export const AdminReportsModal: React.FC<AdminReportsModalProps> = ({
                 title="Admin: Delete all properties at once"
               >
                 <Trash2 size={14} />
-                <span>Delete All Properties ({allProperties.length})</span>
+                <span className="sm:hidden">Delete All ({allProperties.length})</span><span className="hidden sm:inline">Delete All Properties ({allProperties.length})</span>
               </button>
             )}
             <button

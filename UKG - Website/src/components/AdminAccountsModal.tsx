@@ -74,14 +74,14 @@ export const AdminAccountsModal: React.FC<AdminAccountsModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-5 sm:p-6 bg-gradient-to-r from-emerald-900 via-[#072c21] to-teal-900 text-white flex items-center justify-between border-b border-emerald-500/30 shrink-0">
+        <div className="p-3.5 sm:p-6 bg-gradient-to-r from-emerald-900 via-[#072c21] to-teal-900 text-white flex items-center justify-between border-b border-emerald-500/30 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl bg-amber-400/20 border border-amber-300/40 flex items-center justify-center text-amber-300">
               <Crown className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-lg sm:text-xl font-black tracking-tight">
+                <h3 className="text-sm sm:text-xl font-black tracking-tight">
                   {isHindi ? 'सभी पंजीकृत खाते (Owner Directory)' : 'All Registered Accounts Directory'}
                 </h3>
                 <span className="px-2 py-0.5 rounded-full bg-emerald-500/30 border border-emerald-400 text-emerald-200 text-xs font-mono font-bold">
@@ -213,7 +213,7 @@ export const AdminAccountsModal: React.FC<AdminAccountsModalProps> = ({
                         <div className="flex items-center gap-3 text-xs text-slate-600 dark:text-slate-400 flex-wrap">
                           <span className="flex items-center gap-1">
                             <Mail className="w-3.5 h-3.5 text-slate-400" />
-                            <span className="font-mono">{user.contact}</span>
+                            <span className="font-mono break-all">{user.contact}</span>
                           </span>
                           <span>•</span>
                           <span className="flex items-center gap-1 text-[11px]">

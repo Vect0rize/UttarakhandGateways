@@ -315,6 +315,33 @@ export const formatPropertyViewsCount = (views?: number | null, isHindi: boolean
 };
 
 /**
+ * Deterministic boosted view count strictly for public Property Cards.
+ * Admin Control Panel and Listing Analysis always read 100% real `property.views`.
+ */
+export const getCardDisplayViews = (
+  property?: Pick<Property, 'id' | 'views' | 'createdAt'> | null
+): number => {
+  const realViews = Math.max(0, Math.floor(Number(property?.views) || 0));
+  const seed = String(property?.id || 'ukg-listing');
+  let hash = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    hash ^= seed.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  const baseBoost = 48 + (Math.abs(hash) % 147); // Stable per-card boost between 48 and 194
+  return realViews + baseBoost;
+};
+
+export const formatCardDisplayViewsCount = (
+  property?: Pick<Property, 'id' | 'views' | 'createdAt'> | null,
+  isHindi: boolean = false
+): string => {
+  const count = getCardDisplayViews(property);
+  const formatted = count.toLocaleString('en-IN');
+  return isHindi ? `${formatted} व्यूज` : `${formatted} views`;
+};
+
+/**
  * Returns a persistent visitor ID stored in localStorage for duplicate-view protection.
  */
 export const getOrCreateVisitorId = (): string => {

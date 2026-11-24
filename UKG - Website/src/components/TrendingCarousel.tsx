@@ -20,7 +20,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { formatLocalizedPrice } from '../utils/language';
 import { isLandOrPlotProperty } from '../utils/areaUnits';
-import { isPropertyOwner, canManageProperty, getPropertyOwnerDisplayName, formatPropertyViewsCount } from '../utils/propertyOwnership';
+import { isPropertyOwner, canManageProperty, getPropertyOwnerDisplayName, formatCardDisplayViewsCount } from '../utils/propertyOwnership';
 
 interface TrendingCarouselProps {
   properties: Property[];
@@ -28,6 +28,7 @@ interface TrendingCarouselProps {
   favorites: string[];
   onToggleFavorite: (id: string) => void;
   className?: string;
+  bleedPadding?: boolean;
   currentUser?: any;
   onDeleteProperty?: (propertyId: string) => void;
   onToggleSold?: (propertyId: string) => void;
@@ -41,6 +42,7 @@ export const TrendingCarousel: React.FC<TrendingCarouselProps> = ({
   favorites,
   onToggleFavorite,
   className = '',
+  bleedPadding = false,
   currentUser: propUser,
   onDeleteProperty,
   onToggleSold,
@@ -125,16 +127,18 @@ export const TrendingCarousel: React.FC<TrendingCarouselProps> = ({
         <ChevronRight className="w-5 h-5" />
       </button>
 
-      {/* Horizontal Mobile Card Track - Clean, Fast, Native Feel */}
+      {/* Horizontal Card Track - Flush with container by default (no extra left gap!) */}
       <div
         ref={scrollContainerRef}
-        className="w-full flex items-stretch gap-3 overflow-x-auto snap-x snap-mandatory scroll-smooth no-scrollbar px-4 pb-2 pt-0.5 scroll-pl-4 scroll-pr-4"
+        className={`w-full flex items-stretch gap-3.5 overflow-x-auto snap-x snap-mandatory scroll-smooth no-scrollbar pb-2 pt-0.5 ${
+          bleedPadding ? 'px-4 scroll-pl-4 scroll-pr-4' : 'px-0'
+        }`}
         style={{
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
           WebkitOverflowScrolling: 'touch',
-          scrollPaddingLeft: '16px',
-          scrollPaddingRight: '16px',
+          scrollPaddingLeft: bleedPadding ? '16px' : '0px',
+          scrollPaddingRight: bleedPadding ? '16px' : '0px',
         }}
       >
         {trendingList.map((property, idx) => {
@@ -376,7 +380,7 @@ export const TrendingCarousel: React.FC<TrendingCarouselProps> = ({
 
                     <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 dark:text-emerald-200/80 tabular-nums shrink-0">
                       <Eye className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                      <span>{formatPropertyViewsCount(property.views, isHindi)}</span>
+                      <span>{formatCardDisplayViewsCount(property, isHindi)}</span>
                     </span>
                   </div>
 
