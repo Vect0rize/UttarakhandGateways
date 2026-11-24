@@ -1,5 +1,4 @@
 import React from 'react';
-import { ShieldCheck } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
 interface HeroProps {
@@ -15,15 +14,13 @@ interface HeroProps {
 
 export const Hero: React.FC<HeroProps> = ({
   onSellClick,
-  onRentalClick,
-  isRentActive = false,
   onBuyClick,
   onRentClick,
   onExploreClick,
   onContactClick,
   searchBarSlot,
 }) => {
-  const { t, isHindi } = useLanguage();
+  const { isHindi } = useLanguage();
 
   return (
     <section 
@@ -57,17 +54,11 @@ export const Hero: React.FC<HeroProps> = ({
           <span className="w-1.5 h-1.5 rounded-full bg-[#0E3A2B] dark:bg-[#AA8F7C] shrink-0 shadow-xs" />
         </div>
 
-        {/* Subtitle Description (Semantic H2 for SEO hierarchy) */}
-        <div className="w-full max-w-3xl mx-auto mb-3.5 sm:mb-4 px-3 sm:px-4 relative z-20">
-          <h2 className="font-serif-luxury italic text-base sm:text-xl md:text-2xl lg:text-[26px] text-[#0E3A2B] dark:text-[#F4F3EF] font-medium leading-tight tracking-wide text-center drop-shadow-xs mb-1.5">
+        {/* Subtitle Tagline (Semantic H2 for SEO hierarchy) */}
+        <div className="w-full max-w-3xl mx-auto mb-4 sm:mb-5 px-3 sm:px-4 relative z-20">
+          <h2 className="font-serif-luxury italic text-base sm:text-xl md:text-2xl lg:text-[26px] text-[#0E3A2B] dark:text-[#F4F3EF] font-medium leading-tight tracking-wide text-center drop-shadow-xs">
             {isHindi ? 'पहाड़ों में आपके सपनों का आशियाना' : 'Your Gateway To Mountains'}
           </h2>
-          <p className="text-xs sm:text-sm md:text-base text-[#495A50] dark:text-[#C7D3CC] max-w-xl mx-auto font-normal">
-            {isHindi 
-              ? 'सीधे संपत्ति मालिकों और लिस्टिंगकर्ताओं से आवासीय प्लॉट, फ्लैट, विला और किराये की प्रॉपर्टी खोजें।' 
-              : 'Discover residential plots, flats, villas, and rentals across Uttarakhand with NO PLATFORM FEE.'
-            }
-          </p>
         </div>
 
         {/* CTA Buttons Sequence: Buy, Rent, Post Ad (with FREE mark) */}
@@ -128,22 +119,10 @@ export const Hero: React.FC<HeroProps> = ({
 
         {/* Small Menu (Locations & Property Type dropboxes) & Search Bar below */}
         {searchBarSlot && (
-          <div className="w-full mb-5 sm:mb-6 relative z-40">
+          <div className="w-full mb-2 sm:mb-3 relative z-40">
             {searchBarSlot}
           </div>
         )}
-
-        {/* Platform Information Pills */}
-        <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-medium relative z-20 pb-4">
-          <span className="inline-flex items-center gap-1.5 bg-[#F7F7F4]/95 dark:bg-[#0C3628] border border-[#D0D7D2] dark:border-[#32463D] text-[#0E3A2B] dark:text-[#E5EBE7] px-3.5 py-1 rounded-full shadow-xs">
-            <ShieldCheck className="w-3.5 h-3.5 text-[#0E3A2B] dark:text-[#C2A691]" />
-            {isHindi ? 'कोई प्लेटफॉर्म शुल्क नहीं (NO PLATFORM FEE)' : 'NO PLATFORM FEE'}
-          </span>
-          <span className="inline-flex items-center gap-1.5 bg-[#E9EAE6]/95 dark:bg-[#2A382B] border border-[#D0D7D2] dark:border-[#AA8F7C]/35 text-[#0E3A2B] dark:text-[#E5EBE7] px-3.5 py-1 rounded-full shadow-xs">
-            <ShieldCheck className="w-3.5 h-3.5 text-[#0E3A2B] dark:text-[#C2A691]" />
-            {isHindi ? 'सीधा फोन एवं व्हाट्सएप संपर्क' : t('hero.assurance2')}
-          </span>
-        </div>
 
       </div>
 

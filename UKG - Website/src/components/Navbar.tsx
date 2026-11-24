@@ -385,21 +385,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
-            {/* Real Estate Guides Link */}
-            <a
-              href="/guides"
-              onClick={(e) => {
-                e.preventDefault();
-                if (onNavigateGuides) onNavigateGuides();
-                else window.location.href = '/guides';
-              }}
-              className={`${isPropertyViewActive ? 'hidden 2xl:inline-flex' : 'hidden md:inline-flex'} items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/80 hover:bg-emerald-100 dark:hover:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800 text-xs font-bold shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap`}
-              title={isHindi ? 'उत्तराखंड भूमि कानून व गाइड' : 'Uttarakhand Land Laws & Guides'}
-            >
-              <BookOpen className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>{isHindi ? 'गाइड व कानून' : 'Land Laws & Guides'}</span>
-            </a>
-
             {/* Unified Menu Button across all screens — Just 3 Lines */}
             <button
               id="main-nav-menu-btn"
