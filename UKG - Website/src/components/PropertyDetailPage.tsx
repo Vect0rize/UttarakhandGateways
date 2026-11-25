@@ -625,128 +625,22 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
         </div>
       )}
 
-      {/* MAIN CONTENT CONTAINER */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 sm:pt-6 space-y-6 sm:space-y-8">
-        
-        {/* 2. PROPERTY HERO HEADER (TITLE, BADGES, LOCATION) */}
-        <div className="space-y-3">
-          
-          {/* Badge Row */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider flex items-center gap-1.5 shadow-xs ${
-              isForRent
-                ? 'bg-teal-600 text-white'
-                : 'bg-emerald-600 text-white'
-            }`}>
-              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-              <span>{isForRent ? (isHindi ? 'किराये पर (Rent)' : 'For Rent') : (isHindi ? 'बिक्री हेतु (Sale)' : 'For Sale')}</span>
-            </span>
+      {/* MAIN CONTENT CONTAINER — EXACT REQUESTED TOP-TO-BOTTOM FLOW:
+          1. Thumbnail / Image / Video
+          2. Property Title
+          3. Price
+          4. Location / Map
+          5. All Property Info (Area, Type, Category, Age, Specs, Amenities, Docs)
+          6. About the Property
+          7. Seller Info
+      */}
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 sm:pt-6 space-y-5 sm:space-y-6">
 
-            <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-900 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800">
-              {property.type} • {property.category}
-            </span>
-
-            {isSoldLocal ? (
-              <span className="px-3 py-1 rounded-full text-xs font-black bg-rose-600 text-white uppercase tracking-wider">
-                {isHindi ? '⚠️ बिक चुकी है (Sold Out)' : '⚠️ Sold Out'}
-              </span>
-            ) : property.reraStatus ? (
-              <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border border-slate-200 dark:border-emerald-800 flex items-center gap-1">
-                <Check className="w-3.5 h-3.5 text-emerald-500" />
-                <span>{property.reraStatus}</span>
-              </span>
-            ) : null}
-
-            {/* Post Timestamp */}
-            <span 
-              className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-emerald-950/80 text-slate-700 dark:text-emerald-300 border border-slate-200 dark:border-emerald-800 flex items-center gap-1.5 shadow-xs"
-              title={property.createdAt ? new Date(property.createdAt).toLocaleString() : undefined}
-            >
-              <Clock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>{formatPostTime(property.createdAt || property.postedAt, property.id)}</span>
-            </span>
-
-            {/* Total Views counter */}
-            <span 
-              className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1.5 shadow-xs tabular-nums"
-              title={isHindi ? 'कुल दृश्य (Total Views)' : 'Total Property Views'}
-            >
-              <Eye className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>{formatPropertyViewsCount(liveViews, isHindi)}</span>
-            </span>
-
-            {/* Mountain Feature Badges */}
-            {property.roadAccess && (
-              <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-50 dark:bg-amber-950/70 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-800 flex items-center gap-1 shadow-xs">
-                <span>🛣️</span>
-                <span>{property.roadAccess}</span>
-              </span>
-            )}
-
-            {property.bhooKanoonStatus && (
-              <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-50 dark:bg-blue-950/70 text-blue-900 dark:text-blue-200 border border-blue-300 dark:border-blue-800 flex items-center gap-1 shadow-xs">
-                <span>📜</span>
-                <span>{property.bhooKanoonStatus}</span>
-              </span>
-            )}
-
-            {property.homestaySubsidyEligible && (
-              <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-900 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1 shadow-xs">
-                <span>🏔️</span>
-                <span>{isHindi ? 'होमस्टे सब्सिडी पात्र' : 'Homestay Subsidy Eligible'}</span>
-              </span>
-            )}
-          </div>
-
-          {/* Title & Location */}
-          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 pt-1">
-            <div className="space-y-2">
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
-                {property.title}
-              </h1>
-
-              <div className="flex flex-wrap items-center gap-3 text-slate-600 dark:text-emerald-200/90 text-sm">
-                <div className="flex items-center gap-1.5 font-semibold text-slate-800 dark:text-emerald-100">
-                  <MapPin className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  <span>{property.location || property.city}</span>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleOpenGoogleMaps}
-                  className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:underline cursor-pointer"
-                  title="View on Google Maps"
-                >
-                  <Navigation className="w-3 h-3" />
-                  <span>{isHindi ? 'मैप पर देखें' : 'View on Map'}</span>
-                  <ExternalLink className="w-2.5 h-2.5 ml-0.5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Desktop Price Header */}
-            <div className="hidden lg:block text-right shrink-0">
-              <span className="text-xs font-bold text-slate-500 dark:text-emerald-300 uppercase tracking-wider block">
-                {isForRent ? (isHindi ? 'मासिक किराया' : 'Monthly Rent') : (isHindi ? 'मांग मूल्य' : 'Asking Price')}
-              </span>
-              <span className="text-3xl font-black text-emerald-700 dark:text-white tracking-tight block">
-                {property.priceDisplay ? formatLocalizedPrice(property.priceDisplay, isHindi ? 'hi' : 'en') : ''}
-              </span>
-              <span className="text-xs font-semibold text-slate-500 dark:text-emerald-300">
-                {formattedRate || ''}
-                {property.ratePerGajOrNali && property.ratePerGajOrNali !== formattedRate ? ` • ${property.ratePerGajOrNali}` : ''}
-              </span>
-            </div>
-          </div>
-
-        </div>
-
-        {/* 3. PHOTO GALLERY MOSAIC (CLEAN HERO PRESENTATION) */}
-        <div className="space-y-3">
+        {/* 1. THUMBNAIL / IMAGE / VIDEO */}
+        <section className="space-y-3">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
-            
             {/* Primary Featured Photo */}
-            <div className="lg:col-span-3 relative h-[280px] sm:h-[380px] md:h-[480px] rounded-2xl sm:rounded-3xl overflow-hidden bg-slate-950 shadow-lg border border-slate-200 dark:border-emerald-800/80 group">
+            <div className="lg:col-span-3 relative h-[280px] sm:h-[380px] md:h-[460px] rounded-2xl sm:rounded-3xl overflow-hidden bg-slate-950 shadow-lg border border-slate-200 dark:border-emerald-800/80 group">
               <img
                 src={safeImages[activeImgIdx] || safeImages[0]}
                 alt={`${property.title} - ${property.category || 'Property'} in ${property.location || property.city || 'Uttarakhand'}`}
@@ -759,15 +653,13 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
                 onClick={() => setIsLightboxOpen(true)}
               />
 
-              {/* Bottom Caption on Photo */}
               <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 via-black/30 to-transparent flex items-end justify-between text-white gap-2 z-10 pointer-events-none">
                 <div>
                   <span className="text-xs text-emerald-300 font-bold tracking-wide uppercase block">
-                    Photo {activeImgIdx + 1} of {safeImages.length}
+                    {isHindi
+                      ? `फ़ोटो ${activeImgIdx + 1} / ${safeImages.length}`
+                      : `Photo ${activeImgIdx + 1} of ${safeImages.length}`}
                   </span>
-                  <div className="text-sm sm:text-base font-bold truncate max-w-[240px] sm:max-w-md drop-shadow-md">
-                    {property.location || property.city}, Uttarakhand
-                  </div>
                 </div>
 
                 <button
@@ -781,7 +673,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
                 </button>
               </div>
 
-              {/* Prev / Next photo buttons */}
               {safeImages.length > 1 && (
                 <>
                   <button
@@ -810,7 +701,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
               )}
             </div>
 
-            {/* Thumbnail Column */}
+            {/* Thumbnail Strip / Column */}
             <div className="grid grid-cols-4 lg:grid-cols-1 gap-2.5">
               {safeImages.slice(0, 4).map((img, idx) => {
                 const isSelected = activeImgIdx === idx;
@@ -818,14 +709,29 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
                   <button
                     key={idx}
                     type="button"
-                    onClick={() => setActiveImgIdx(idx)}
-                    className={`relative h-18 sm:h-22 lg:h-[110px] rounded-xl sm:rounded-2xl overflow-hidden border-2 transition-all cursor-pointer ${
+                    onClick={() => {
+                      if (idx === 3 && safeImages.length > 4) {
+                        setActiveImgIdx(idx);
+                        setIsLightboxOpen(true);
+                      } else {
+                        setActiveImgIdx(idx);
+                      }
+                    }}
+                    className={`relative h-18 sm:h-22 lg:h-[107px] rounded-xl sm:rounded-2xl overflow-hidden border-2 transition-all cursor-pointer ${
                       isSelected
                         ? 'border-emerald-500 shadow-md ring-2 ring-emerald-500/30 scale-[1.02]'
                         : 'border-transparent opacity-75 hover:opacity-100 hover:border-emerald-300'
                     }`}
                   >
-                    <img src={img} alt={`${property.title} - photo thumbnail ${idx + 1}`} width={220} height={140} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                    <img
+                      src={img}
+                      alt={`${property.title} - thumbnail ${idx + 1}`}
+                      width={220}
+                      height={140}
+                      loading="lazy"
+                      decoding="async"
+                      className="w-full h-full object-cover"
+                    />
                     {idx === 3 && safeImages.length > 4 && (
                       <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-xs font-black">
                         +{safeImages.length - 4} more
@@ -835,28 +741,31 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
                 );
               })}
             </div>
-
           </div>
 
-          {/* Property Video Tour */}
+          {/* Property Video Tour (part of Media section at top) */}
           {(() => {
             const propVideos = Array.from(
               new Set(
-                [...(Array.isArray(property.videos) ? property.videos : []), ...(property.videoUrl ? [property.videoUrl] : [])].filter(
-                  (v): v is string => Boolean(v && typeof v === 'string')
-                )
+                [
+                  ...(Array.isArray(property.videos) ? property.videos : []),
+                  ...(property.videoUrl ? [property.videoUrl] : []),
+                ].filter((v): v is string => Boolean(v && typeof v === 'string'))
               )
             );
             if (propVideos.length === 0) return null;
             return (
-              <div className="pt-2 space-y-2.5">
-                <h3 className="text-sm font-extrabold text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+              <div className="pt-1 space-y-2">
+                <h3 className="text-xs sm:text-sm font-extrabold text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
                   <Video className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  <span>{isHindi ? 'प्रॉपर्टी वीडियो टूर' : 'Property Video Tour'}</span>
+                  <span>{isHindi ? 'प्रॉपर्टी वीडियो' : 'Property Video'}</span>
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className={`grid grid-cols-1 ${propVideos.length > 1 ? 'sm:grid-cols-2' : ''} gap-3`}>
                   {propVideos.map((vid, vIdx) => (
-                    <div key={vIdx} className="rounded-2xl overflow-hidden bg-black border border-slate-200 dark:border-emerald-800/80 aspect-video shadow-lg">
+                    <div
+                      key={vIdx}
+                      className="rounded-2xl overflow-hidden bg-black border border-slate-200 dark:border-emerald-800/80 aspect-video shadow-md"
+                    >
                       <video
                         src={resolveApiUrl(vid)}
                         controls
@@ -870,446 +779,588 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
               </div>
             );
           })()}
-        </div>
+        </section>
 
-        {/* 4. MAIN DETAILS & OWNER SIDEBAR (2-COLUMN GRID) */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 items-start">
-          
-          {/* LEFT 2 COLUMNS: ALL PROPERTY DETAILS CLEANLY DISPLAYED */}
-          <div className="lg:col-span-2 space-y-6 sm:space-y-8">
-            
-            {/* SECTION A: KEY HIGHLIGHTS STAT CARDS */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              
-              {/* Area */}
-              <div className="p-4 rounded-2xl bg-white dark:bg-[#0c241c] border border-slate-200 dark:border-emerald-800/60 shadow-xs flex flex-col justify-between">
-                <div className="flex items-center justify-between text-slate-500 dark:text-emerald-300/80">
-                  <span className="text-[11px] font-bold uppercase tracking-wider">{isHindi ? 'क्षेत्रफल' : 'Area'}</span>
-                  <Ruler className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <div className="mt-2">
-                  <span className="text-base sm:text-lg font-black text-slate-900 dark:text-white block">
-                    {formattedArea}
-                  </span>
-                </div>
+        {/* 2. PROPERTY TITLE */}
+        <section className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#0c241c] border border-slate-200 dark:border-emerald-800/60 shadow-sm space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider flex items-center gap-1.5 shadow-xs ${
+                isForRent ? 'bg-teal-600 text-white' : 'bg-emerald-600 text-white'
+              }`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+              <span>
+                {isForRent
+                  ? isHindi
+                    ? 'किराये पर (Rent)'
+                    : 'For Rent'
+                  : isHindi
+                    ? 'बिक्री हेतु (Sale)'
+                    : 'For Sale'}
+              </span>
+            </span>
+
+            {isSoldLocal && (
+              <span className="px-3 py-1 rounded-full text-xs font-black bg-rose-600 text-white uppercase tracking-wider">
+                {isHindi ? '⚠️ बिक चुकी है (Sold Out)' : '⚠️ Sold Out'}
+              </span>
+            )}
+
+            <span
+              className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-emerald-950/80 text-slate-700 dark:text-emerald-300 border border-slate-200 dark:border-emerald-800 flex items-center gap-1.5"
+              title={property.createdAt ? new Date(property.createdAt).toLocaleString() : undefined}
+            >
+              <Clock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>{formatPostTime(property.createdAt || property.postedAt, property.id)}</span>
+            </span>
+
+            <span
+              className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1.5 tabular-nums"
+              title={isHindi ? 'कुल दृश्य (Total Views)' : 'Total Property Views'}
+            >
+              <Eye className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>{formatPropertyViewsCount(liveViews, isHindi)}</span>
+            </span>
+          </div>
+
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
+            {property.title}
+          </h1>
+        </section>
+
+        {/* 3. PRICE */}
+        <section className="p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-emerald-50 via-white to-teal-50/40 dark:from-[#0e2d22] dark:via-[#0c241c] dark:to-[#092018] border border-emerald-200 dark:border-emerald-800/80 shadow-sm flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <span className="text-xs font-bold text-slate-500 dark:text-emerald-300 uppercase tracking-wider block">
+              {isForRent
+                ? isHindi
+                  ? 'मासिक किराया'
+                  : 'Monthly Rent'
+                : isHindi
+                  ? 'मांग मूल्य'
+                  : 'Price'}
+            </span>
+            <span className="text-3xl sm:text-4xl font-black text-emerald-700 dark:text-white tracking-tight block mt-0.5">
+              {property.priceDisplay
+                ? formatLocalizedPrice(property.priceDisplay, isHindi ? 'hi' : 'en')
+                : `₹${Number(property.price || 0).toLocaleString('en-IN')}`}
+            </span>
+          </div>
+
+          {(formattedRate ||
+            (property.ratePerGajOrNali && property.ratePerGajOrNali !== formattedRate)) && (
+            <div className="px-4 py-2.5 rounded-2xl bg-white dark:bg-[#081a13] border border-emerald-200/80 dark:border-emerald-800/80 text-left sm:text-right">
+              <span className="text-[11px] font-bold text-slate-500 dark:text-emerald-300 uppercase tracking-wider block">
+                {isHindi ? 'प्रति इकाई दर' : 'Rate per Unit'}
+              </span>
+              <span className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white">
+                {formattedRate || property.ratePerGajOrNali}
+              </span>
+            </div>
+          )}
+        </section>
+
+        {/* 4. LOCATION / MAP */}
+        <section className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#0c241c] border border-slate-200 dark:border-emerald-800/60 shadow-sm space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-start gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                <MapPin className="w-4 h-4" />
               </div>
-
-              {/* Bedrooms / Configuration */}
-              {!isLandOrPlot && (
-                <div className="p-4 rounded-2xl bg-white dark:bg-[#0c241c] border border-slate-200 dark:border-emerald-800/60 shadow-xs flex flex-col justify-between">
-                  <div className="flex items-center justify-between text-slate-500 dark:text-emerald-300/80">
-                    <span className="text-[11px] font-bold uppercase tracking-wider">{isHindi ? 'कॉन्फ़िगरेशन' : 'Configuration'}</span>
-                    <Home className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  </div>
-                  <div className="mt-2">
-                    <span className="text-base sm:text-lg font-black text-slate-900 dark:text-white block">
-                      {property.bedrooms > 0 ? `${property.bedrooms} BHK` : (property.configuration || property.type)}
-                    </span>
-                    <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium block mt-0.5">
-                      {property.bathrooms > 0 ? `${property.bathrooms} Bathrooms` : ''}
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {/* Facing & Vastu */}
-              {property.facing && (<div className="p-4 rounded-2xl bg-white dark:bg-[#0c241c] border border-slate-200 dark:border-emerald-800/60 shadow-xs flex flex-col justify-between">
-                <div className="flex items-center justify-between text-slate-500 dark:text-emerald-300/80">
-                  <span className="text-[11px] font-bold uppercase tracking-wider">{isHindi ? 'दिशा / वास्तु' : 'Facing'}</span>
-                  <Compass className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <div className="mt-2">
-                  <span className="text-base sm:text-lg font-black text-slate-900 dark:text-white block truncate">
-                    {property.facing || ''}
-                  </span>
-                </div>
-              </div>)}
-
-              {/* Property Age */}
-              {formatPropertyAge(property.propertyAgeYears, isHindi) && (
-                <div className="p-4 rounded-2xl bg-white dark:bg-[#0c241c] border border-slate-200 dark:border-emerald-800/60 shadow-xs flex flex-col justify-between">
-                  <div className="flex items-center justify-between text-slate-500 dark:text-emerald-300/80">
-                    <span className="text-[11px] font-bold uppercase tracking-wider">
-                      {isHindi ? 'प्रॉपर्टी की आयु' : 'Property Age'}
-                    </span>
-                    <Calendar className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  </div>
-                  <div className="mt-2">
-                    <span className="text-base sm:text-lg font-black text-slate-900 dark:text-white block truncate">
-                      {formatPropertyAge(property.propertyAgeYears, isHindi)}
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {/* Possession */}
-              {property.possession && (<div className="p-4 rounded-2xl bg-white dark:bg-[#0c241c] border border-slate-200 dark:border-emerald-800/60 shadow-xs flex flex-col justify-between">
-                <div className="flex items-center justify-between text-slate-500 dark:text-emerald-300/80">
-                  <span className="text-[11px] font-bold uppercase tracking-wider">{isHindi ? 'कब्जा स्थिति' : 'Possession'}</span>
-                  <Calendar className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <div className="mt-2">
-                  <span className="text-base sm:text-lg font-black text-slate-900 dark:text-white block truncate">
-                    {property.possession || ''}
-                  </span>
-                </div>
-              </div>)}
-
-            </div>
-
-            {/* SECTION C: ABOUT THIS PROPERTY (NARRATIVE) */}
-            <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#0c241c] border border-slate-200 dark:border-emerald-800/60 shadow-sm space-y-3">
-              <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                <Building className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                <span>{isHindi ? 'प्रॉपर्टी के बारे में संपूर्ण जानकारी' : 'About this Property'}</span>
-              </h3>
-
-              {property.description && (
-                <div className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed space-y-3 whitespace-pre-line font-normal">
-                  {property.description}
-                </div>
-              )}
-            </div>
-
-            {/* SECTION D: SPECIFICATIONS TABLE (DETAILED KEY-VALUE GRID) */}
-            <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#0c241c] border border-slate-200 dark:border-emerald-800/60 shadow-sm space-y-4">
-              <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-emerald-800/60">
-                <Layers className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                <span>{isHindi ? 'विस्तृत विनिर्देश एवं तकनीकी विवरण' : 'Detailed Property Specifications'}</span>
-              </h3>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-xs sm:text-sm">
-                
-                <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-emerald-900/40">
-                  <span className="text-slate-500 dark:text-emerald-300/80 font-medium">{isHindi ? 'प्रॉपर्टी प्रकार' : 'Property Type'}</span>
-                  <span className="font-bold text-slate-900 dark:text-white">{property.type}</span>
-                </div>
-
-                <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-emerald-900/40">
-                  <span className="text-slate-500 dark:text-emerald-300/80 font-medium">{isHindi ? 'श्रेणी' : 'Category'}</span>
-                  <span className="font-bold text-slate-900 dark:text-white">{property.category}</span>
-                </div>
-
-                {formatPropertyAge(property.propertyAgeYears, isHindi) && (
-                  <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-emerald-900/40">
-                    <span className="text-slate-500 dark:text-emerald-300/80 font-medium">
-                      {isHindi ? 'प्रॉपर्टी कितनी पुरानी है' : 'Property Age'}
-                    </span>
-                    <span className="font-bold text-slate-900 dark:text-white">
-                      {formatPropertyAge(property.propertyAgeYears, isHindi)}
-                    </span>
-                  </div>
-                )}
-
-                {!isLandOrPlot && (
-                  <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-emerald-900/40">
-                    <span className="text-slate-500 dark:text-emerald-300/80 font-medium">{isHindi ? 'फर्निशिंग' : 'Furnishing'}</span>
-                    <span className="font-bold text-slate-900 dark:text-white">
-                      {property.furnishing === 'Furnished' && (isHindi ? 'फर्निश्ड (Furnished)' : 'Furnished')}
-                      {property.furnishing === 'Semi-Furnished' && (isHindi ? 'सेमी-फर्निश्ड (Semi-Furnished)' : 'Semi-Furnished')}
-                      {property.furnishing === 'Unfurnished' && (isHindi ? 'अनफर्निश्ड (Unfurnished)' : 'Unfurnished')}
-                      {!property.furnishing && '-'}
-                    </span>
-                  </div>
-                )}
-
+              <div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-emerald-300/80 block">
+                  {isHindi ? 'स्थान एवं मानचित्र' : 'Location & Map'}
+                </span>
+                <p className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white">
+                  {property.location
+                    ? `${property.location}${
+                        property.city &&
+                        !property.location.toLowerCase().includes(property.city.toLowerCase())
+                          ? `, ${property.city}`
+                          : ''
+                      }, Uttarakhand`
+                    : `${property.city || 'Uttarakhand'}, India`}
+                </p>
               </div>
             </div>
 
-            {/* SECTION: UTTARAKHAND MOUNTAIN & LEGAL INFRASTRUCTURE */}
-            <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-emerald-50/80 via-teal-50/50 to-white dark:from-[#09291e] dark:via-[#0c241c] dark:to-[#071912] border border-emerald-200 dark:border-emerald-800 shadow-sm space-y-4">
-              <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-emerald-200/80 dark:border-emerald-800">
-                <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                  <ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                  <span>{isHindi ? 'उत्तराखंड कानूनी व पहाड़ी अवसंरचना विवरण' : 'Uttarakhand Mountain & Legal Infrastructure'}</span>
-                </h3>
-                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-700 dark:bg-emerald-900 text-white uppercase tracking-wider">
-                  {isHindi ? 'लिस्टर द्वारा दी गई जानकारी' : 'Lister-Provided Details'}
+            <button
+              type="button"
+              onClick={handleOpenGoogleMaps}
+              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold inline-flex items-center gap-1.5 shadow-xs transition cursor-pointer shrink-0"
+              title="Open in Google Maps"
+            >
+              <Navigation className="w-3.5 h-3.5" />
+              <span>{isHindi ? 'गूगल मैप्स में खोलें' : 'Open in Google Maps'}</span>
+              <ExternalLink className="w-3 h-3" />
+            </button>
+          </div>
+
+          <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-emerald-900/60 h-52 sm:h-64 bg-slate-100 dark:bg-[#081a13]">
+            <iframe
+              title={`Map of ${property.location || property.city || 'Uttarakhand'}`}
+              src={
+                property.coordinates?.lat && property.coordinates?.lng
+                  ? `https://maps.google.com/maps?q=${property.coordinates.lat},${property.coordinates.lng}&z=14&output=embed`
+                  : `https://maps.google.com/maps?q=${encodeURIComponent(
+                      `${property.location || ''}, ${property.city || ''}, Uttarakhand, India`
+                    )}&z=13&output=embed`
+              }
+              width="100%"
+              height="100%"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              className="w-full h-full border-0"
+            />
+          </div>
+        </section>
+
+        {/* 5. ALL PROPERTY INFO (AREA, TYPE, CATEGORY, AGE, SPECS, INFRASTRUCTURE, AMENITIES & DOCS) */}
+        <section className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#0c241c] border border-slate-200 dark:border-emerald-800/60 shadow-sm space-y-5">
+          <h2 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2 pb-2.5 border-b border-slate-100 dark:border-emerald-800/60">
+            <Layers className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+            <span>{isHindi ? 'प्रॉपर्टी की संपूर्ण जानकारी' : 'Property Information'}</span>
+          </h2>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            {/* Area */}
+            {formattedArea && (
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200/80 dark:border-emerald-900/50">
+                <div className="flex items-center justify-between text-slate-500 dark:text-emerald-300/80">
+                  <span className="text-[11px] font-bold uppercase tracking-wider">
+                    {isHindi ? 'क्षेत्रफल' : 'Area'}
+                  </span>
+                  <Ruler className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <span className="text-sm sm:text-base font-black text-slate-900 dark:text-white block mt-1.5">
+                  {formattedArea}
                 </span>
               </div>
+            )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm">
-                <div className="p-3.5 rounded-2xl bg-white dark:bg-[#071d15] border border-emerald-100 dark:border-emerald-900/60 flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
-                    <Car className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">
-                      {isHindi ? 'सड़क पहुंच व चौड़ाई' : 'Road Access & Width'}
-                    </span>
-                    <span className="font-bold text-slate-900 dark:text-white mt-0.5 block">
-                      {property.roadAccess || (isHindi ? 'मोटरेबल पक्की सड़क संपर्क उपलब्ध' : 'Motorable Paved Road Access')}
-                    </span>
-                  </div>
+            {/* Property Type */}
+            {property.type && (
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200/80 dark:border-emerald-900/50">
+                <div className="flex items-center justify-between text-slate-500 dark:text-emerald-300/80">
+                  <span className="text-[11px] font-bold uppercase tracking-wider">
+                    {isHindi ? 'प्रॉपर्टी प्रकार' : 'Property Type'}
+                  </span>
+                  <Home className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 </div>
+                <span className="text-sm sm:text-base font-black text-slate-900 dark:text-white block mt-1.5">
+                  {property.type}
+                </span>
+              </div>
+            )}
 
-                <div className="p-3.5 rounded-2xl bg-white dark:bg-[#071d15] border border-emerald-100 dark:border-emerald-900/60 flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 flex items-center justify-center shrink-0">
-                    <Scale className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">
-                      {isHindi ? 'भू-कानून व बाहरी खरीदार पात्रता (Sec 154 / 143)' : 'Bhoo-Kanoon & Outsider Quota (Sec 154 / 143)'}
-                    </span>
-                    <span className="font-bold text-slate-900 dark:text-white mt-0.5 block">
-                      {property.bhooKanoonStatus || (isHindi ? 'अखिल भारतीय नागरिक हेतु पात्र (Freehold Outsider Allowed)' : 'All-India Outsider Freehold Eligible')}
-                    </span>
-                  </div>
+            {/* Category */}
+            {property.category && (
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200/80 dark:border-emerald-900/50">
+                <div className="flex items-center justify-between text-slate-500 dark:text-emerald-300/80">
+                  <span className="text-[11px] font-bold uppercase tracking-wider">
+                    {isHindi ? 'श्रेणी' : 'Category'}
+                  </span>
+                  <Building className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 </div>
+                <span className="text-sm sm:text-base font-black text-slate-900 dark:text-white block mt-1.5">
+                  {property.category}
+                </span>
+              </div>
+            )}
 
-                <div className="p-3.5 rounded-2xl bg-white dark:bg-[#071d15] border border-emerald-100 dark:border-emerald-900/60 flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-teal-100 dark:bg-teal-950/80 text-teal-700 dark:text-teal-300 flex items-center justify-center shrink-0">
-                    <Droplets className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">
-                      {isHindi ? 'जल स्रोत व आपूर्ति' : 'Water Source & Pipeline'}
-                    </span>
-                    <span className="font-bold text-slate-900 dark:text-white mt-0.5 block">
-                      {property.waterSource || (isHindi ? 'जल संस्थान पाइपलाइन व प्राकृतिक पहाड़ी स्रोत' : 'Jal Sansthan Connection & Spring Line')}
-                    </span>
-                  </div>
+            {/* Property Age */}
+            {formatPropertyAge(property.propertyAgeYears, isHindi) && (
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200/80 dark:border-emerald-900/50">
+                <div className="flex items-center justify-between text-slate-500 dark:text-emerald-300/80">
+                  <span className="text-[11px] font-bold uppercase tracking-wider">
+                    {isHindi ? 'प्रॉपर्टी की आयु' : 'Property Age'}
+                  </span>
+                  <Calendar className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 </div>
+                <span className="text-sm sm:text-base font-black text-slate-900 dark:text-white block mt-1.5">
+                  {formatPropertyAge(property.propertyAgeYears, isHindi)}
+                </span>
+              </div>
+            )}
 
-                <div className="p-3.5 rounded-2xl bg-white dark:bg-[#071d15] border border-emerald-100 dark:border-emerald-900/60 flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0">
-                    <TreePine className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">
-                      {isHindi ? 'पर्यटन होमस्टे योजना' : 'Homestay Subsidy Scheme'}
-                    </span>
-                    <span className="font-bold text-slate-900 dark:text-white mt-0.5 block">
-                      {property.homestaySubsidyEligible !== false 
-                        ? (isHindi ? 'उत्तराखंड पर्यटन दीन दयाल होमस्टे सब्सिडी हेतु पात्र' : 'Eligible for Uttarakhand Tourism Homestay Subsidy')
-                        : (isHindi ? 'लागू नहीं' : 'Not Applicable')}
-                    </span>
-                  </div>
+            {/* Configuration / Bedrooms & Bathrooms */}
+            {!isLandOrPlot && (property.bedrooms > 0 || property.configuration) && (
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200/80 dark:border-emerald-900/50">
+                <div className="flex items-center justify-between text-slate-500 dark:text-emerald-300/80">
+                  <span className="text-[11px] font-bold uppercase tracking-wider">
+                    {isHindi ? 'कॉन्फ़िगरेशन' : 'Configuration'}
+                  </span>
+                  <Home className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 </div>
+                <span className="text-sm sm:text-base font-black text-slate-900 dark:text-white block mt-1.5">
+                  {property.bedrooms > 0 ? `${property.bedrooms} BHK` : property.configuration}
+                  {property.bathrooms > 0 ? ` • ${property.bathrooms} Bath` : ''}
+                </span>
+              </div>
+            )}
+
+            {/* Furnishing */}
+            {!isLandOrPlot && property.furnishing && (
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200/80 dark:border-emerald-900/50">
+                <div className="flex items-center justify-between text-slate-500 dark:text-emerald-300/80">
+                  <span className="text-[11px] font-bold uppercase tracking-wider">
+                    {isHindi ? 'फर्निशिंग' : 'Furnishing'}
+                  </span>
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <span className="text-sm sm:text-base font-black text-slate-900 dark:text-white block mt-1.5">
+                  {property.furnishing}
+                </span>
+              </div>
+            )}
+
+            {/* Facing */}
+            {property.facing && (
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200/80 dark:border-emerald-900/50">
+                <div className="flex items-center justify-between text-slate-500 dark:text-emerald-300/80">
+                  <span className="text-[11px] font-bold uppercase tracking-wider">
+                    {isHindi ? 'दिशा / वास्तु' : 'Facing'}
+                  </span>
+                  <Compass className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <span className="text-sm sm:text-base font-black text-slate-900 dark:text-white block mt-1.5">
+                  {property.facing}
+                </span>
+              </div>
+            )}
+
+            {/* Possession */}
+            {property.possession && (
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200/80 dark:border-emerald-900/50">
+                <div className="flex items-center justify-between text-slate-500 dark:text-emerald-300/80">
+                  <span className="text-[11px] font-bold uppercase tracking-wider">
+                    {isHindi ? 'कब्जा स्थिति' : 'Possession'}
+                  </span>
+                  <Calendar className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <span className="text-sm sm:text-base font-black text-slate-900 dark:text-white block mt-1.5">
+                  {property.possession}
+                </span>
+              </div>
+            )}
+
+            {/* RERA Status */}
+            {property.reraStatus && (
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200/80 dark:border-emerald-900/50">
+                <div className="flex items-center justify-between text-slate-500 dark:text-emerald-300/80">
+                  <span className="text-[11px] font-bold uppercase tracking-wider">RERA</span>
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white block mt-1.5">
+                  {property.reraStatus}
+                </span>
+              </div>
+            )}
+
+            {/* Road Access (only when provided) */}
+            {property.roadAccess && (
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200/80 dark:border-emerald-900/50">
+                <div className="flex items-center justify-between text-slate-500 dark:text-emerald-300/80">
+                  <span className="text-[11px] font-bold uppercase tracking-wider">
+                    {isHindi ? 'सड़क पहुंच' : 'Road Access'}
+                  </span>
+                  <Car className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white block mt-1.5">
+                  {property.roadAccess}
+                </span>
+              </div>
+            )}
+
+            {/* Water Source (only when provided) */}
+            {property.waterSource && (
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200/80 dark:border-emerald-900/50">
+                <div className="flex items-center justify-between text-slate-500 dark:text-emerald-300/80">
+                  <span className="text-[11px] font-bold uppercase tracking-wider">
+                    {isHindi ? 'जल स्रोत' : 'Water Source'}
+                  </span>
+                  <Droplets className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white block mt-1.5">
+                  {property.waterSource}
+                </span>
+              </div>
+            )}
+
+            {/* Land / Bhoo-Kanoon Status (only when provided) */}
+            {property.bhooKanoonStatus && (
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200/80 dark:border-emerald-900/50">
+                <div className="flex items-center justify-between text-slate-500 dark:text-emerald-300/80">
+                  <span className="text-[11px] font-bold uppercase tracking-wider">
+                    {isHindi ? 'भूमि स्थिति' : 'Land Status'}
+                  </span>
+                  <Scale className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white block mt-1.5">
+                  {property.bhooKanoonStatus}
+                </span>
+              </div>
+            )}
+
+            {/* Distance from Airport / Railway if provided */}
+            {airportInfo && (
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200/80 dark:border-emerald-900/50">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-emerald-300/80 block">
+                  {isHindi ? 'एयरपोर्ट से दूरी' : 'Airport Distance'}
+                </span>
+                <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white block mt-1.5">
+                  {airportInfo}
+                </span>
+              </div>
+            )}
+
+            {railwayInfo && (
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200/80 dark:border-emerald-900/50">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-emerald-300/80 block">
+                  {isHindi ? 'रेलवे स्टेशन से दूरी' : 'Railway Distance'}
+                </span>
+                <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white block mt-1.5">
+                  {railwayInfo}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Amenities & Features inside All Info */}
+          {safeAmenities.length > 0 && (
+            <div className="pt-3 border-t border-slate-100 dark:border-emerald-800/60 space-y-2.5">
+              <h3 className="text-xs sm:text-sm font-extrabold text-slate-700 dark:text-emerald-200 uppercase tracking-wider">
+                {isHindi ? 'सुविधाएं और प्रमुख विशेषताएं' : 'Amenities & Features'}
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {safeAmenities.map((amenity, idx) => (
+                  <span
+                    key={idx}
+                    className="px-3 py-1.5 rounded-xl bg-emerald-50/70 dark:bg-[#081a13] border border-emerald-200/80 dark:border-emerald-900/60 inline-flex items-center gap-1.5 text-xs font-semibold text-slate-800 dark:text-emerald-100"
+                  >
+                    <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span>{amenity}</span>
+                  </span>
+                ))}
               </div>
             </div>
+          )}
 
-            {/* OPTIONAL PROPERTY DOCUMENTS (PDF) */}
-            {Array.isArray(property.documents) && property.documents.length > 0 && (
-              <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#0c241c] border border-slate-200 dark:border-emerald-800/60 shadow-sm space-y-3">
-                <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                  <span>{isHindi ? 'प्रॉपर्टी दस्तावेज़ व लेआउट प्लान' : 'Property Documents & Layout Plans'}</span>
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {property.documents.map((doc, idx) => (
+          {/* Optional Property Documents (PDFs) inside All Info */}
+          {Array.isArray(property.documents) && property.documents.length > 0 && (
+            <div className="pt-3 border-t border-slate-100 dark:border-emerald-800/60 space-y-2.5">
+              <h3 className="text-xs sm:text-sm font-extrabold text-slate-700 dark:text-emerald-200 uppercase tracking-wider flex items-center gap-1.5">
+                <FileText className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span>{isHindi ? 'प्रॉपर्टी दस्तावेज़ व लेआउट प्लान' : 'Property Documents & Layout Plans'}</span>
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {property.documents.map((doc, idx) => (
+                  <a
+                    key={idx}
+                    href={resolveApiUrl(doc.url)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-3 rounded-xl bg-slate-50 dark:bg-[#081a13] border border-slate-200 dark:border-emerald-900/50 hover:border-emerald-500 flex items-center justify-between gap-2 text-xs sm:text-sm font-bold text-slate-800 dark:text-emerald-100 transition-colors no-underline"
+                  >
+                    <span className="truncate">{doc.name || `Document ${idx + 1}.pdf`}</span>
+                    <ExternalLink className="w-4 h-4 text-emerald-600 shrink-0" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* 6. ABOUT THE PROPERTY */}
+        {property.description && (
+          <section className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#0c241c] border border-slate-200 dark:border-emerald-800/60 shadow-sm space-y-3">
+            <h2 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+              <Building className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              <span>{isHindi ? 'प्रॉपर्टी के बारे में' : 'About the Property'}</span>
+            </h2>
+            <div className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line font-normal">
+              {property.description}
+            </div>
+          </section>
+        )}
+
+        {/* 7. SELLER INFO */}
+        <section className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#0c241c] border-2 border-emerald-300/80 dark:border-emerald-800/80 shadow-md space-y-4">
+          <h2 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-emerald-800/60">
+            <Phone className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+            <span>{isHindi ? 'विक्रेता / लिस्टर की जानकारी' : 'Seller Information'}</span>
+          </h2>
+
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200 dark:border-emerald-900/50 space-y-3.5">
+            {sellerDisplayName && (
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-black text-base flex items-center justify-center shrink-0 shadow-sm uppercase">
+                  {sellerDisplayName.charAt(0)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block">
+                    {property.sellerType === 'Broker'
+                      ? isHindi
+                        ? 'ब्रोकर:'
+                        : 'Broker:'
+                      : isHindi
+                        ? 'मालिक:'
+                        : 'Owner:'}
+                  </span>
+                  <span className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white truncate block">
+                    {sellerDisplayName}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {publicPhone && publicTelHref ? (
+              <div className="space-y-3 pt-2 border-t border-slate-200/70 dark:border-emerald-900/50">
+                <div className="flex items-center justify-between gap-2 p-3 rounded-xl bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Phone className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span className="font-mono font-extrabold text-sm sm:text-base text-slate-900 dark:text-white truncate">
+                      {formatPhoneForDisplay(publicPhone)}
+                    </span>
+                  </div>
+                  <a
+                    href={publicTelHref}
+                    onClick={() => {
+                      if (property.id) {
+                        fetch(`/api/properties/${encodeURIComponent(property.id)}/inquiry`, {
+                          method: 'POST',
+                        }).catch(() => {});
+                      }
+                    }}
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs shrink-0 cursor-pointer no-underline"
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                    <span>{isHindi ? 'कॉल करें' : 'Call'}</span>
+                  </a>
+                </div>
+
+                {publicWhatsAppHref && (
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="ukg-whatsapp-inquiry-msg"
+                      className="block text-[11px] font-bold text-slate-700 dark:text-emerald-200"
+                    >
+                      {isHindi
+                        ? 'व्हाट्सएप संदेश (भेजने से पहले बदल सकते हैं):'
+                        : 'WhatsApp Message (customizable before sending):'}
+                    </label>
+                    <textarea
+                      id="ukg-whatsapp-inquiry-msg"
+                      rows={2}
+                      value={customWhatsAppMsg}
+                      onChange={(e) => setCustomWhatsAppMsg(e.target.value)}
+                      className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#25D366] resize-y"
+                    />
                     <a
-                      key={idx}
-                      href={resolveApiUrl(doc.url)}
+                      href={publicWhatsAppHref}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="p-3 rounded-xl bg-slate-50 dark:bg-[#081a13] border border-slate-200 dark:border-emerald-900/50 hover:border-emerald-500 flex items-center justify-between gap-2 text-xs sm:text-sm font-bold text-slate-800 dark:text-emerald-100 transition-colors no-underline"
+                      onClick={() => {
+                        if (property.id) {
+                          fetch(`/api/properties/${encodeURIComponent(property.id)}/inquiry`, {
+                            method: 'POST',
+                          }).catch(() => {});
+                        }
+                      }}
+                      className="w-full py-3 px-4 rounded-2xl bg-[#25D366] hover:bg-[#20ba59] text-white font-extrabold text-sm shadow-md shadow-emerald-600/20 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2 no-underline"
                     >
-                      <span className="truncate">{doc.name || `Document ${idx + 1}.pdf`}</span>
-                      <ExternalLink className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <WhatsAppIcon className="w-4 h-4 fill-white" />
+                      <span>
+                        {isHindi
+                          ? 'व्हाट्सएप पर लिस्र्टर को संदेश भेजें'
+                          : 'Message Lister on WhatsApp'}
+                      </span>
                     </a>
-                  ))}
-                </div>
+                  </div>
+                )}
               </div>
-            )}
-
-            {/* SECTION E: AMENITIES & FEATURES */}
-            {!isLandOrPlot && safeAmenities.length > 0 && (
-              <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#0c241c] border border-slate-200 dark:border-emerald-800/60 shadow-sm space-y-4">
-                <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                  <span>{isHindi ? 'सुविधाएं और प्रमुख विशेषताएं' : 'Amenities & Features'}</span>
-                </h3>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                  {safeAmenities.map((amenity, idx) => (
-                    <div 
-                      key={idx}
-                      className="p-3 rounded-xl bg-slate-50 dark:bg-[#081a13] border border-slate-100 dark:border-emerald-900/40 flex items-center gap-2.5 text-xs sm:text-sm font-semibold text-slate-800 dark:text-emerald-100"
-                    >
-                      <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                      <span className="truncate">{amenity}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+            ) : (
+              <p className="text-xs text-slate-500 dark:text-slate-400 pt-1">
+                {isHindi
+                  ? 'लिस्र्टर द्वारा सार्वजनिक फ़ोन नंबर प्रदान नहीं किया गया है।'
+                  : 'No public phone number was provided for this listing.'}
+              </p>
             )}
           </div>
 
-          {/* RIGHT COLUMN: STICKY OWNER & INQUIRY CARD */}
-          <div className="lg:col-span-1 space-y-4 lg:sticky lg:top-24">
-            
-            <div className="p-6 rounded-3xl bg-white dark:bg-[#0c241c] border-2 border-emerald-300/80 dark:border-emerald-800/80 shadow-xl space-y-5">
-              
-              {/* Asking Price Banner */}
-              <div className="space-y-1 border-b border-slate-100 dark:border-emerald-800/60 pb-4">
-                <span className="text-xs font-bold text-slate-500 dark:text-emerald-300 uppercase tracking-wider block">
-                  {isForRent ? (isHindi ? 'मासिक किराया' : 'Monthly Rent') : (isHindi ? 'मांग मूल्य' : 'Asking Price')}
-                </span>
-                <span className="text-3xl font-black text-emerald-700 dark:text-white tracking-tight block">
-                  {property.priceDisplay ? formatLocalizedPrice(property.priceDisplay, isHindi ? 'hi' : 'en') : ''}
-                </span>
-              </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            <button
+              type="button"
+              onClick={handleInitiateChat}
+              className="py-2.5 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/70 hover:bg-emerald-100 dark:hover:bg-emerald-900/70 border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 font-bold text-xs cursor-pointer flex items-center justify-center gap-1.5"
+            >
+              <MessageSquare className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>{isHindi ? 'इनबॉक्स चैट' : 'Inbox Chat'}</span>
+            </button>
 
+            <button
+              type="button"
+              onClick={handleShareWhatsApp}
+              className="py-2.5 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs cursor-pointer flex items-center justify-center gap-1.5"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span>{isHindi ? 'लिंक शेयर करें' : 'Share Listing'}</span>
+            </button>
+          </div>
 
+          {canManage && (
+            <div className="pt-3 border-t border-slate-100 dark:border-emerald-800/60 space-y-2">
+              <span className="text-[11px] font-bold text-slate-400 dark:text-emerald-400/80 uppercase block text-center">
+                {isHindi ? 'आपकी अपनी लिस्टिंग नियंत्रण' : 'Your Listing Controls'}
+              </span>
 
-              {/* Public Lister Information & Direct Phone / WhatsApp Contact */}
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200 dark:border-emerald-900/50 space-y-3">
-                {sellerDisplayName && (
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-black text-base flex items-center justify-center shrink-0 shadow-sm uppercase">
-                      {sellerDisplayName.charAt(0)}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block">
-                        {property.sellerType === 'Broker'
-                          ? (isHindi ? 'ब्रोकर:' : 'Broker:')
-                          : (isHindi ? 'मालिक:' : 'Owner:')}
-                      </span>
-                      <span className="font-extrabold text-sm text-slate-900 dark:text-white truncate block">
-                        {sellerDisplayName}
-                      </span>
-                    </div>
-                  </div>
+              <div className="flex gap-2">
+                {onEditProperty && (
+                  <button
+                    type="button"
+                    onClick={() => onEditProperty(property)}
+                    className="flex-1 py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-white font-bold text-xs flex items-center justify-center gap-1 cursor-pointer"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                    <span>{isHindi ? 'संपादित करें' : 'Edit'}</span>
+                  </button>
                 )}
-
-                {publicPhone && publicTelHref ? (
-                  <div className="space-y-3 pt-2 border-t border-slate-200/70 dark:border-emerald-900/50">
-                    <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Phone className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                        <span className="font-mono font-extrabold text-sm text-slate-900 dark:text-white truncate">
-                          {formatPhoneForDisplay(publicPhone)}
-                        </span>
-                      </div>
-                      <a
-                        href={publicTelHref}
-                        onClick={() => {
-                          if (property.id) {
-                            fetch(`/api/properties/${encodeURIComponent(property.id)}/inquiry`, { method: 'POST' }).catch(() => {});
-                          }
-                        }}
-                        className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs shrink-0 cursor-pointer"
-                      >
-                        <Phone className="w-3.5 h-3.5" />
-                        <span>{isHindi ? 'कॉल करें' : 'Call'}</span>
-                      </a>
-                    </div>
-
-                    {/* Customizable Direct WhatsApp Message */}
-                    {publicWhatsAppHref && (
-                      <div className="space-y-2">
-                        <label
-                          htmlFor="ukg-whatsapp-inquiry-msg"
-                          className="block text-[11px] font-bold text-slate-700 dark:text-emerald-200"
-                        >
-                          {isHindi ? 'व्हाट्सएप संदेश (भेजने से पहले बदल सकते हैं):' : 'WhatsApp Message (customizable before sending):'}
-                        </label>
-                        <textarea
-                          id="ukg-whatsapp-inquiry-msg"
-                          rows={3}
-                          value={customWhatsAppMsg}
-                          onChange={(e) => setCustomWhatsAppMsg(e.target.value)}
-                          className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#25D366] resize-y"
-                        />
-                        <a
-                          href={publicWhatsAppHref}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={() => {
-                            if (property.id) {
-                              fetch(`/api/properties/${encodeURIComponent(property.id)}/inquiry`, { method: 'POST' }).catch(() => {});
-                            }
-                          }}
-                          className="w-full py-3 px-4 rounded-2xl bg-[#25D366] hover:bg-[#20ba59] text-white font-extrabold text-sm shadow-md shadow-emerald-600/20 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2 no-underline"
-                        >
-                          <WhatsAppIcon className="w-4 h-4 fill-white" />
-                          <span>{isHindi ? 'व्हाट्सएप पर लिस्र्टर को संदेश भेजें' : 'Message Lister on WhatsApp'}</span>
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-xs text-slate-500 dark:text-slate-400 pt-1">
-                    {isHindi
-                      ? 'लिस्र्टर द्वारा सार्वजनिक फ़ोन नंबर प्रदान नहीं किया गया है।'
-                      : 'No public phone number was provided for this listing.'}
-                  </p>
-                )}
-              </div>
-
-              {/* Optional In-App Chat & Share */}
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={handleInitiateChat}
-                  className="py-2.5 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/70 hover:bg-emerald-100 dark:hover:bg-emerald-900/70 border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 font-bold text-xs cursor-pointer flex items-center justify-center gap-1.5"
-                >
-                  <MessageSquare className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <span>{isHindi ? 'इनबॉक्स चैट' : 'Inbox Chat'}</span>
-                </button>
 
                 <button
                   type="button"
-                  onClick={handleShareWhatsApp}
-                  className="py-2.5 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs cursor-pointer flex items-center justify-center gap-1.5"
+                  onClick={handleToggleSoldClick}
+                  className={`flex-1 py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1 cursor-pointer ${
+                    isSoldLocal
+                      ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200'
+                      : 'bg-rose-100 dark:bg-rose-900/60 text-rose-800 dark:text-rose-200'
+                  }`}
                 >
-                  <Share2 className="w-3.5 h-3.5" />
-                  <span>{isHindi ? 'लिंक शेयर करें' : 'Share Listing'}</span>
-                </button>
-              </div>
-
-              {/* Owner Edit / Sold Controls */}
-              {canManage && (
-                <div className="pt-3 border-t border-slate-100 dark:border-emerald-800/60 space-y-2">
-                  <span className="text-[11px] font-bold text-slate-400 dark:text-emerald-400/80 uppercase block text-center">
-                    {isHindi ? 'आपकी अपनी लिस्टिंग नियंत्रण' : 'Your Listing Controls'}
+                  <span>
+                    {isSoldLocal
+                      ? isHindi
+                        ? 'उपलब्ध करें'
+                        : 'Mark Available'
+                      : isHindi
+                        ? 'बिका हुआ करें'
+                        : 'Mark Sold'}
                   </span>
+                </button>
+              </div>
 
-                  <div className="flex gap-2">
-                    {onEditProperty && (
-                      <button
-                        type="button"
-                        onClick={() => onEditProperty(property)}
-                        className="flex-1 py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-white font-bold text-xs flex items-center justify-center gap-1 cursor-pointer"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                        <span>{isHindi ? 'संपादित करें' : 'Edit'}</span>
-                      </button>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={handleToggleSoldClick}
-                      className={`flex-1 py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1 cursor-pointer ${
-                        isSoldLocal
-                          ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200'
-                          : 'bg-rose-100 dark:bg-rose-900/60 text-rose-800 dark:text-rose-200'
-                      }`}
-                    >
-                      <span>{isSoldLocal ? (isHindi ? 'उपलब्ध करें' : 'Mark Available') : (isHindi ? 'बिका हुआ करें' : 'Mark Sold')}</span>
-                    </button>
-                  </div>
-
-                  {onDeleteProperty && (
-                    <button
-                      type="button"
-                      onClick={() => setShowDeleteConfirm(true)}
-                      className="w-full py-1.5 text-xs text-rose-600 dark:text-rose-400 font-semibold hover:underline flex items-center justify-center gap-1 cursor-pointer pt-1"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                      <span>{isHindi ? 'लिस्टिंग हटाएं' : 'Delete Listing'}</span>
-                    </button>
-                  )}
-                </div>
+              {onDeleteProperty && (
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="w-full py-1.5 text-xs text-rose-600 dark:text-rose-400 font-semibold hover:underline flex items-center justify-center gap-1 cursor-pointer pt-1"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  <span>{isHindi ? 'लिस्टिंग हटाएं' : 'Delete Listing'}</span>
+                </button>
               )}
-
             </div>
-
-          </div>
-
-        </div>
-
+          )}
+        </section>
       </div>
 
       {/* 5. MOBILE STICKY BOTTOM ACTION BAR */}
@@ -1469,20 +1520,59 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
 
       {/* Uttarakhand Real Estate SEO Keyword Links */}
       {/* Related Properties & Buyer Verification Notice */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8 space-y-6">
+      <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8 space-y-6">
         <div className="p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 text-xs text-slate-700 dark:text-emerald-100/85 leading-relaxed">
           <strong>Buyer Due Diligence Notice:</strong> This listing is submitted directly by the stated advertiser ({property.sellerType === 'Owner' ? 'Property Owner' : 'Broker'}). Prospective buyers and tenants must independently verify original title deeds, Bhulekh Uttarakhand Khatauni mutation entries, authority map approvals, and Section 154 land limits prior to token payment.
         </div>
 
         {(() => {
+          const isRentalProp = (p: Property) =>
+            p.type === 'Rent/Lease' ||
+            p.purpose === 'rent' ||
+            Boolean(p.isAvailableForRent) ||
+            Boolean(p.priceDisplay && p.priceDisplay.toLowerCase().includes('/ month'));
+
+          const normalizePropType = (p: Property) => {
+            const t = String(p.type || '').trim().toLowerCase();
+            if (t === 'plot/land' || t === 'plot') return 'plot';
+            if (t === 'land') return 'land';
+            return t;
+          };
+
+          const getBudgetGroupKey = (p: Property) => {
+            const val = parseSafeNumber(p.price, 0);
+            if (isRentalProp(p)) {
+              if (val < 12000) return 'rent-under-12k';
+              if (val <= 25000) return 'rent-12k-25k';
+              if (val <= 50000) return 'rent-25k-50k';
+              return 'rent-above-50k';
+            }
+            if (val < 2500000) return 'under-25l';
+            if (val <= 5000000) return '25l-50l';
+            if (val <= 10000000) return '50l-1cr';
+            if (val <= 25000000) return '1cr-2.5cr';
+            if (val <= 50000000) return '2.5cr-5cr';
+            return 'above-5cr';
+          };
+
+          const targetIsRent = isRentalProp(property);
+          const targetType = normalizePropType(property);
+          const targetBudgetGroup = getBudgetGroupKey(property);
+
           const related = allProperties
-            .filter((p) => p && p.id !== property.id && !p.isSold)
+            .filter(
+              (p) =>
+                p &&
+                p.id !== property.id &&
+                !p.isSold &&
+                isRentalProp(p) === targetIsRent &&
+                normalizePropType(p) === targetType &&
+                getBudgetGroupKey(p) === targetBudgetGroup
+            )
             .sort((a, b) => {
               const aSameCity = a.city === property.city ? 1 : 0;
               const bSameCity = b.city === property.city ? 1 : 0;
-              const aSamePurpose = a.purpose === property.purpose ? 1 : 0;
-              const bSamePurpose = b.purpose === property.purpose ? 1 : 0;
-              return bSameCity + bSamePurpose - (aSameCity + aSamePurpose);
+              return bSameCity - aSameCity;
             })
             .slice(0, 3);
 
@@ -1491,7 +1581,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">
-                  Similar Properties in {property.city || 'Uttarakhand'}
+                  {isHindi ? 'समान बजट और प्रकार की संपत्तियां' : 'Similar Properties'}
                 </h2>
                 <div className="flex flex-wrap gap-2 text-xs font-bold">
                   <a
@@ -1536,7 +1626,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
                 </div>
               </div>
 
-              {related.length > 0 && (
+              {related.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                   {related.map((rel) => {
                     const relImg =
@@ -1554,9 +1644,9 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
                             onSelectProperty(rel);
                           }
                         }}
-                        className="group rounded-2xl bg-white dark:bg-[#0c241c] border border-slate-200 dark:border-emerald-800/60 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col"
+                        className="group rounded-2xl bg-white dark:bg-[#0c241c] border border-slate-200 dark:border-emerald-800/60 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col no-underline"
                       >
-                        <div className="h-40 overflow-hidden bg-slate-200 dark:bg-emerald-950">
+                        <div className="relative h-40 overflow-hidden bg-slate-200 dark:bg-emerald-950">
                           <img
                             src={relImg}
                             alt={`${rel.title} - ${rel.type} in ${rel.city}`}
@@ -1566,12 +1656,17 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
                             decoding="async"
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                           />
+                          <span className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-full bg-black/70 text-white text-[10px] font-extrabold uppercase">
+                            {rel.type}
+                          </span>
                         </div>
                         <div className="p-4 space-y-1.5 flex-1 flex flex-col justify-between">
                           <div className="space-y-1">
                             <div className="flex items-center justify-between gap-2">
                               <div className="text-xs font-extrabold text-emerald-700 dark:text-emerald-400">
-                                {formatLocalizedPrice(rel.priceDisplay || '', isHindi ? 'hi' : 'en')}
+                                {rel.priceDisplay
+                                  ? formatLocalizedPrice(rel.priceDisplay, isHindi ? 'hi' : 'en')
+                                  : `₹${Number(rel.price || 0).toLocaleString('en-IN')}`}
                               </div>
                               <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 dark:text-emerald-200/80 tabular-nums shrink-0">
                                 <Eye className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
@@ -1585,16 +1680,20 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
                               {rel.location || rel.city} • {formatPropertyArea(rel, isHindi)}
                             </div>
                           </div>
-                          <div className="pt-1.5 border-t border-slate-100 dark:border-emerald-900/40 text-[11px] text-slate-500 dark:text-slate-300 truncate">
-                            {rel.sellerType === 'Broker' ? (isHindi ? 'ब्रोकर: ' : 'Broker: ') : (isHindi ? 'मालिक: ' : 'Owner: ')}
-                            <strong className="font-semibold text-slate-700 dark:text-white">
-                              {getPropertyOwnerDisplayName(rel, currentUser, isHindi)}
-                            </strong>
+                          <div className="pt-1.5 border-t border-slate-100 dark:border-emerald-900/40 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 flex items-center justify-between">
+                            <span>{isHindi ? 'विवरण देखें' : 'View Details'}</span>
+                            <ArrowRight className="w-3.5 h-3.5" />
                           </div>
                         </div>
                       </a>
                     );
                   })}
+                </div>
+              ) : (
+                <div className="p-5 rounded-2xl bg-white/80 dark:bg-[#0c241c]/70 border border-slate-200 dark:border-emerald-800/50 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                  {isHindi
+                    ? `वर्तमान में इसी बजट वर्ग में कोई अन्य ${property.type || 'समान'} प्रॉपर्टी उपलब्ध नहीं है।`
+                    : `No other ${property.type || 'matching'} properties in the same budget range right now.`}
                 </div>
               )}
             </div>

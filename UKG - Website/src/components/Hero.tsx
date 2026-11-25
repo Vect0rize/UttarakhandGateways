@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLanguage } from '../context/LanguageContext';
+import { isNativeAndroidApp } from '../config/apiConfig';
 
 interface HeroProps {
   onSellClick: () => void;
@@ -9,6 +10,7 @@ interface HeroProps {
   onRentClick?: () => void;
   onExploreClick?: () => void;
   onContactClick?: () => void;
+  onPostRequirementClick?: () => void;
   searchBarSlot?: React.ReactNode;
 }
 
@@ -18,6 +20,7 @@ export const Hero: React.FC<HeroProps> = ({
   onRentClick,
   onExploreClick,
   onContactClick,
+  onPostRequirementClick,
   searchBarSlot,
 }) => {
   const { isHindi } = useLanguage();
@@ -119,10 +122,28 @@ export const Hero: React.FC<HeroProps> = ({
 
         {/* Small Menu (Locations & Property Type dropboxes) & Search Bar below */}
         {searchBarSlot && (
-          <div className="w-full mb-2 sm:mb-3 relative z-40">
+          <div className="w-full mb-2 sm:mb-2.5 relative z-40">
             {searchBarSlot}
           </div>
         )}
+
+        {/* Small text link "Post Your Requirement" directly below Search Bar */}
+        <div className="w-full flex items-center justify-center relative z-30 mt-0.5 mb-1">
+          <a
+            href="/requirements"
+            target={isNativeAndroidApp() ? undefined : '_blank'}
+            rel={isNativeAndroidApp() ? undefined : 'noopener noreferrer'}
+            onClick={(e) => {
+              if (isNativeAndroidApp() && onPostRequirementClick) {
+                e.preventDefault();
+                onPostRequirementClick();
+              }
+            }}
+            className="inline-flex items-center gap-1 text-xs sm:text-[13px] font-bold text-[#0E3A2B]/85 dark:text-[#C2A691] hover:text-emerald-700 dark:hover:text-[#F4F3EF] underline underline-offset-4 decoration-[#AA8F7C]/60 hover:decoration-current transition-colors cursor-pointer"
+          >
+            <span>{isHindi ? 'अपनी प्रॉपर्टी आवश्यकता पोस्ट करें' : 'Post Your Requirement'}</span>
+          </a>
+        </div>
 
       </div>
 

@@ -125,7 +125,16 @@ export const RequirementsPage: React.FC<RequirementsPageProps> = ({
   const { currentUser, openAuthModal } = useAuth();
   const { isHindi } = useLanguage();
 
-  const [activeView, setActiveView] = useState<'board' | 'my'>('board');
+  const [activeView, setActiveView] = useState<'board' | 'my' | 'post'>(() => {
+    try {
+      const path = (window.location.pathname || '').toLowerCase().replace(/\/+$/, '');
+      const sp = new URLSearchParams(window.location.search);
+      if (path === '/requirements/post' || path === '/post-requirement' || sp.get('post') === '1') {
+        return 'post';
+      }
+    } catch {}
+    return 'board';
+  });
   const [publicRequirements, setPublicRequirements] = useState<PropertyRequirement[]>([]);
   const [myRequirements, setMyRequirements] = useState<PropertyRequirement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -235,6 +244,37 @@ export const RequirementsPage: React.FC<RequirementsPageProps> = ({
     openCreateFormAfterAuth();
   };
 
+  const switchReqPageView = useCallback(
+    (next: 'board' | 'my' | 'post') => {
+      setActiveView(next);
+      setShowFormModal(false);
+      if (!embeddedInMobileApp) {
+        try {
+          const targetPath = next === 'post' ? '/requirements/post' : '/requirements';
+          if (window.location.pathname !== targetPath) {
+            window.history.pushState({ reqView: next }, '', targetPath);
+          }
+        } catch {}
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    },
+    [embeddedInMobileApp]
+  );
+
+  useEffect(() => {
+    if (embeddedInMobileApp) return;
+    const onPop = () => {
+      const p = (window.location.pathname || '').toLowerCase().replace(/\/+$/, '');
+      if (p === '/requirements/post' || p === '/post-requirement') {
+        setActiveView('post');
+      } else if (p === '/requirements') {
+        setActiveView('board');
+      }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [embeddedInMobileApp]);
+
   const openCreateFormAfterAuth = () => {
     setEditingRequirement(null);
     setReqType('Buy');
@@ -250,7 +290,7 @@ export const RequirementsPage: React.FC<RequirementsPageProps> = ({
     setAccountPhoneInput((currentUser as any)?.phone || '');
     setHoneypotWebsite('');
     setFormError(null);
-    setShowFormModal(true);
+    switchReqPageView('post');
   };
 
   const openEditForm = (reqItem: PropertyRequirement) => {
@@ -280,7 +320,7 @@ export const RequirementsPage: React.FC<RequirementsPageProps> = ({
     setDescriptionInput(reqItem.description || '');
     setAccountPhoneInput('');
     setFormError(null);
-    setShowFormModal(true);
+    switchReqPageView('post');
   };
 
   const sanitizeDigits = (raw: string) => raw.replace(/[^0-9]/g, '');
@@ -354,7 +394,7 @@ export const RequirementsPage: React.FC<RequirementsPageProps> = ({
       }
 
       setShowFormModal(false);
-      setActiveView('my');
+      switchReqPageView('my');
       showToast(
         editingRequirement
           ? isHindi
@@ -604,7 +644,7 @@ export const RequirementsPage: React.FC<RequirementsPageProps> = ({
           <div className="flex items-center gap-2 pt-2 border-t border-white/10 overflow-x-auto no-scrollbar">
             <button
               type="button"
-              onClick={() => setActiveView('board')}
+              onClick={() => switchReqPageView('board')}
               className={`px-4 py-2 rounded-xl text-xs font-extrabold transition cursor-pointer whitespace-nowrap ${
                 activeView === 'board'
                   ? 'bg-white text-[#0E3A2B] shadow-sm'
@@ -623,7 +663,7 @@ export const RequirementsPage: React.FC<RequirementsPageProps> = ({
                   openAuthModal('login', 'Sign in to view and manage your posted requirements.');
                   return;
                 }
-                setActiveView('my');
+                switchReqPageView('my');
               }}
               className={`px-4 py-2 rounded-xl text-xs font-extrabold transition cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
                 activeView === 'my'
@@ -636,6 +676,19 @@ export const RequirementsPage: React.FC<RequirementsPageProps> = ({
                   ? `मेरी आवश्यकताएं (${myRequirements.length})`
                   : `My Requirements (${myRequirements.length})`}
               </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={openCreateForm}
+              className={`px-4 py-2 rounded-xl text-xs font-extrabold transition cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                activeView === 'post'
+                  ? 'bg-amber-400 text-slate-950 shadow-sm'
+                  : 'bg-white/10 text-emerald-100 hover:bg-white/20'
+              }`}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>{isHindi ? 'नई आवश्यकता फॉर्म' : 'Post Requirement Form'}</span>
             </button>
           </div>
         </section>
@@ -1135,6 +1188,330 @@ export const RequirementsPage: React.FC<RequirementsPageProps> = ({
             )}
           </section>
         )}
+
+        {/* ================= VIEW 3: DEDICATED POST / EDIT REQUIREMENT PAGE (/requirements/post) ================= */}
+        {activeView === 'post' && (
+          <section className="max-w-3xl mx-auto">
+            <div className="bg-white dark:bg-[#082218] rounded-3xl border border-emerald-200/90 dark:border-emerald-800 shadow-xl overflow-hidden">
+              <div className="px-5 sm:px-7 py-5 bg-[#0E3A2B] text-white flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-300 block">
+                    {isHindi ? 'प्रॉपर्टी आवश्यकता फॉर्म' : 'Dedicated Requirement Submission Page'}
+                  </span>
+                  <h2 className="text-lg sm:text-xl font-black mt-0.5">
+                    {editingRequirement
+                      ? isHindi
+                        ? 'आवश्यकता संपादित करें'
+                        : 'Edit Your Requirement'
+                      : isHindi
+                        ? 'अपनी प्रॉपर्टी आवश्यकता पोस्ट करें'
+                        : 'Post Your Requirement'}
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => switchReqPageView('board')}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold cursor-pointer transition"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>{isHindi ? 'सभी आवश्यकताओं पर वापस जाएं' : 'Back to Requirements'}</span>
+                </button>
+              </div>
+
+              {!currentUser ? (
+                <div className="p-8 text-center space-y-4">
+                  <Lock className="w-10 h-10 text-emerald-600 mx-auto" />
+                  <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white">
+                    {isHindi
+                      ? 'अपनी आवश्यकता पोस्ट करने हेतु कृपया साइन इन करें'
+                      : 'Sign In to Post Your Property Requirement'}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 max-w-md mx-auto">
+                    {isHindi
+                      ? 'आपका नाम और फ़ोन नंबर सार्वजनिक रूप से छिपा रहेगा। केवल प्रॉपर्टी मालिक सुरक्षित रूप से उत्तर दे सकते हैं।'
+                      : 'Your personal phone number and email remain hidden publicly. Registered property owners can respond securely.'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openAuthModal(
+                        'login',
+                        'Please sign in with your registered account to post a property requirement.'
+                      )
+                    }
+                    className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm shadow-md cursor-pointer"
+                  >
+                    {isHindi ? 'लॉग इन / रजिस्टर करें' : 'Sign In / Register'}
+                  </button>
+                </div>
+              ) : (
+                <form
+                  onSubmit={handleSubmitRequirement}
+                  className="p-5 sm:p-7 space-y-5 text-xs sm:text-sm"
+                >
+                  {formError && (
+                    <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs font-bold">
+                      {formError}
+                    </div>
+                  )}
+
+                  {/* Honeypot anti-bot field */}
+                  <input
+                    type="text"
+                    name="websiteUrl"
+                    tabIndex={-1}
+                    autoComplete="off"
+                    value={honeypotWebsite}
+                    onChange={(e) => setHoneypotWebsite(e.target.value)}
+                    className="hidden"
+                  />
+
+                  {/* 1. Requirement Type: Buy or Rent */}
+                  <div>
+                    <label className="font-bold block mb-1.5">
+                      {isHindi ? 'आवश्यकता प्रकार (Buy / Rent) *' : 'Requirement Type *'}
+                    </label>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {(['Buy', 'Rent'] as RequirementType[]).map((rt) => (
+                        <button
+                          key={rt}
+                          type="button"
+                          onClick={() => setReqType(rt)}
+                          className={`py-3 rounded-xl font-extrabold text-xs sm:text-sm border transition cursor-pointer ${
+                            reqType === rt
+                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                              : 'bg-slate-50 dark:bg-[#051811] border-slate-200 dark:border-emerald-800 text-slate-700 dark:text-slate-200'
+                          }`}
+                        >
+                          {rt === 'Buy'
+                            ? isHindi
+                              ? 'खरीदना चाहते हैं (Buy)'
+                              : 'Buy Property'
+                            : isHindi
+                              ? 'किराये पर चाहिए (Rent)'
+                              : 'Rent Property'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 2. Property Type & 3. Preferred Location */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="font-bold block mb-1">
+                        {isHindi ? 'प्रॉपर्टी प्रकार *' : 'Property Type *'}
+                      </label>
+                      <select
+                        value={propType}
+                        onChange={(e) => setPropType(e.target.value as RequirementPropertyType)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-[#051811] font-semibold"
+                      >
+                        {REQUIREMENT_PROPERTY_TYPES.map((pt) => (
+                          <option key={pt} value={pt}>
+                            {pt}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="font-bold block mb-1">
+                        {isHindi ? 'उत्तराखंड में पसंदीदा शहर *' : 'Preferred Location in Uttarakhand *'}
+                      </label>
+                      <select
+                        value={preferredCity}
+                        onChange={(e) => setPreferredCity(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-[#051811] font-semibold"
+                      >
+                        {UK_LOCATIONS.map((loc) => (
+                          <option key={loc} value={loc}>
+                            {loc}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="font-bold block mb-1">
+                      {isHindi
+                        ? 'विशिष्ट क्षेत्र / कॉलोनी (वैकल्पिक)'
+                        : 'Specific Locality / Area (Optional)'}
+                    </label>
+                    <input
+                      type="text"
+                      value={localityDetail}
+                      onChange={(e) => setLocalityDetail(e.target.value)}
+                      placeholder="Enter preferred area or locality"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-[#051811]"
+                    />
+                  </div>
+
+                  {/* 4. Minimum & Maximum Budget */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="font-bold">
+                          {isHindi ? 'न्यूनतम बजट (₹)' : 'Minimum Budget (₹)'}
+                        </label>
+                        {Number(minBudgetInput) > 0 && (
+                          <span className="text-[11px] font-bold text-emerald-600">
+                            {formatBudgetShort(Number(minBudgetInput))}
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={minBudgetInput}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        onChange={(e) => setMinBudgetInput(sanitizeDigits(e.target.value))}
+                        placeholder="Enter minimum budget"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-[#051811] font-bold"
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="font-bold">
+                          {isHindi ? 'अधिकतम बजट (₹) *' : 'Maximum Budget (₹) *'}
+                        </label>
+                        {Number(maxBudgetInput) > 0 && (
+                          <span className="text-[11px] font-bold text-emerald-600">
+                            {formatBudgetShort(Number(maxBudgetInput))}
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        required
+                        value={maxBudgetInput}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        onChange={(e) => setMaxBudgetInput(sanitizeDigits(e.target.value))}
+                        placeholder="Enter maximum budget"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-[#051811] font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 5 & 6. Bedrooms & Required Size (if applicable) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {propType !== 'Plot' && propType !== 'Commercial' && (
+                      <div>
+                        <label className="font-bold block mb-1">
+                          {isHindi ? 'कमरे (Bedrooms - वैकल्पिक)' : 'Bedrooms (Optional)'}
+                        </label>
+                        <select
+                          value={bedroomsInput}
+                          onChange={(e) => setBedroomsInput(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-[#051811]"
+                        >
+                          <option value="">Any / Not Applicable</option>
+                          <option value="1">1 BHK</option>
+                          <option value="2">2 BHK</option>
+                          <option value="3">3 BHK</option>
+                          <option value="4">4 BHK</option>
+                          <option value="5">5+ BHK</option>
+                        </select>
+                      </div>
+                    )}
+
+                    <div className={propType === 'Plot' || propType === 'Commercial' ? 'sm:col-span-2' : ''}>
+                      <label className="font-bold block mb-1">
+                        {isHindi ? 'आवश्यक क्षेत्रफल (वैकल्पिक)' : 'Required Property Size (Optional)'}
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={sizeValueInput}
+                          onWheel={(e) => e.currentTarget.blur()}
+                          onChange={(e) =>
+                            setSizeValueInput(e.target.value.replace(/[^0-9.]/g, ''))
+                          }
+                          placeholder="Enter size"
+                          className="flex-1 min-w-0 px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-[#051811]"
+                        />
+                        <select
+                          value={sizeUnitInput}
+                          onChange={(e) => setSizeUnitInput(e.target.value)}
+                          className="w-28 px-2.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-[#051811] font-bold"
+                        >
+                          {SIZE_UNITS.map((u) => (
+                            <option key={u} value={u}>
+                              {u}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 7. Additional Description */}
+                  <div>
+                    <label className="font-bold block mb-1">
+                      {isHindi
+                        ? 'अतिरिक्त विवरण या आवश्यकताएं'
+                        : 'Additional Requirements or Description'}
+                    </label>
+                    <textarea
+                      rows={4}
+                      value={descriptionInput}
+                      onChange={(e) => setDescriptionInput(e.target.value)}
+                      placeholder="Describe road access, facing, possession timeline, or other preferences..."
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-[#051811]"
+                    />
+                  </div>
+
+                  {/* 8. Registered Account Contact Summary (Private) */}
+                  <div className="p-4 rounded-2xl bg-emerald-50/80 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 space-y-2">
+                    <div className="flex items-center gap-1.5 text-xs font-extrabold text-emerald-900 dark:text-emerald-200">
+                      <Lock className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>
+                        {isHindi
+                          ? 'पंजीकृत खाता संपर्क (सार्वजनिक रूप से गोपनीय)'
+                          : 'Registered Account Details (Hidden Publicly)'}
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-700 dark:text-slate-300">
+                      <strong>{currentUser.username}</strong> • {currentUser.contact}
+                    </div>
+                    <input
+                      type="tel"
+                      inputMode="numeric"
+                      value={accountPhoneInput}
+                      onChange={(e) => setAccountPhoneInput(e.target.value.replace(/[^0-9+\s-]/g, ''))}
+                      placeholder="Optional private contact number (kept hidden publicly)"
+                      className="w-full px-3.5 py-2 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-[#051811] text-xs"
+                    />
+                  </div>
+
+                  <div className="pt-2 flex items-center justify-end gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => switchReqPageView('board')}
+                      className="px-5 py-3 rounded-xl border border-slate-300 dark:border-emerald-800 font-bold text-xs sm:text-sm cursor-pointer"
+                    >
+                      {isHindi ? 'रद्द करें' : 'Cancel'}
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={submittingForm}
+                      className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm shadow-md cursor-pointer disabled:opacity-50"
+                    >
+                      {submittingForm
+                        ? 'Submitting...'
+                        : editingRequirement
+                          ? 'Save Changes'
+                          : 'Submit Requirement'}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </section>
+        )}
       </main>
 
       {!embeddedInMobileApp && (
@@ -1144,305 +1521,6 @@ export const RequirementsPage: React.FC<RequirementsPageProps> = ({
           onNavigatePage={(p) => onNavigatePage?.(p)}
           onCategoryClick={(cat) => onNavigatePage?.('buy')}
         />
-      )}
-
-      {/* ================= MODAL: POST / EDIT REQUIREMENT FORM ================= */}
-      {showFormModal && (
-        <div
-          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto"
-          onClick={() => setShowFormModal(false)}
-        >
-          <div
-            className="w-full max-w-xl bg-white dark:bg-[#082218] rounded-t-3xl sm:rounded-3xl border border-emerald-300 dark:border-emerald-800 shadow-2xl overflow-hidden max-h-[94dvh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="px-5 py-4 bg-[#0E3A2B] text-white flex items-center justify-between">
-              <h2 className="text-base sm:text-lg font-black">
-                {editingRequirement
-                  ? isHindi
-                    ? 'आवश्यकता संपादित करें'
-                    : 'Edit Your Requirement'
-                  : isHindi
-                    ? 'अपनी प्रॉपर्टी आवश्यकता पोस्ट करें'
-                    : 'Post Your Requirement'}
-              </h2>
-              <button
-                type="button"
-                onClick={() => setShowFormModal(false)}
-                className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form
-              onSubmit={handleSubmitRequirement}
-              className="p-5 overflow-y-auto space-y-4 text-xs sm:text-sm"
-            >
-              {formError && (
-                <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs font-bold">
-                  {formError}
-                </div>
-              )}
-
-              {/* Honeypot anti-bot field */}
-              <input
-                type="text"
-                name="websiteUrl"
-                tabIndex={-1}
-                autoComplete="off"
-                value={honeypotWebsite}
-                onChange={(e) => setHoneypotWebsite(e.target.value)}
-                className="hidden"
-              />
-
-              {/* 1. Requirement Type: Buy or Rent */}
-              <div>
-                <label className="font-bold block mb-1.5">
-                  {isHindi ? 'आवश्यकता प्रकार (Buy / Rent) *' : 'Requirement Type *'}
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {(['Buy', 'Rent'] as RequirementType[]).map((rt) => (
-                    <button
-                      key={rt}
-                      type="button"
-                      onClick={() => setReqType(rt)}
-                      className={`py-2.5 rounded-xl font-extrabold text-xs border transition cursor-pointer ${
-                        reqType === rt
-                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-                          : 'bg-slate-50 dark:bg-[#051811] border-slate-200 dark:border-emerald-800 text-slate-700 dark:text-slate-200'
-                      }`}
-                    >
-                      {rt === 'Buy'
-                        ? isHindi
-                          ? 'खरीदना चाहते हैं (Buy)'
-                          : 'Buy Property'
-                        : isHindi
-                          ? 'किराये पर चाहिए (Rent)'
-                          : 'Rent Property'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 2. Property Type */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="font-bold block mb-1">
-                    {isHindi ? 'प्रॉपर्टी प्रकार *' : 'Property Type *'}
-                  </label>
-                  <select
-                    value={propType}
-                    onChange={(e) => setPropType(e.target.value as RequirementPropertyType)}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-[#051811] font-semibold"
-                  >
-                    {REQUIREMENT_PROPERTY_TYPES.map((pt) => (
-                      <option key={pt} value={pt}>
-                        {pt}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* 3. Preferred City in Uttarakhand */}
-                <div>
-                  <label className="font-bold block mb-1">
-                    {isHindi ? 'उत्तराखंड में पसंदीदा शहर *' : 'Preferred Location in Uttarakhand *'}
-                  </label>
-                  <select
-                    value={preferredCity}
-                    onChange={(e) => setPreferredCity(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-[#051811] font-semibold"
-                  >
-                    {UK_LOCATIONS.map((loc) => (
-                      <option key={loc} value={loc}>
-                        {loc}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="font-bold block mb-1">
-                  {isHindi
-                    ? 'विशिष्ट क्षेत्र / कॉलोनी (वैकल्पिक)'
-                    : 'Specific Locality / Area (Optional)'}
-                </label>
-                <input
-                  type="text"
-                  value={localityDetail}
-                  onChange={(e) => setLocalityDetail(e.target.value)}
-                  placeholder="Enter preferred area or locality"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-[#051811]"
-                />
-              </div>
-
-              {/* 4. Minimum & Maximum Budget */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="font-bold">
-                      {isHindi ? 'न्यूनतम बजट (₹)' : 'Minimum Budget (₹)'}
-                    </label>
-                    {Number(minBudgetInput) > 0 && (
-                      <span className="text-[11px] font-bold text-emerald-600">
-                        {formatBudgetShort(Number(minBudgetInput))}
-                      </span>
-                    )}
-                  </div>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={minBudgetInput}
-                    onWheel={(e) => e.currentTarget.blur()}
-                    onChange={(e) => setMinBudgetInput(sanitizeDigits(e.target.value))}
-                    placeholder="Enter minimum budget"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-[#051811] font-bold"
-                  />
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="font-bold">
-                      {isHindi ? 'अधिकतम बजट (₹) *' : 'Maximum Budget (₹) *'}
-                    </label>
-                    {Number(maxBudgetInput) > 0 && (
-                      <span className="text-[11px] font-bold text-emerald-600">
-                        {formatBudgetShort(Number(maxBudgetInput))}
-                      </span>
-                    )}
-                  </div>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    required
-                    value={maxBudgetInput}
-                    onWheel={(e) => e.currentTarget.blur()}
-                    onChange={(e) => setMaxBudgetInput(sanitizeDigits(e.target.value))}
-                    placeholder="Enter maximum budget"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-[#051811] font-bold"
-                  />
-                </div>
-              </div>
-
-              {/* 5 & 6. Bedrooms & Required Size (if applicable) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {propType !== 'Plot' && propType !== 'Commercial' && (
-                  <div>
-                    <label className="font-bold block mb-1">
-                      {isHindi ? 'कमरे (Bedrooms - वैकल्पिक)' : 'Bedrooms (Optional)'}
-                    </label>
-                    <select
-                      value={bedroomsInput}
-                      onChange={(e) => setBedroomsInput(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-[#051811]"
-                    >
-                      <option value="">Any / Not Applicable</option>
-                      <option value="1">1 BHK</option>
-                      <option value="2">2 BHK</option>
-                      <option value="3">3 BHK</option>
-                      <option value="4">4 BHK</option>
-                      <option value="5">5+ BHK</option>
-                    </select>
-                  </div>
-                )}
-
-                <div className={propType === 'Plot' || propType === 'Commercial' ? 'sm:col-span-2' : ''}>
-                  <label className="font-bold block mb-1">
-                    {isHindi ? 'आवश्यक क्षेत्रफल (वैकल्पिक)' : 'Required Property Size (Optional)'}
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={sizeValueInput}
-                      onWheel={(e) => e.currentTarget.blur()}
-                      onChange={(e) =>
-                        setSizeValueInput(e.target.value.replace(/[^0-9.]/g, ''))
-                      }
-                      placeholder="Enter size"
-                      className="flex-1 min-w-0 px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-[#051811]"
-                    />
-                    <select
-                      value={sizeUnitInput}
-                      onChange={(e) => setSizeUnitInput(e.target.value)}
-                      className="w-28 px-2.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-[#051811] font-bold"
-                    >
-                      {SIZE_UNITS.map((u) => (
-                        <option key={u} value={u}>
-                          {u}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* 7. Additional Description */}
-              <div>
-                <label className="font-bold block mb-1">
-                  {isHindi
-                    ? 'अतिरिक्त विवरण या आवश्यकताएं'
-                    : 'Additional Requirements or Description'}
-                </label>
-                <textarea
-                  rows={3}
-                  value={descriptionInput}
-                  onChange={(e) => setDescriptionInput(e.target.value)}
-                  placeholder="Describe road access, facing, possession timeline, or other preferences..."
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-[#051811]"
-                />
-              </div>
-
-              {/* 8. Registered Account Contact Summary (Private) */}
-              {currentUser && (
-                <div className="p-3.5 rounded-2xl bg-emerald-50/80 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 space-y-2">
-                  <div className="flex items-center gap-1.5 text-xs font-extrabold text-emerald-900 dark:text-emerald-200">
-                    <Lock className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>
-                      {isHindi
-                        ? 'पंजीकृत खाता संपर्क (सार्वजनिक रूप से गोपनीय)'
-                        : 'Registered Account Details (Hidden Publicly)'}
-                    </span>
-                  </div>
-                  <div className="text-xs text-slate-700 dark:text-slate-300">
-                    <strong>{currentUser.username}</strong> • {currentUser.contact}
-                  </div>
-                  <input
-                    type="tel"
-                    inputMode="numeric"
-                    value={accountPhoneInput}
-                    onChange={(e) => setAccountPhoneInput(e.target.value.replace(/[^0-9+\s-]/g, ''))}
-                    placeholder="Optional private contact number (kept hidden publicly)"
-                    className="w-full px-3 py-2 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-[#051811] text-xs"
-                  />
-                </div>
-              )}
-
-              <div className="pt-2 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowFormModal(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-800 font-bold text-xs cursor-pointer"
-                >
-                  {isHindi ? 'रद्द करें' : 'Cancel'}
-                </button>
-                <button
-                  type="submit"
-                  disabled={submittingForm}
-                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-md cursor-pointer disabled:opacity-50"
-                >
-                  {submittingForm
-                    ? 'Submitting...'
-                    : editingRequirement
-                      ? 'Save Changes'
-                      : 'Submit Requirement'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
       )}
 
       {/* ================= MODAL: PROPERTY OWNER SECURE RESPONSE ================= */}

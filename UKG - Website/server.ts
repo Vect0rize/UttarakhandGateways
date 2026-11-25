@@ -5469,7 +5469,7 @@ async function handleSeoPageRender(req: express.Request, res: express.Response, 
   }
 
   // 8. Core Marketplace Routes (/list, /list/buy, /list/rent, /buy, /rent, /home-loan)
-  if (normalizedPath === '/requirements' || normalizedPath === '/post-requirement' || normalizedPath === '/post-requirements' || pageParam === 'requirements') {
+  if (normalizedPath === '/requirements' || normalizedPath === '/requirements/post' || normalizedPath === '/post-requirement' || normalizedPath === '/post-requirements' || pageParam === 'requirements') {
     applyRouteSeoMeta('requirements');
     return res.send(html);
   }

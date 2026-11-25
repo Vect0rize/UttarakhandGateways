@@ -8401,7 +8401,7 @@ Sitemap: ${DOMAIN}/sitemap.xml
     );
     return res.send(html);
   }
-  if (normalizedPath === "/requirements" || normalizedPath === "/post-requirement" || normalizedPath === "/post-requirements" || pageParam === "requirements") {
+  if (normalizedPath === "/requirements" || normalizedPath === "/requirements/post" || normalizedPath === "/post-requirement" || normalizedPath === "/post-requirements" || pageParam === "requirements") {
     applyRouteSeoMeta("requirements");
     return res.send(html);
   }

@@ -186,7 +186,7 @@ export default function App() {
     const path = rawPath === '' ? '/' : rawPath;
 
     if (path === '/' && !p) return { page: 'home', cleanPath: '/' };
-    if (p === 'requirements' || path === '/requirements' || path === '/post-requirement' || path === '/post-requirements') return { page: 'requirements', cleanPath: '/requirements' };
+    if (p === 'requirements' || path === '/requirements' || path === '/requirements/post' || path === '/post-requirement' || path === '/post-requirements') return { page: 'requirements', cleanPath: path === '/requirements/post' || path === '/post-requirement' ? '/requirements/post' : '/requirements' };
     if (p === 'list' || path === '/list') return { page: 'list', cleanPath: '/list' };
     if (p === 'buy' || path === '/buy' || path === '/lbuy' || path === '/buy-property') return { page: 'buy', cleanPath: '/buy' };
     if (p === 'rent' || path === '/rent' || p === 'rent-property' || path === '/rent-property') return { page: 'rent', cleanPath: '/rent' };
@@ -2098,6 +2098,7 @@ export default function App() {
         onOpenHomeLoanPage={() => navigateToPage('home-loan')}
         onNavigateGuides={() => navigateToGuides()}
         onNavigateCity={navigateToCity}
+        onOpenAboutPage={() => navigateToPage('about')}
         isRentActive={showRentFilter || filters.category === 'Rent/Lease'}
         isPropertyViewActive={Boolean(selectedProperty)}
         onReturnToProperties={handleBackToMarketplace}
@@ -2254,6 +2255,7 @@ export default function App() {
             onRentClick={() => navigateToPage('rent')}
             onExploreClick={scrollToProperties}
             onContactClick={scrollToContact}
+            onPostRequirementClick={() => navigateToPage('requirements')}
             searchBarSlot={
               <SearchBar
                 filters={filters}
@@ -2494,6 +2496,28 @@ export default function App() {
           </div>
         )}
 
+        {/* Post Your Requirement CTA Banner — Placed Above Land Calculator */}
+        <section className="my-12 p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-[#0E3A2B] via-[#0B3124] to-[#072118] text-white border border-emerald-800/80 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="space-y-1.5 max-w-2xl">
+            <h3 className="font-serif-luxury text-xl sm:text-2xl font-bold">
+              {isHindi ? 'मनपसंद प्रॉपर्टी नहीं मिली? अपनी आवश्यकता पोस्ट करें' : "Can't Find What You Need? Post Your Requirement"}
+            </h3>
+            <p className="text-xs sm:text-sm text-emerald-100/85">
+              {isHindi
+                ? 'खरीदने या किराये हेतु अपना बजट व पसंदीदा स्थान बताएं — आपका निजी नंबर सार्वजनिक रूप से छिपा रहता है।'
+                : 'Share your budget, preferred Uttarakhand location, and property type. Your phone number stays private.'}
+            </p>
+          </div>
+          <a
+            href="/requirements"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-5 py-3 rounded-2xl bg-[#C2A691] hover:bg-[#d1b8a5] text-[#032D1F] font-black text-xs sm:text-sm shadow-md transition active:scale-95 cursor-pointer whitespace-nowrap shrink-0 no-underline"
+          >
+            {isHindi ? 'अपनी आवश्यकता पोस्ट करें →' : 'Post Your Requirement →'}
+          </a>
+        </section>
+
         {/* Embedded Calculator Section for direct scroll & discovery */}
         <div id="calculator-section" className="my-16 pt-8 border-t border-emerald-200/80 dark:border-emerald-950/80 scroll-mt-20 sm:scroll-mt-24">
           <div className="mb-6 text-center max-w-2xl mx-auto">
@@ -2512,27 +2536,6 @@ export default function App() {
           </div>
           <PropertyCalculator isModal={false} />
         </div>
-
-        {/* Post Your Requirement CTA Section */}
-        <section className="my-12 p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-[#0E3A2B] via-[#0B3124] to-[#072118] text-white border border-emerald-800/80 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="space-y-1.5 max-w-2xl">
-            <h3 className="font-serif-luxury text-xl sm:text-2xl font-bold">
-              {isHindi ? 'मनपसंद प्रॉपर्टी नहीं मिली? अपनी आवश्यकता पोस्ट करें' : "Can't Find What You Need? Post Your Requirement"}
-            </h3>
-            <p className="text-xs sm:text-sm text-emerald-100/85">
-              {isHindi
-                ? 'खरीदने या किराये हेतु अपना बजट व पसंदीदा स्थान बताएं — आपका निजी नंबर सार्वजनिक रूप से छिपा रहता है।'
-                : 'Share your budget, preferred Uttarakhand location, and property type. Your phone number stays private.'}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => navigateToPage('requirements')}
-            className="px-5 py-3 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs sm:text-sm shadow-md transition active:scale-95 cursor-pointer whitespace-nowrap shrink-0"
-          >
-            {isHindi ? 'अपनी आवश्यकता पोस्ट करें →' : 'Post Your Requirement →'}
-          </button>
-        </section>
 
         {/* Authoritative SEO Knowledge & FAQ Guide */}
         <HomeSeoGuideSection />

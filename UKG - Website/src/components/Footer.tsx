@@ -130,17 +130,8 @@ export const Footer: React.FC<FooterProps> = ({
               <li>
                 <a
                   href="/requirements"
-                  onClick={(e) => {
-                    if (!e.ctrlKey && !e.metaKey && e.button === 0) {
-                      if (onNavigatePage) {
-                        e.preventDefault();
-                        onNavigatePage('requirements');
-                      } else if (onNavigatePath) {
-                        e.preventDefault();
-                        onNavigatePath('/requirements');
-                      }
-                    }
-                  }}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="font-bold text-emerald-700 dark:text-emerald-400 hover:underline transition-colors text-left cursor-pointer"
                 >
                   {isHindi ? 'अपनी आवश्यकता पोस्ट करें' : 'Post Your Requirements'}
