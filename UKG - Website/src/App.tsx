@@ -2537,6 +2537,13 @@ export default function App() {
           <PropertyCalculator isModal={false} />
         </div>
 
+        {/* Home Loan EMI Calculator Banner below Land Calculator */}
+        <HomeLoanBanner
+          isDark={isDark}
+          onOpenEligibility={() => navigateToPage('home-loan')}
+          onOpenBankOffers={() => navigateToPage('home-loan', '#banks')}
+        />
+
         {/* Authoritative SEO Knowledge & FAQ Guide */}
         <HomeSeoGuideSection />
 

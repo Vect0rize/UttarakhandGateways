@@ -90,7 +90,7 @@ export const HomeLoanCalculator: React.FC<HomeLoanCalculatorProps> = ({
           </div>
           <div className="min-w-0">
             <h2 className="text-lg sm:text-xl font-bold font-serif-luxury text-[#0E3A2B] dark:text-[#F4F3EF] truncate">
-              {isHindi ? 'ईएमआई कैलकुलेटर (EMI Calculator)' : 'EMI Calculator'}
+              {isHindi ? 'होम लोन ईएमआई कैलकुलेटर (Home Loan EMI Calculator)' : 'Home Loan EMI Calculator'}
             </h2>
             <p className="text-xs text-slate-600 dark:text-emerald-200/80 truncate">
               {isHindi ? 'मासिक किस्त, कुल ब्याज और कुल भुगतान का अनुमान' : 'Informational monthly repayment estimator'}

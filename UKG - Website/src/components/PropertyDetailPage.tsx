@@ -156,14 +156,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
   }, [propertyProp]);
 
   const property = hydratedProperty || propertyProp;
-  const formattedPropertyAge = formatPropertyAge(property?.propertyAgeYears, isHindiCaseSafe());
-  function isHindiCaseSafe(): boolean {
-    try {
-      return typeof document !== 'undefined' && document.documentElement.lang === 'hi';
-    } catch {
-      return false;
-    }
-  }
 
   // Safe Image & Amenities Guards to guarantee zero runtime crashes
   const safeImages = useMemo(() => {
@@ -194,14 +186,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
 
   const { isHindi } = useLanguage();
   const { currentUser, openAuthModal } = useAuth();
-
-  const [customWhatsAppMsg, setCustomWhatsAppMsg] = useState<string>(() =>
-    buildDefaultWhatsAppMessage(property, isHindi)
-  );
-
-  useEffect(() => {
-    setCustomWhatsAppMsg(buildDefaultWhatsAppMessage(property, isHindi));
-  }, [property?.id, isHindi]);
 
   const isDirectOwner = property ? isPropertyOwner(property, currentUser) : false;
   const canManage = property ? canManageProperty(property, currentUser) : false;
@@ -496,7 +480,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
 
   const publicPhone = getPublicPropertyPhone(property);
   const publicTelHref = getTelHref(publicPhone);
-  const publicWhatsAppHref = getWhatsAppContactUrl(publicPhone, customWhatsAppMsg);
+  const publicWhatsAppHref = getWhatsAppContactUrl(publicPhone, buildDefaultWhatsAppMessage(property, isHindi));
   const sellerDisplayName = getPropertyOwnerDisplayName(property, currentUser, isHindi);
   const isForRent = property?.type === 'Rent/Lease' || property?.purpose === 'rent' || Boolean(property?.isAvailableForRent) || (Boolean(property?.priceDisplay) && property.priceDisplay.toLowerCase().includes('/ month'));
 
@@ -781,8 +765,8 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
           })()}
         </section>
 
-        {/* 2. PROPERTY TITLE */}
-        <section className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#0c241c] border border-slate-200 dark:border-emerald-800/60 shadow-sm space-y-3">
+        {/* 2. PROPERTY TITLE & PRICE (COMBINED IN ONE BLOCK) */}
+        <section className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#0c241c] border border-slate-200 dark:border-emerald-800/60 shadow-sm space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             <span
               className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider flex items-center gap-1.5 shadow-xs ${
@@ -824,41 +808,35 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
             </span>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
-            {property.title}
-          </h1>
-        </section>
-
-        {/* 3. PRICE */}
-        <section className="p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-emerald-50 via-white to-teal-50/40 dark:from-[#0e2d22] dark:via-[#0c241c] dark:to-[#092018] border border-emerald-200 dark:border-emerald-800/80 shadow-sm flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <span className="text-xs font-bold text-slate-500 dark:text-emerald-300 uppercase tracking-wider block">
-              {isForRent
-                ? isHindi
-                  ? 'मासिक किराया'
-                  : 'Monthly Rent'
-                : isHindi
-                  ? 'मांग मूल्य'
-                  : 'Price'}
-            </span>
-            <span className="text-3xl sm:text-4xl font-black text-emerald-700 dark:text-white tracking-tight block mt-0.5">
-              {property.priceDisplay
-                ? formatLocalizedPrice(property.priceDisplay, isHindi ? 'hi' : 'en')
-                : `₹${Number(property.price || 0).toLocaleString('en-IN')}`}
-            </span>
-          </div>
-
-          {(formattedRate ||
-            (property.ratePerGajOrNali && property.ratePerGajOrNali !== formattedRate)) && (
-            <div className="px-4 py-2.5 rounded-2xl bg-white dark:bg-[#081a13] border border-emerald-200/80 dark:border-emerald-800/80 text-left sm:text-right">
-              <span className="text-[11px] font-bold text-slate-500 dark:text-emerald-300 uppercase tracking-wider block">
-                {isHindi ? 'प्रति इकाई दर' : 'Rate per Unit'}
-              </span>
-              <span className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white">
-                {formattedRate || property.ratePerGajOrNali}
-              </span>
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pt-1 border-t border-slate-100 dark:border-emerald-900/50">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
+                {property.title}
+              </h1>
             </div>
-          )}
+
+            <div className="shrink-0 md:text-right pt-2 md:pt-0 border-t md:border-t-0 border-slate-100 dark:border-emerald-900/40">
+              <span className="text-[11px] font-bold text-slate-500 dark:text-emerald-300 uppercase tracking-wider block">
+                {isForRent
+                  ? isHindi
+                    ? 'मासिक किराया'
+                    : 'Monthly Rent'
+                  : isHindi
+                    ? 'मांग मूल्य'
+                    : 'Price'}
+              </span>
+              <span className="text-2xl sm:text-3xl lg:text-4xl font-black text-emerald-700 dark:text-emerald-300 tracking-tight block mt-0.5">
+                {property.priceDisplay
+                  ? formatLocalizedPrice(property.priceDisplay, isHindi ? 'hi' : 'en')
+                  : `₹${Number(property.price || 0).toLocaleString('en-IN')}`}
+              </span>
+              {(formattedRate || property.ratePerGajOrNali) && (
+                <span className="text-xs font-bold text-slate-600 dark:text-emerald-200/85 block mt-0.5">
+                  {formattedRate || property.ratePerGajOrNali}
+                </span>
+              )}
+            </div>
+          </div>
         </section>
 
         {/* 4. LOCATION / MAP */}
@@ -916,256 +894,261 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
           </div>
         </section>
 
-        {/* 5. ALL PROPERTY INFO (AREA, TYPE, CATEGORY, AGE, SPECS, INFRASTRUCTURE, AMENITIES & DOCS) */}
+        {/* 4. ALL PROPERTY INFO (COMPACT BORDERLESS SPECS & AMENITIES) */}
         <section className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#0c241c] border border-slate-200 dark:border-emerald-800/60 shadow-sm space-y-5">
           <h2 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2 pb-2.5 border-b border-slate-100 dark:border-emerald-800/60">
-            <Layers className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+            <Layers className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             <span>{isHindi ? 'प्रॉपर्टी की संपूर्ण जानकारी' : 'Property Information'}</span>
           </h2>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {/* Area */}
-            {formattedArea && (
-              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200/80 dark:border-emerald-900/50">
-                <div className="flex items-center justify-between text-slate-500 dark:text-emerald-300/80">
-                  <span className="text-[11px] font-bold uppercase tracking-wider">
-                    {isHindi ? 'क्षेत्रफल' : 'Area'}
-                  </span>
-                  <Ruler className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <span className="text-sm sm:text-base font-black text-slate-900 dark:text-white block mt-1.5">
-                  {formattedArea}
-                </span>
-              </div>
-            )}
+          {(() => {
+            const unitKey = String(property.areaUnit || 'sqft').toLowerCase();
+            const equivalentArea =
+              areaNum > 0
+                ? unitKey === 'nali'
+                  ? `${areaNum.toLocaleString('en-IN')} Sq.Ft • ${(areaNum / 9).toFixed(1).replace(/\.0$/, '')} Gaj`
+                  : unitKey === 'gaj'
+                    ? `${areaNum.toLocaleString('en-IN')} Sq.Ft • ${(areaNum / 2160).toFixed(2)} Nali`
+                    : `${(areaNum / 9).toFixed(1).replace(/\.0$/, '')} Gaj • ${(areaNum / 2160).toFixed(2)} Nali`
+                : '';
 
-            {/* Property Type */}
-            {property.type && (
-              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200/80 dark:border-emerald-900/50">
-                <div className="flex items-center justify-between text-slate-500 dark:text-emerald-300/80">
-                  <span className="text-[11px] font-bold uppercase tracking-wider">
-                    {isHindi ? 'प्रॉपर्टी प्रकार' : 'Property Type'}
-                  </span>
-                  <Home className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <span className="text-sm sm:text-base font-black text-slate-900 dark:text-white block mt-1.5">
-                  {property.type}
-                </span>
-              </div>
-            )}
+            const rateLabel = !isForRent
+              ? formattedRate ||
+                property.ratePerGajOrNali ||
+                (pricePerSqFt > 0 ? `₹${pricePerSqFt.toLocaleString('en-IN')} / Sq.Ft` : '')
+              : '';
 
-            {/* Category */}
-            {property.category && (
-              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200/80 dark:border-emerald-900/50">
-                <div className="flex items-center justify-between text-slate-500 dark:text-emerald-300/80">
-                  <span className="text-[11px] font-bold uppercase tracking-wider">
-                    {isHindi ? 'श्रेणी' : 'Category'}
-                  </span>
-                  <Building className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <span className="text-sm sm:text-base font-black text-slate-900 dark:text-white block mt-1.5">
-                  {property.category}
-                </span>
-              </div>
-            )}
+            const infoRows: Array<{ label: string; value: string; Icon: React.FC<{ className?: string }> }> = [];
 
-            {/* Property Age */}
-            {formatPropertyAge(property.propertyAgeYears, isHindi) && (
-              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200/80 dark:border-emerald-900/50">
-                <div className="flex items-center justify-between text-slate-500 dark:text-emerald-300/80">
-                  <span className="text-[11px] font-bold uppercase tracking-wider">
-                    {isHindi ? 'प्रॉपर्टी की आयु' : 'Property Age'}
-                  </span>
-                  <Calendar className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <span className="text-sm sm:text-base font-black text-slate-900 dark:text-white block mt-1.5">
-                  {formatPropertyAge(property.propertyAgeYears, isHindi)}
-                </span>
-              </div>
-            )}
+            infoRows.push({
+              label: isHindi ? 'लिस्टिंग उद्देश्य' : 'Listing Purpose',
+              value: isForRent ? (isHindi ? 'किराये हेतु (For Rent)' : 'For Rent') : (isHindi ? 'बिक्री हेतु (For Sale)' : 'For Sale'),
+              Icon: CheckCircle2,
+            });
 
-            {/* Configuration / Bedrooms & Bathrooms */}
-            {!isLandOrPlot && (property.bedrooms > 0 || property.configuration) && (
-              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200/80 dark:border-emerald-900/50">
-                <div className="flex items-center justify-between text-slate-500 dark:text-emerald-300/80">
-                  <span className="text-[11px] font-bold uppercase tracking-wider">
-                    {isHindi ? 'कॉन्फ़िगरेशन' : 'Configuration'}
-                  </span>
-                  <Home className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <span className="text-sm sm:text-base font-black text-slate-900 dark:text-white block mt-1.5">
-                  {property.bedrooms > 0 ? `${property.bedrooms} BHK` : property.configuration}
-                  {property.bathrooms > 0 ? ` • ${property.bathrooms} Bath` : ''}
-                </span>
-              </div>
-            )}
+            if (property.type) {
+              infoRows.push({
+                label: isHindi ? 'प्रॉपर्टी प्रकार' : 'Property Type',
+                value: property.type,
+                Icon: Home,
+              });
+            }
 
-            {/* Furnishing */}
-            {!isLandOrPlot && property.furnishing && (
-              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200/80 dark:border-emerald-900/50">
-                <div className="flex items-center justify-between text-slate-500 dark:text-emerald-300/80">
-                  <span className="text-[11px] font-bold uppercase tracking-wider">
-                    {isHindi ? 'फर्निशिंग' : 'Furnishing'}
-                  </span>
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <span className="text-sm sm:text-base font-black text-slate-900 dark:text-white block mt-1.5">
-                  {property.furnishing}
-                </span>
-              </div>
-            )}
+            if (property.category) {
+              infoRows.push({
+                label: isHindi ? 'श्रेणी' : 'Category',
+                value: property.category,
+                Icon: Building,
+              });
+            }
 
-            {/* Facing */}
-            {property.facing && (
-              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200/80 dark:border-emerald-900/50">
-                <div className="flex items-center justify-between text-slate-500 dark:text-emerald-300/80">
-                  <span className="text-[11px] font-bold uppercase tracking-wider">
-                    {isHindi ? 'दिशा / वास्तु' : 'Facing'}
-                  </span>
-                  <Compass className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <span className="text-sm sm:text-base font-black text-slate-900 dark:text-white block mt-1.5">
-                  {property.facing}
-                </span>
-              </div>
-            )}
+            if (formattedArea) {
+              infoRows.push({
+                label: isHindi ? 'कुल क्षेत्रफल' : 'Total Area',
+                value: formattedArea,
+                Icon: Ruler,
+              });
+            }
 
-            {/* Possession */}
-            {property.possession && (
-              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200/80 dark:border-emerald-900/50">
-                <div className="flex items-center justify-between text-slate-500 dark:text-emerald-300/80">
-                  <span className="text-[11px] font-bold uppercase tracking-wider">
-                    {isHindi ? 'कब्जा स्थिति' : 'Possession'}
-                  </span>
-                  <Calendar className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <span className="text-sm sm:text-base font-black text-slate-900 dark:text-white block mt-1.5">
-                  {property.possession}
-                </span>
-              </div>
-            )}
+            if (equivalentArea) {
+              infoRows.push({
+                label: isHindi ? 'समतुल्य माप' : 'Equivalent Area',
+                value: equivalentArea,
+                Icon: Maximize2,
+              });
+            }
 
-            {/* RERA Status */}
-            {property.reraStatus && (
-              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200/80 dark:border-emerald-900/50">
-                <div className="flex items-center justify-between text-slate-500 dark:text-emerald-300/80">
-                  <span className="text-[11px] font-bold uppercase tracking-wider">RERA</span>
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white block mt-1.5">
-                  {property.reraStatus}
-                </span>
-              </div>
-            )}
+            if (rateLabel) {
+              infoRows.push({
+                label: isHindi ? 'प्रति इकाई दर' : 'Rate per Unit',
+                value: rateLabel,
+                Icon: IndianRupee,
+              });
+            }
 
-            {/* Road Access (only when provided) */}
-            {property.roadAccess && (
-              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200/80 dark:border-emerald-900/50">
-                <div className="flex items-center justify-between text-slate-500 dark:text-emerald-300/80">
-                  <span className="text-[11px] font-bold uppercase tracking-wider">
-                    {isHindi ? 'सड़क पहुंच' : 'Road Access'}
-                  </span>
-                  <Car className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white block mt-1.5">
-                  {property.roadAccess}
-                </span>
-              </div>
-            )}
+            if (property.facing) {
+              infoRows.push({
+                label: isHindi ? 'दिशा (Facing)' : 'Facing',
+                value: property.facing,
+                Icon: Compass,
+              });
+            }
 
-            {/* Water Source (only when provided) */}
-            {property.waterSource && (
-              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200/80 dark:border-emerald-900/50">
-                <div className="flex items-center justify-between text-slate-500 dark:text-emerald-300/80">
-                  <span className="text-[11px] font-bold uppercase tracking-wider">
-                    {isHindi ? 'जल स्रोत' : 'Water Source'}
-                  </span>
-                  <Droplets className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white block mt-1.5">
-                  {property.waterSource}
-                </span>
-              </div>
-            )}
+            if (property.city) {
+              infoRows.push({
+                label: isHindi ? 'शहर / जिला' : 'City / District',
+                value: property.city,
+                Icon: MapPin,
+              });
+            }
 
-            {/* Land / Bhoo-Kanoon Status (only when provided) */}
-            {property.bhooKanoonStatus && (
-              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200/80 dark:border-emerald-900/50">
-                <div className="flex items-center justify-between text-slate-500 dark:text-emerald-300/80">
-                  <span className="text-[11px] font-bold uppercase tracking-wider">
-                    {isHindi ? 'भूमि स्थिति' : 'Land Status'}
-                  </span>
-                  <Scale className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white block mt-1.5">
-                  {property.bhooKanoonStatus}
-                </span>
-              </div>
-            )}
+            if (property.region) {
+              infoRows.push({
+                label: isHindi ? 'उत्तराखंड क्षेत्र' : 'Region',
+                value: `${property.region}, Uttarakhand`,
+                Icon: Navigation,
+              });
+            }
 
-            {/* Distance from Airport / Railway if provided */}
-            {airportInfo && (
-              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200/80 dark:border-emerald-900/50">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-emerald-300/80 block">
-                  {isHindi ? 'एयरपोर्ट से दूरी' : 'Airport Distance'}
-                </span>
-                <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white block mt-1.5">
-                  {airportInfo}
-                </span>
-              </div>
-            )}
+            if (property.location && property.location.toLowerCase() !== String(property.city || '').toLowerCase()) {
+              infoRows.push({
+                label: isHindi ? 'लोकेशन / क्षेत्र' : 'Locality',
+                value: property.location,
+                Icon: MapPin,
+              });
+            }
 
-            {railwayInfo && (
-              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#081a13] border border-slate-200/80 dark:border-emerald-900/50">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-emerald-300/80 block">
-                  {isHindi ? 'रेलवे स्टेशन से दूरी' : 'Railway Distance'}
-                </span>
-                <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white block mt-1.5">
-                  {railwayInfo}
-                </span>
+            if (!isLandOrPlot && (property.bedrooms > 0 || property.configuration)) {
+              infoRows.push({
+                label: isHindi ? 'कॉन्फ़िगरेशन' : 'Configuration',
+                value: `${property.bedrooms > 0 ? `${property.bedrooms} BHK` : property.configuration}${
+                  property.bathrooms > 0 ? ` • ${property.bathrooms} Bath` : ''
+                }${property.balconies && property.balconies > 0 ? ` • ${property.balconies} Balcony` : ''}`,
+                Icon: Home,
+              });
+            }
+
+            if (!isLandOrPlot && property.furnishing) {
+              infoRows.push({
+                label: isHindi ? 'फर्निशिंग' : 'Furnishing',
+                value: property.furnishing,
+                Icon: Sparkles,
+              });
+            }
+
+            if (isForRent) {
+              if (property.pricingUnit || property.rentPeriod) {
+                infoRows.push({
+                  label: isHindi ? 'किराया अवधि' : 'Rent Cycle',
+                  value:
+                    property.pricingUnit ||
+                    (property.rentPeriod === 'yearly'
+                      ? 'Per Year'
+                      : property.rentPeriod === 'quarterly'
+                        ? 'Per Quarter'
+                        : 'Per Month'),
+                  Icon: Calendar,
+                });
+              }
+              if (Number(property.securityDeposit) > 0) {
+                infoRows.push({
+                  label: isHindi ? 'सुरक्षा जमा' : 'Security Deposit',
+                  value: `₹${Number(property.securityDeposit).toLocaleString('en-IN')}`,
+                  Icon: Shield,
+                });
+              }
+              if (Number(property.maintenanceCharges) > 0) {
+                infoRows.push({
+                  label: isHindi ? 'मेंटेनेंस' : 'Maintenance',
+                  value: `₹${Number(property.maintenanceCharges).toLocaleString('en-IN')}`,
+                  Icon: IndianRupee,
+                });
+              }
+              if (property.availableFrom) {
+                infoRows.push({
+                  label: isHindi ? 'उपलब्धता' : 'Available From',
+                  value: property.availableFrom,
+                  Icon: Calendar,
+                });
+              }
+              if (Array.isArray(property.preferredTenants) && property.preferredTenants.length > 0) {
+                infoRows.push({
+                  label: isHindi ? 'किरायेदार प्राथमिकता' : 'Preferred Tenants',
+                  value: property.preferredTenants.join(', '),
+                  Icon: Check,
+                });
+              }
+            }
+
+            infoRows.push({
+              label: isHindi ? 'लिस्टेड द्वारा' : 'Listed By',
+              value:
+                property.sellerType === 'Broker'
+                  ? isHindi
+                    ? 'प्रॉपर्टी ब्रोकर'
+                    : 'Property Broker'
+                  : isHindi
+                    ? 'सीधे मालिक (Direct Owner)'
+                    : 'Direct Owner',
+              Icon: ShieldCheck,
+            });
+
+            infoRows.push({
+              label: isHindi ? 'उपलब्धता स्थिति' : 'Status',
+              value: isSoldLocal
+                ? isHindi
+                  ? 'बिक चुकी है (Sold Out)'
+                  : 'Sold Out'
+                : property.possession || (isHindi ? 'तुरंत उपलब्ध' : 'Available'),
+              Icon: Calendar,
+            });
+
+            infoRows.push({
+              label: isHindi ? 'प्लेटफॉर्म शुल्क' : 'Platform Fee',
+              value: isHindi ? '0% (कोई शुल्क नहीं)' : '0% (No Platform Fee)',
+              Icon: CheckCheck,
+            });
+
+            if (property.reraStatus) {
+              infoRows.push({ label: 'RERA / Approval', value: property.reraStatus, Icon: ShieldCheck });
+            }
+            if (property.roadAccess) {
+              infoRows.push({ label: isHindi ? 'सड़क पहुंच' : 'Road Access', value: property.roadAccess, Icon: Car });
+            }
+            if (property.waterSource) {
+              infoRows.push({ label: isHindi ? 'जल स्रोत' : 'Water Source', value: property.waterSource, Icon: Droplets });
+            }
+            if (property.bhooKanoonStatus) {
+              infoRows.push({ label: isHindi ? 'भूमि स्थिति' : 'Land Status', value: property.bhooKanoonStatus, Icon: Scale });
+            }
+            if (airportInfo) {
+              infoRows.push({ label: isHindi ? 'एयरपोर्ट से दूरी' : 'Airport Distance', value: airportInfo, Icon: Navigation });
+            }
+            if (railwayInfo) {
+              infoRows.push({ label: isHindi ? 'रेलवे से दूरी' : 'Railway Distance', value: railwayInfo, Icon: Navigation });
+            }
+
+            infoRows.push({
+              label: isHindi ? 'प्रॉपर्टी आईडी' : 'Listing ID',
+              value: `UKG-${String(property.id || '').slice(-6).toUpperCase()}`,
+              Icon: FileText,
+            });
+
+            return (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-6 gap-y-4 py-1">
+                {infoRows.map((item, idx) => {
+                  const IconComp = item.Icon;
+                  return (
+                    <div key={idx} className="min-w-0">
+                      <span className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-400 dark:text-emerald-300/75 flex items-center gap-1.5">
+                        <IconComp className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                        <span className="truncate">{item.label}</span>
+                      </span>
+                      <span className="text-xs sm:text-[13px] font-bold text-slate-800 dark:text-slate-100 block mt-0.5 leading-snug break-words">
+                        {item.value}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
-            )}
-          </div>
+            );
+          })()}
 
           {/* Amenities & Features inside All Info */}
           {safeAmenities.length > 0 && (
-            <div className="pt-3 border-t border-slate-100 dark:border-emerald-800/60 space-y-2.5">
-              <h3 className="text-xs sm:text-sm font-extrabold text-slate-700 dark:text-emerald-200 uppercase tracking-wider">
+            <div className="pt-3 border-t border-slate-100 dark:border-emerald-800/60 space-y-2">
+              <h3 className="text-[11px] font-extrabold text-slate-500 dark:text-emerald-300/80 uppercase tracking-wider">
                 {isHindi ? 'सुविधाएं और प्रमुख विशेषताएं' : 'Amenities & Features'}
               </h3>
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-2">
                 {safeAmenities.map((amenity, idx) => (
                   <span
                     key={idx}
-                    className="px-3 py-1.5 rounded-xl bg-emerald-50/70 dark:bg-[#081a13] border border-emerald-200/80 dark:border-emerald-900/60 inline-flex items-center gap-1.5 text-xs font-semibold text-slate-800 dark:text-emerald-100"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-emerald-100"
                   >
                     <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                    <span>{amenity}</span>
+                    <span className="truncate">{amenity}</span>
                   </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Optional Property Documents (PDFs) inside All Info */}
-          {Array.isArray(property.documents) && property.documents.length > 0 && (
-            <div className="pt-3 border-t border-slate-100 dark:border-emerald-800/60 space-y-2.5">
-              <h3 className="text-xs sm:text-sm font-extrabold text-slate-700 dark:text-emerald-200 uppercase tracking-wider flex items-center gap-1.5">
-                <FileText className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                <span>{isHindi ? 'प्रॉपर्टी दस्तावेज़ व लेआउट प्लान' : 'Property Documents & Layout Plans'}</span>
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {property.documents.map((doc, idx) => (
-                  <a
-                    key={idx}
-                    href={resolveApiUrl(doc.url)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-3 rounded-xl bg-slate-50 dark:bg-[#081a13] border border-slate-200 dark:border-emerald-900/50 hover:border-emerald-500 flex items-center justify-between gap-2 text-xs sm:text-sm font-bold text-slate-800 dark:text-emerald-100 transition-colors no-underline"
-                  >
-                    <span className="truncate">{doc.name || `Document ${idx + 1}.pdf`}</span>
-                    <ExternalLink className="w-4 h-4 text-emerald-600 shrink-0" />
-                  </a>
                 ))}
               </div>
             </div>
@@ -1241,43 +1224,26 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
                 </div>
 
                 {publicWhatsAppHref && (
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="ukg-whatsapp-inquiry-msg"
-                      className="block text-[11px] font-bold text-slate-700 dark:text-emerald-200"
-                    >
+                  <a
+                    href={publicWhatsAppHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => {
+                      if (property.id) {
+                        fetch(`/api/properties/${encodeURIComponent(property.id)}/inquiry`, {
+                          method: 'POST',
+                        }).catch(() => {});
+                      }
+                    }}
+                    className="w-full py-3 px-4 rounded-2xl bg-[#25D366] hover:bg-[#20ba59] text-white font-extrabold text-sm shadow-md shadow-emerald-600/20 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2 no-underline"
+                  >
+                    <WhatsAppIcon className="w-4 h-4 fill-white" />
+                    <span>
                       {isHindi
-                        ? 'व्हाट्सएप संदेश (भेजने से पहले बदल सकते हैं):'
-                        : 'WhatsApp Message (customizable before sending):'}
-                    </label>
-                    <textarea
-                      id="ukg-whatsapp-inquiry-msg"
-                      rows={2}
-                      value={customWhatsAppMsg}
-                      onChange={(e) => setCustomWhatsAppMsg(e.target.value)}
-                      className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#25D366] resize-y"
-                    />
-                    <a
-                      href={publicWhatsAppHref}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => {
-                        if (property.id) {
-                          fetch(`/api/properties/${encodeURIComponent(property.id)}/inquiry`, {
-                            method: 'POST',
-                          }).catch(() => {});
-                        }
-                      }}
-                      className="w-full py-3 px-4 rounded-2xl bg-[#25D366] hover:bg-[#20ba59] text-white font-extrabold text-sm shadow-md shadow-emerald-600/20 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2 no-underline"
-                    >
-                      <WhatsAppIcon className="w-4 h-4 fill-white" />
-                      <span>
-                        {isHindi
-                          ? 'व्हाट्सएप पर लिस्र्टर को संदेश भेजें'
-                          : 'Message Lister on WhatsApp'}
-                      </span>
-                    </a>
-                  </div>
+                        ? 'व्हाट्सएप पर लिस्र्टर को संदेश भेजें'
+                        : 'Message Lister on WhatsApp'}
+                    </span>
+                  </a>
                 )}
               </div>
             ) : (

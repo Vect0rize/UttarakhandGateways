@@ -1676,7 +1676,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                                   <span className="font-medium">
                                     {prop.type} ({prop.category}) • {prop.areaDisplay || `${prop.areaSqFt || 0} Sq.Ft`}
                                     {prop.bedrooms ? ` • ${prop.bedrooms} BHK` : ''}
-                                    {formatPropertyAge(prop.propertyAgeYears) ? ` • ${formatPropertyAge(prop.propertyAgeYears)}` : ''}
+                                    {prop.facing ? ` • ${prop.facing} Facing` : ''}
                                   </span>
                                 </div>
                               </div>
@@ -3484,33 +3484,22 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                   </div>
 
                   <div>
-                    <label className="font-bold block mb-1">Facing</label>
-                    <input
-                      type="text"
+                    <label className="font-bold block mb-1">Facing Direction</label>
+                    <select
                       value={editorProperty.facing || ''}
                       onChange={(e) => setEditorProperty({ ...editorProperty, facing: e.target.value })}
-                      placeholder="East / North-East / Valley Facing"
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-800 bg-slate-50 dark:bg-[#051811]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="font-bold block mb-1">How Old Is This Property? (Years)</label>
-                    <input
-                      type="number"
-                      min={0}
-                      max={200}
-                      step="any"
-                      value={editorProperty.propertyAgeYears ?? ''}
-                      onChange={(e) =>
-                        setEditorProperty({
-                          ...editorProperty,
-                          propertyAgeYears: e.target.value === '' ? null : Number(e.target.value),
-                        })
-                      }
-                      placeholder="e.g. 0 (New), 5 — blank if unknown"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-800 bg-slate-50 dark:bg-[#051811]"
-                    />
+                    >
+                      <option value="">Select Facing (Optional)</option>
+                      <option value="North">North</option>
+                      <option value="South">South</option>
+                      <option value="East">East</option>
+                      <option value="West">West</option>
+                      <option value="North-East">North-East</option>
+                      <option value="North-West">North-West</option>
+                      <option value="South-East">South-East</option>
+                      <option value="South-West">South-West</option>
+                    </select>
                   </div>
 
                   <div>

@@ -76,7 +76,7 @@ export const LandUnitConverterModal: React.FC<LandUnitConverterModalProps> = ({
             <label className="block text-xs font-semibold uppercase tracking-wider text-emerald-900 dark:text-emerald-400">
               Enter Land Measurement
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0">
+            <div className="flex items-stretch rounded-xl border border-emerald-200 dark:border-slate-700 bg-emerald-50/50 dark:bg-slate-800/80 focus-within:border-emerald-500 focus-within:bg-white dark:focus-within:bg-slate-800 overflow-hidden min-w-0">
               <input
                 type="number"
                 min="0.1"
@@ -84,14 +84,14 @@ export const LandUnitConverterModal: React.FC<LandUnitConverterModalProps> = ({
                 value={value || ''}
                 onWheel={(e) => e.currentTarget.blur()}
                 onChange={(e) => setValue(Math.max(0, parseFloat(e.target.value) || 0))}
-                className="w-full min-w-0 bg-emerald-50/50 dark:bg-slate-800/80 border border-emerald-200 dark:border-slate-700 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 focus:bg-white dark:focus:bg-slate-800"
+                className="flex-1 min-w-0 bg-transparent px-4 py-3 text-lg font-bold text-slate-900 dark:text-white focus:outline-none"
                 placeholder="1"
               />
 
               <select
                 value={unit}
                 onChange={(e) => setUnit(e.target.value as any)}
-                className="w-full min-w-0 bg-emerald-50/50 dark:bg-slate-800/80 border border-emerald-200 dark:border-slate-700 rounded-xl px-3 py-3 text-sm font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:border-emerald-500 cursor-pointer"
+                className="shrink-0 max-w-[54%] bg-white/80 dark:bg-slate-900/70 border-l border-emerald-200 dark:border-slate-700 px-3 py-3 text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
               >
                 <option value="nali">Nali (Uttarakhand)</option>
                 <option value="sqft">Sq. Feet (sq.ft)</option>

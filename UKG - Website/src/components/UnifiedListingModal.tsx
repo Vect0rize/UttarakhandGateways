@@ -152,6 +152,17 @@ export const PRESET_AMENITIES: PresetAmenity[] = [
   { id: 'ev', labelEn: 'EV Charging Station', labelHi: 'ईवी चार्जिंग स्टेशन', icon: Zap },
 ];
 
+const FACING_DIRECTIONS = [
+  { value: 'North', labelEn: 'North', labelHi: 'उत्तर (North)' },
+  { value: 'South', labelEn: 'South', labelHi: 'दक्षिण (South)' },
+  { value: 'East', labelEn: 'East', labelHi: 'पूर्व (East)' },
+  { value: 'West', labelEn: 'West', labelHi: 'पश्चिम (West)' },
+  { value: 'North-East', labelEn: 'North-East', labelHi: 'उत्तर-पूर्व / ईशान (North-East)' },
+  { value: 'North-West', labelEn: 'North-West', labelHi: 'उत्तर-पश्चिम / वायव्य (North-West)' },
+  { value: 'South-East', labelEn: 'South-East', labelHi: 'दक्षिण-पूर्व / आग्नेय (South-East)' },
+  { value: 'South-West', labelEn: 'South-West', labelHi: 'दक्षिण-पश्चिम / नैऋत्य (South-West)' },
+] as const;
+
 export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
   isOpen,
   onClose,
@@ -209,7 +220,7 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
   const [balconies, setBalconies] = useState<number>(1);
   const [areaValue, setAreaValue] = useState<string>('');
   const [areaUnit, setAreaUnit] = useState<AreaUnit>('sqft');
-  const [propertyAgeInput, setPropertyAgeInput] = useState<string>('');
+  const [facing, setFacing] = useState<string>('');
   const [furnishing, setFurnishing] = useState<'Furnished' | 'Semi-Furnished' | 'Unfurnished'>('Semi-Furnished');
 
   // Pricing (Sale vs Rent) — genuinely empty by default
@@ -306,11 +317,7 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
       setAreaUnit(savedAreaUnit || 'sqft');
 
       setFurnishing(property.furnishing || 'Semi-Furnished');
-      setPropertyAgeInput(
-        property.propertyAgeYears !== undefined && property.propertyAgeYears !== null
-          ? String(property.propertyAgeYears)
-          : ''
-      );
+      setFacing(property.facing || '');
 
       if (isRental) {
         let defaultPeriod: 'monthly' | 'quarterly' | 'yearly' = 'monthly';
@@ -378,7 +385,7 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
       setBalconies(1);
       setAreaValue('');
       setAreaUnit('sqft');
-      setPropertyAgeInput('');
+      setFacing('');
       setFurnishing('Semi-Furnished');
       setRentPeriod('monthly');
       setTotalPriceInput('');
@@ -1096,10 +1103,7 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
         areaValue: parsedArea,
         areaDisplay: formatAreaValueWithUnit(parsedArea, areaUnit, false),
         areaUnit,
-        propertyAgeYears:
-          propertyAgeInput.trim() === ''
-            ? null
-            : Math.max(0, Math.min(200, Math.round(parseFloat(propertyAgeInput) * 10) / 10)),
+        facing: facing.trim() || undefined,
         ratePerSqFt: saleRatePerSqFt,
         ratePerGajOrNali: saleRatePerUnit,
         pricingUnit: transactionType === 'rent'
@@ -1113,7 +1117,6 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
         images: effectiveImages,
         videoUrl: videos[0] || undefined,
         videos: videos.length > 0 ? videos : undefined,
-        documents: documents.length > 0 ? documents : undefined,
         description:
           description.trim() ||
           (transactionType === 'rent'
@@ -1723,30 +1726,34 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
             </>
           )}
 
-          {/* How Old Is This Property? (Optional Age in Years) */}
+          {/* Property Facing Direction (All 8 Directions) */}
           <div className="pt-1">
             <label
-              htmlFor="ukg-property-age-input"
-              className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1"
+              htmlFor="ukg-property-facing-select"
+              className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5"
             >
-              {isHindi
-                ? 'यह प्रॉपर्टी कितनी पुरानी है? (वर्षों में — वैकल्पिक)'
-                : 'How Old Is This Property? (in years — optional)'}
+              {isHindi ? 'प्रॉपर्टी की दिशा (Facing Direction):' : 'Property Facing Direction:'}
             </label>
-            <input
-              id="ukg-property-age-input"
-              type="text"
-              inputMode="decimal"
-              value={propertyAgeInput}
-              onWheel={(e) => e.currentTarget.blur()}
-              onChange={(e) => setPropertyAgeInput(sanitizeDecimalInput(e.target.value))}
-              placeholder={
-                isHindi
-                  ? 'आयु वर्षों में दर्ज करें (जैसे 0 नया निर्माण, 5 — अज्ञात हो तो खाली छोड़ें)'
-                  : 'Enter age in years (e.g. 0 for new, 5 — leave blank if unknown)'
-              }
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-900/80 bg-white dark:bg-slate-900 text-xs sm:text-sm font-semibold focus:ring-2 focus:ring-emerald-500 outline-none"
-            />
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {FACING_DIRECTIONS.map((dir) => {
+                const isSelected = facing === dir.value;
+                return (
+                  <button
+                    key={dir.value}
+                    type="button"
+                    onClick={() => setFacing(isSelected ? '' : dir.value)}
+                    className={`py-2 px-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      isSelected
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-emerald-400'
+                    }`}
+                  >
+                    {isSelected && <Check className="w-3 h-3 stroke-[3] shrink-0" />}
+                    <span className="truncate">{isHindi ? dir.labelHi : dir.labelEn}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
@@ -2083,12 +2090,12 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
           )}
         </div>
 
-        {/* SECTION 4: PHOTOS, VIDEOS & DOCUMENTS */}
+        {/* SECTION 4: PHOTOS & VIDEOS */}
         <div className="p-3 sm:p-5 rounded-xl sm:rounded-2xl bg-slate-50/70 dark:bg-[#0a2318] border border-slate-200/80 dark:border-emerald-900/40 space-y-3.5 sm:space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 dark:border-emerald-950 pb-2">
             <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-extrabold text-sm uppercase tracking-wide">
               <ImageIcon className="w-4 h-4" />
-              <span>4. {isHindi ? 'प्रॉपर्टी की तस्वीरें, वीडियो व दस्तावेज़' : 'Property Photos, Videos & Documents'}</span>
+              <span>4. {isHindi ? 'प्रॉपर्टी की तस्वीरें व वीडियो' : 'Property Photos & Videos'}</span>
             </div>
             <span className="text-xs font-bold text-slate-500">
               {images.length}/15 {isHindi ? 'तस्वीरें' : 'Photos'} (Max {MAX_PHOTO_UPLOAD_MB} MB) • {videos.length}/3 {isHindi ? 'वीडियो' : 'Videos'} (Max {MAX_VIDEO_UPLOAD_MB} MB)
@@ -2299,74 +2306,6 @@ export const UnifiedListingModal: React.FC<UnifiedListingModalProps> = ({
                       onClick={() => removeVideo(vIdx)}
                       className="absolute top-2 right-2 p-1.5 rounded-full bg-rose-600/90 hover:bg-rose-600 text-white shadow-md cursor-pointer transition-colors"
                       title={isHindi ? 'वीडियो हटाएं' : 'Remove video'}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Optional Property Documents (PDF Floor Plan / Brochure • Max 20 MB) */}
-          <div className="pt-2 border-t border-slate-200/80 dark:border-emerald-900/50 space-y-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs font-extrabold text-slate-700 dark:text-emerald-200">
-                <FileText className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                <span>{isHindi ? 'प्रॉपर्टी दस्तावेज़ / नक्शा (वैकल्पिक PDF)' : 'Property Brochure / Layout Plan (Optional PDF)'}</span>
-              </div>
-              <span className="text-[11px] font-semibold text-slate-500">{documents.length}/3</span>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2.5">
-              <input
-                type="file"
-                ref={docInputRef}
-                multiple
-                accept="application/pdf,.pdf"
-                onChange={handleDocumentUpload}
-                className="hidden"
-              />
-              <button
-                type="button"
-                disabled={isUploadingDoc}
-                onClick={() => docInputRef.current?.click()}
-                className="px-3.5 py-2 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-slate-900 hover:border-emerald-500 text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer transition-colors disabled:opacity-60"
-              >
-                {isUploadingDoc ? <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" /> : <Upload className="w-3.5 h-3.5 text-emerald-600" />}
-                <span>{isHindi ? 'PDF अपलोड करें (अधिकतम 20 MB)' : 'Attach PDF Document (Max 20 MB)'}</span>
-              </button>
-              <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                {isHindi ? 'केवल PDF फ़ाइलें अनुमत हैं।' : 'PDF files only • Publicly viewable on listing'}
-              </span>
-            </div>
-
-            {documents.length > 0 && (
-              <div className="space-y-1.5">
-                {documents.map((doc, dIdx) => (
-                  <div
-                    key={dIdx}
-                    className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-emerald-800/70 text-xs"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <FileText className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <a
-                        href={resolveApiUrl(doc.url)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-bold text-slate-800 dark:text-slate-100 hover:underline truncate"
-                      >
-                        {doc.name}
-                      </a>
-                      {doc.size ? (
-                        <span className="text-[10px] text-slate-400 shrink-0">({formatFileSizeMB(doc.size)})</span>
-                      ) : null}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeDocument(dIdx)}
-                      className="p-1 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg cursor-pointer shrink-0"
-                      title={isHindi ? 'दस्तावेज़ हटाएं' : 'Remove document'}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>

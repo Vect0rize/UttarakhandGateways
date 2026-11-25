@@ -97,7 +97,6 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
 
   const cleanArea = formatPropertyArea(property, isHindi);
   const rateDisplay = formatPropertyRate(property, isHindi);
-  const ageLabel = formatPropertyAge(property.propertyAgeYears, isHindi);
 
   const isForRent =
     property.type === 'Rent/Lease' ||
@@ -330,13 +329,6 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
               ) : (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-semibold truncate">
                   {property.type === 'Studio' ? 'Studio' : translatePropertyType(property.type, isHindi ? 'hi' : 'en')}
-                </span>
-              )}
-
-              {ageLabel && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/50 border border-amber-200/80 dark:border-amber-800/70 text-amber-900 dark:text-amber-200 text-[10.5px] font-bold whitespace-nowrap shrink-0">
-                  <Calendar className="w-2.5 h-2.5 text-amber-600 dark:text-amber-400 shrink-0" />
-                  <span>{ageLabel}</span>
                 </span>
               )}
             </div>

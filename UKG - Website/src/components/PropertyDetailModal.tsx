@@ -70,15 +70,8 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
 }) => {
   const [selectedImgIdx, setSelectedImgIdx] = useState(0);
   const [copiedLink, setCopiedLink] = useState(false);
-  const [downloadingBrochure, setDownloadingBrochure] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { isHindi } = useLanguage();
-  const [customWhatsAppMsg, setCustomWhatsAppMsg] = useState<string>(() =>
-    buildDefaultWhatsAppMessage(property, isHindi)
-  );
-  useEffect(() => {
-    setCustomWhatsAppMsg(buildDefaultWhatsAppMessage(property, isHindi));
-  }, [property?.id, isHindi]);
   const { currentUser, openAuthModal } = useAuth();
 
   const isDirectOwner = property ? isPropertyOwner(property, currentUser) : false;
@@ -120,14 +113,6 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
         setTimeout(() => setCopiedLink(false), 2000);
       },
     });
-  };
-
-  const handleDownloadBrochure = () => {
-    setDownloadingBrochure(true);
-    setTimeout(() => {
-      setDownloadingBrochure(false);
-      window.print();
-    }, 800);
   };
 
   // Rough estimation of monthly EMI for Indian 20-year loan at 8.5%
@@ -571,7 +556,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                 {(() => {
                   const publicPhone = getPublicPropertyPhone(property);
                   const telHref = getTelHref(publicPhone);
-                  const waHref = getWhatsAppContactUrl(publicPhone, customWhatsAppMsg);
+                  const waHref = getWhatsAppContactUrl(publicPhone, buildDefaultWhatsAppMessage(property, isHindi));
                   if (!publicPhone || !telHref) return null;
                   return (
                     <div className="space-y-2.5 p-3.5 rounded-2xl bg-emerald-50/80 dark:bg-[#061911]/80 border border-emerald-200 dark:border-emerald-800">
@@ -591,23 +576,15 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                       </a>
 
                       {waHref && (
-                        <div className="space-y-2 pt-1">
-                          <textarea
-                            rows={2}
-                            value={customWhatsAppMsg}
-                            onChange={(e) => setCustomWhatsAppMsg(e.target.value)}
-                            className="w-full p-2 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100"
-                          />
-                          <a
-                            href={waHref}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="w-full py-2.5 px-3 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer no-underline"
-                          >
-                            <MessageCircle className="w-3.5 h-3.5" />
-                            <span>{isHindi ? 'व्हाट्सएप पर संदेश भेजें' : 'Message on WhatsApp'}</span>
-                          </a>
-                        </div>
+                        <a
+                          href={waHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full py-2.5 px-3 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer no-underline"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          <span>{isHindi ? 'व्हाट्सएप पर संदेश भेजें' : 'Message on WhatsApp'}</span>
+                        </a>
                       )}
                     </div>
                   );
@@ -640,16 +617,6 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                 >
                   <Bookmark className={`w-3.5 h-3.5 ${isFavorite ? 'fill-rose-500 text-rose-500' : 'text-slate-400 dark:text-slate-400'}`} />
                   <span>{isFavorite ? (isHindi ? 'सहेजी गई सूची में शामिल' : 'Saved in Your Shortlist') : (isHindi ? 'प्रॉपर्टी को सहेजें' : 'Save Property for Later')}</span>
-                </button>
-
-                {/* Download Brochure Button */}
-                <button
-                  onClick={handleDownloadBrochure}
-                  disabled={downloadingBrochure}
-                  className="w-full py-2 px-4 rounded-xl bg-white dark:bg-[#071c14] hover:bg-emerald-50 dark:hover:bg-[#0c2f22] text-slate-700 dark:text-slate-200 text-xs font-medium border border-emerald-200 dark:border-emerald-800 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
-                >
-                  <Download className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-                  <span>{downloadingBrochure ? (isHindi ? 'दस्तावेज़ तैयार हो रहा है...' : "Generating Dossier...") : (isHindi ? 'प्रिंट / ब्रोशर डाउनलोड' : "Print / Download Brochure")}</span>
                 </button>
 
               </div>
