@@ -19,6 +19,7 @@ import { useLanguage } from '../context/LanguageContext';
 
 export type TrustPageRouteKey =
   | 'about'
+  | 'assurance'
   | 'contact'
   | 'privacy'
   | 'terms'
@@ -188,6 +189,100 @@ export const TrustPolicyPage: React.FC<TrustPolicyPageProps> = ({
           {routeKey.replace('-', ' ')}
         </span>
       </nav>
+
+      {routeKey === 'assurance' && (
+        <article className="bg-white dark:bg-[#10231a] border border-emerald-900/15 dark:border-emerald-700/30 rounded-3xl p-6 sm:p-10 shadow-xl space-y-8">
+          <header className="border-b border-slate-200 dark:border-emerald-800/40 pb-6 space-y-3">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 text-xs font-extrabold uppercase tracking-wider">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>{isHindi ? 'यूकेजी भरोसा और पारदर्शिता' : 'UKG Assurance'}</span>
+            </span>
+            <h1 className="font-serif-luxury text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white leading-tight">
+              {isHindi ? 'यूकेजी एश्योरेंस (UKG Assurance)' : 'UKG Assurance — Direct, Transparent & Privacy-First'}
+            </h1>
+            <p className="text-slate-600 dark:text-emerald-100/85 text-sm sm:text-base leading-relaxed max-w-3xl">
+              {isHindi
+                ? 'उत्तराखंड गेटवेज का उद्देश्य प्रॉपर्टी खोज और लिस्टिंग को पारदर्शी, सुरक्षित और बिना किसी बिचौलिया शुल्क के बनाना है।'
+                : 'UKG Assurance represents our platform standards for transparent discovery, contact privacy, zero platform commission, and informed due diligence across Uttarakhand.'}
+            </p>
+          </header>
+
+          <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/50 border border-emerald-200/60 dark:border-emerald-800/50 space-y-2">
+              <CheckCircle2 className="w-6 h-6 text-emerald-700 dark:text-emerald-400" />
+              <h2 className="font-extrabold text-slate-900 dark:text-white text-base">
+                {isHindi ? '1. शून्य प्लेटफॉर्म शुल्क (0% Commission)' : '1. Zero Platform Fee (0% Commission)'}
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-emerald-100/80 leading-relaxed">
+                {isHindi
+                  ? 'खरीदार, किरायेदार और मालिक बिना किसी प्लेटफॉर्म कमीशन या छिपे शुल्क के सीधे कॉल, व्हाट्सएप या इनबॉक्स के माध्यम से जुड़ते हैं।'
+                  : 'Buyers, tenants, and property owners connect directly via phone, WhatsApp, or Inbox Messages with zero platform fee or hidden brokerage from UKG.'}
+              </p>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/50 border border-emerald-200/60 dark:border-emerald-800/50 space-y-2">
+              <ShieldCheck className="w-6 h-6 text-emerald-700 dark:text-emerald-400" />
+              <h2 className="font-extrabold text-slate-900 dark:text-white text-base">
+                {isHindi ? '2. संपर्क गोपनीयता सुरक्षा' : '2. Contact Privacy Protection'}
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-emerald-100/80 leading-relaxed">
+                {isHindi
+                  ? 'कार्ड सूची पर नाम व नंबर सार्वजनिक रूप से स्क्रैपिंग से सुरक्षित रहते हैं और आवश्यकता पोस्ट करने वाले उपयोगकर्ताओं का निजी नंबर गोपनीय रखा जाता है।'
+                  : 'Lister phone numbers are hidden from public browse cards to prevent automated scraping, and personal contact numbers on Post Your Requirement entries remain private.'}
+              </p>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/50 border border-emerald-200/60 dark:border-emerald-800/50 space-y-2">
+              <FileText className="w-6 h-6 text-emerald-700 dark:text-emerald-400" />
+              <h2 className="font-extrabold text-slate-900 dark:text-white text-base">
+                {isHindi ? '3. उत्तराखंड भूमि कानून मार्गदर्शन' : '3. Uttarakhand Land Law Awareness'}
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-emerald-100/80 leading-relaxed">
+                {isHindi
+                  ? 'धारा 154, धारा 143 भूमि रूपांतरण, भूलेख खतौनी जांच और रेरा नियमों की स्पष्ट मार्गदर्शिकाएं ताकि हर खरीदार स्वतंत्र कानूनी सत्यापन कर सके।'
+                  : 'Dedicated educational guides on Uttarakhand Section 154 norms, Section 143 non-agricultural conversion, Bhulekh Khatauni checks, and RERA due diligence.'}
+              </p>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/50 border border-emerald-200/60 dark:border-emerald-800/50 space-y-2">
+              <Building2 className="w-6 h-6 text-emerald-700 dark:text-emerald-400" />
+              <h2 className="font-extrabold text-slate-900 dark:text-white text-base">
+                {isHindi ? '4. सक्रिय मॉडरेशन और रिपोर्टिंग' : '4. Active Moderation & Reporting'}
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-emerald-100/80 leading-relaxed">
+                {isHindi
+                  ? 'भ्रामक या डुप्लीकेट लिस्टिंग के विरुद्ध त्वरित रिपोर्टिंग सुविधा और एडमिन स्तर पर निगरानी।'
+                  : 'Every listing includes direct reporting tools and admin review controls to remove misleading, duplicate, or policy-violating posts promptly.'}
+              </p>
+            </div>
+          </section>
+
+          <section className="p-5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 text-xs sm:text-sm text-slate-700 dark:text-emerald-100/85 leading-relaxed">
+            <strong>{isHindi ? 'महत्वपूर्ण सूचना:' : 'Buyer Due Diligence Reminder:'}</strong>{' '}
+            {isHindi
+              ? 'उत्तराखंड गेटवेज एक ऑनलाइन डिस्कवरी प्लेटफॉर्म है। किसी भी भुगतान या अनुबंध से पहले मूल रजिस्ट्री, खतौनी और सरकारी अनुमोदनों की स्वतंत्र कानूनी जांच अवश्य करें।'
+              : 'Uttarakhand Gateways is an online property discovery platform and does not act as a broker or guarantor. Always verify original title deeds, Khatauni mutation records, and authority approvals independently with a qualified legal professional before any transaction.'}
+          </section>
+
+          <div className="flex flex-wrap items-center gap-3 pt-2">
+            <a
+              href="/guides"
+              onClick={(e) => handleLinkClick(e, '/guides')}
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm transition no-underline"
+            >
+              <span>{isHindi ? 'भूमि कानून गाइड पढ़ें' : 'Read Uttarakhand Land Guides'}</span>
+              <ArrowRight className="w-4 h-4" />
+            </a>
+            <a
+              href="/about"
+              onClick={(e) => handleLinkClick(e, '/about')}
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl border border-slate-300 dark:border-emerald-700/60 text-slate-700 dark:text-emerald-200 font-bold text-xs sm:text-sm transition no-underline"
+            >
+              <span>{isHindi ? 'हमारे बारे में और संपर्क' : 'About Us & Contact'}</span>
+            </a>
+          </div>
+        </article>
+      )}
 
       {(routeKey === 'about' || routeKey === 'contact') && (
         <article className="bg-white dark:bg-[#10231a] border border-emerald-900/15 dark:border-emerald-700/30 rounded-3xl p-6 sm:p-10 shadow-xl space-y-8">

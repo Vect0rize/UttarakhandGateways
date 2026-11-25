@@ -191,6 +191,7 @@ export default function App() {
     if (p === 'buy' || path === '/buy' || path === '/lbuy' || path === '/buy-property') return { page: 'buy', cleanPath: '/buy' };
     if (p === 'rent' || path === '/rent' || p === 'rent-property' || path === '/rent-property') return { page: 'rent', cleanPath: '/rent' };
     if (p === 'about' || path === '/about') return { page: 'about', cleanPath: '/about' };
+    if (p === 'assurance' || p === 'ukg-assurance' || path === '/assurance' || path === '/ukg-assurance') return { page: 'assurance', cleanPath: '/ukg-assurance' };
     if (p === 'contact' || path === '/contact') return { page: 'contact', cleanPath: '/contact' };
     if (p === 'privacy' || path === '/privacy') return { page: 'privacy', cleanPath: '/privacy' };
     if (p === 'terms' || path === '/terms') return { page: 'terms', cleanPath: '/terms' };
@@ -2099,6 +2100,7 @@ export default function App() {
         onNavigateGuides={() => navigateToGuides()}
         onNavigateCity={navigateToCity}
         onOpenAboutPage={() => navigateToPage('about')}
+        onOpenAssurancePage={() => navigateToPage('assurance')}
         isRentActive={showRentFilter || filters.category === 'Rent/Lease'}
         isPropertyViewActive={Boolean(selectedProperty)}
         onReturnToProperties={handleBackToMarketplace}
@@ -2234,11 +2236,11 @@ export default function App() {
             );
           })()}
         </main>
-      ) : (['about', 'contact', 'privacy', 'terms', 'disclaimer', 'listing-guidelines', 'not-found'].includes(activePage)) ? (
+      ) : (['about', 'assurance', 'contact', 'privacy', 'terms', 'disclaimer', 'listing-guidelines', 'not-found'].includes(activePage)) ? (
         <main className="relative z-20 flex-1 w-full">
           <Suspense fallback={lazyFallback}>
             <TrustPolicyPage
-              routeKey={activePage as 'about' | 'contact' | 'privacy' | 'terms' | 'disclaimer' | 'listing-guidelines' | 'not-found'}
+              routeKey={activePage as 'about' | 'assurance' | 'contact' | 'privacy' | 'terms' | 'disclaimer' | 'listing-guidelines' | 'not-found'}
               onNavigatePath={navigateToPath}
               totalPropertiesCount={properties.length}
             />

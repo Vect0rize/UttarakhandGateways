@@ -5439,6 +5439,8 @@ async function handleSeoPageRender(req: express.Request, res: express.Response, 
   // 7. Trust & Policy Pages (/about, /contact, /privacy, /terms, /listing-guidelines)
   const trustRouteMap: Record<string, AppPageRouteKey> = {
     '/about': 'about',
+    '/assurance': 'assurance',
+    '/ukg-assurance': 'assurance',
     '/contact': 'contact',
     '/privacy': 'privacy',
     '/terms': 'terms',

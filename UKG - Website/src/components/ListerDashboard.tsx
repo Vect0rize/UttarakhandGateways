@@ -125,13 +125,13 @@ export const ListerDashboard: React.FC<ListerDashboardProps> = ({
               </div>
               <div>
                 <h1 className="text-base sm:text-lg font-black text-slate-900 dark:text-white leading-tight flex items-center gap-2">
-                  <span>{isHindi ? 'लिस्टिंग विश्लेषण' : 'Listing Analysis'}</span>
+                  <span>{isHindi ? 'डैशबोर्ड (लिस्टिंग एवं विश्लेषण)' : 'Dashboard'}</span>
                   <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-100 dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 rounded-full">
                     LIVE
                   </span>
                 </h1>
                 <p className="text-[11px] text-slate-500 dark:text-emerald-300/80">
-                  {currentUser?.username ? `${currentUser.username}` : (isHindi ? 'लिस्टिंग विश्लेषण' : 'Listing Analysis')}
+                  {isHindi ? 'मेरी लिस्टिंग्स और वास्तविक समय विश्लेषण' : 'My Listings & Real-Time Analytics'}
                 </p>
               </div>
             </div>

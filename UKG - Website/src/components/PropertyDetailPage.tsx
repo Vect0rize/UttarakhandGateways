@@ -839,79 +839,14 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
           </div>
         </section>
 
-        {/* 4. LOCATION / MAP */}
-        <section className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#0c241c] border border-slate-200 dark:border-emerald-800/60 shadow-sm space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-start gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
-                <MapPin className="w-4 h-4" />
-              </div>
-              <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-emerald-300/80 block">
-                  {isHindi ? 'स्थान एवं मानचित्र' : 'Location & Map'}
-                </span>
-                <p className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white">
-                  {property.location
-                    ? `${property.location}${
-                        property.city &&
-                        !property.location.toLowerCase().includes(property.city.toLowerCase())
-                          ? `, ${property.city}`
-                          : ''
-                      }, Uttarakhand`
-                    : `${property.city || 'Uttarakhand'}, India`}
-                </p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleOpenGoogleMaps}
-              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold inline-flex items-center gap-1.5 shadow-xs transition cursor-pointer shrink-0"
-              title="Open in Google Maps"
-            >
-              <Navigation className="w-3.5 h-3.5" />
-              <span>{isHindi ? 'गूगल मैप्स में खोलें' : 'Open in Google Maps'}</span>
-              <ExternalLink className="w-3 h-3" />
-            </button>
-          </div>
-
-          <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-emerald-900/60 h-52 sm:h-64 bg-slate-100 dark:bg-[#081a13]">
-            <iframe
-              title={`Map of ${property.location || property.city || 'Uttarakhand'}`}
-              src={
-                property.coordinates?.lat && property.coordinates?.lng
-                  ? `https://maps.google.com/maps?q=${property.coordinates.lat},${property.coordinates.lng}&z=14&output=embed`
-                  : `https://maps.google.com/maps?q=${encodeURIComponent(
-                      `${property.location || ''}, ${property.city || ''}, Uttarakhand, India`
-                    )}&z=13&output=embed`
-              }
-              width="100%"
-              height="100%"
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              className="w-full h-full border-0"
-            />
-          </div>
-        </section>
-
-        {/* 4. ALL PROPERTY INFO (COMPACT BORDERLESS SPECS & AMENITIES) */}
+        {/* 3. PROPERTY INFORMATION (ABOVE LOCATION & MAP) */}
         <section className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#0c241c] border border-slate-200 dark:border-emerald-800/60 shadow-sm space-y-5">
           <h2 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2 pb-2.5 border-b border-slate-100 dark:border-emerald-800/60">
             <Layers className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <span>{isHindi ? 'प्रॉपर्टी की संपूर्ण जानकारी' : 'Property Information'}</span>
+            <span>{isHindi ? 'प्रॉपर्टी की जानकारी' : 'Property Information'}</span>
           </h2>
 
           {(() => {
-            const unitKey = String(property.areaUnit || 'sqft').toLowerCase();
-            const equivalentArea =
-              areaNum > 0
-                ? unitKey === 'nali'
-                  ? `${areaNum.toLocaleString('en-IN')} Sq.Ft • ${(areaNum / 9).toFixed(1).replace(/\.0$/, '')} Gaj`
-                  : unitKey === 'gaj'
-                    ? `${areaNum.toLocaleString('en-IN')} Sq.Ft • ${(areaNum / 2160).toFixed(2)} Nali`
-                    : `${(areaNum / 9).toFixed(1).replace(/\.0$/, '')} Gaj • ${(areaNum / 2160).toFixed(2)} Nali`
-                : '';
-
             const rateLabel = !isForRent
               ? formattedRate ||
                 property.ratePerGajOrNali ||
@@ -950,14 +885,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
               });
             }
 
-            if (equivalentArea) {
-              infoRows.push({
-                label: isHindi ? 'समतुल्य माप' : 'Equivalent Area',
-                value: equivalentArea,
-                Icon: Maximize2,
-              });
-            }
-
             if (rateLabel) {
               infoRows.push({
                 label: isHindi ? 'प्रति इकाई दर' : 'Rate per Unit',
@@ -979,14 +906,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
                 label: isHindi ? 'शहर / जिला' : 'City / District',
                 value: property.city,
                 Icon: MapPin,
-              });
-            }
-
-            if (property.region) {
-              infoRows.push({
-                label: isHindi ? 'उत्तराखंड क्षेत्र' : 'Region',
-                value: `${property.region}, Uttarakhand`,
-                Icon: Navigation,
               });
             }
 
@@ -1073,33 +992,11 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
               Icon: ShieldCheck,
             });
 
-            infoRows.push({
-              label: isHindi ? 'उपलब्धता स्थिति' : 'Status',
-              value: isSoldLocal
-                ? isHindi
-                  ? 'बिक चुकी है (Sold Out)'
-                  : 'Sold Out'
-                : property.possession || (isHindi ? 'तुरंत उपलब्ध' : 'Available'),
-              Icon: Calendar,
-            });
-
-            infoRows.push({
-              label: isHindi ? 'प्लेटफॉर्म शुल्क' : 'Platform Fee',
-              value: isHindi ? '0% (कोई शुल्क नहीं)' : '0% (No Platform Fee)',
-              Icon: CheckCheck,
-            });
-
             if (property.reraStatus) {
               infoRows.push({ label: 'RERA / Approval', value: property.reraStatus, Icon: ShieldCheck });
             }
             if (property.roadAccess) {
               infoRows.push({ label: isHindi ? 'सड़क पहुंच' : 'Road Access', value: property.roadAccess, Icon: Car });
-            }
-            if (property.waterSource) {
-              infoRows.push({ label: isHindi ? 'जल स्रोत' : 'Water Source', value: property.waterSource, Icon: Droplets });
-            }
-            if (property.bhooKanoonStatus) {
-              infoRows.push({ label: isHindi ? 'भूमि स्थिति' : 'Land Status', value: property.bhooKanoonStatus, Icon: Scale });
             }
             if (airportInfo) {
               infoRows.push({ label: isHindi ? 'एयरपोर्ट से दूरी' : 'Airport Distance', value: airportInfo, Icon: Navigation });
@@ -1107,12 +1004,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
             if (railwayInfo) {
               infoRows.push({ label: isHindi ? 'रेलवे से दूरी' : 'Railway Distance', value: railwayInfo, Icon: Navigation });
             }
-
-            infoRows.push({
-              label: isHindi ? 'प्रॉपर्टी आईडी' : 'Listing ID',
-              value: `UKG-${String(property.id || '').slice(-6).toUpperCase()}`,
-              Icon: FileText,
-            });
 
             return (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-6 gap-y-4 py-1">
@@ -1153,6 +1044,61 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
               </div>
             </div>
           )}
+        </section>
+
+        {/* 4. LOCATION / MAP */}
+        <section className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#0c241c] border border-slate-200 dark:border-emerald-800/60 shadow-sm space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-start gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                <MapPin className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-emerald-300/80 block">
+                  {isHindi ? 'स्थान एवं मानचित्र' : 'Location & Map'}
+                </span>
+                <p className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white">
+                  {property.location
+                    ? `${property.location}${
+                        property.city &&
+                        !property.location.toLowerCase().includes(property.city.toLowerCase())
+                          ? `, ${property.city}`
+                          : ''
+                      }, Uttarakhand`
+                    : `${property.city || 'Uttarakhand'}, India`}
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleOpenGoogleMaps}
+              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold inline-flex items-center gap-1.5 shadow-xs transition cursor-pointer shrink-0"
+              title="Open in Google Maps"
+            >
+              <Navigation className="w-3.5 h-3.5" />
+              <span>{isHindi ? 'गूगल मैप्स में खोलें' : 'Open in Google Maps'}</span>
+              <ExternalLink className="w-3 h-3" />
+            </button>
+          </div>
+
+          <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-emerald-900/60 h-52 sm:h-64 bg-slate-100 dark:bg-[#081a13]">
+            <iframe
+              title={`Map of ${property.location || property.city || 'Uttarakhand'}`}
+              src={
+                property.coordinates?.lat && property.coordinates?.lng
+                  ? `https://maps.google.com/maps?q=${property.coordinates.lat},${property.coordinates.lng}&z=14&output=embed`
+                  : `https://maps.google.com/maps?q=${encodeURIComponent(
+                      `${property.location || ''}, ${property.city || ''}, Uttarakhand, India`
+                    )}&z=13&output=embed`
+              }
+              width="100%"
+              height="100%"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              className="w-full h-full border-0"
+            />
+          </div>
         </section>
 
         {/* 6. ABOUT THE PROPERTY */}

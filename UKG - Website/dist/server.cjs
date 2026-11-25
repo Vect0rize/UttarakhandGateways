@@ -3659,10 +3659,17 @@ function getPageSeoMeta(page, options) {
       };
     case "dashboard":
       return {
-        title: "Listing Analysis | Manage Properties | Uttarakhand Gateways",
-        description: "View Listing Analysis, track views and shares, and manage your Uttarakhand sale and rental listings.",
+        title: "Dashboard | My Listings & Analytics | Uttarakhand Gateways",
+        description: "Manage your Uttarakhand sale and rental listings and track real-time views, inquiries, and shares in your Dashboard.",
         keywords: coreKw,
         canonicalPath: "/dashboard"
+      };
+    case "assurance":
+      return {
+        title: "UKG Assurance | Zero Platform Fee & Buyer Protection Standards | Uttarakhand Gateways",
+        description: "Discover UKG Assurance: 0% platform fee, direct owner-to-buyer communication, card contact privacy, Uttarakhand land due-diligence guidance, and listing moderation.",
+        keywords: "ukg assurance, uttarakhand gateways assurance, no platform fee real estate uttarakhand, buyer due diligence uttarakhand",
+        canonicalPath: "/ukg-assurance"
       };
     case "about":
       return {
@@ -8373,6 +8380,8 @@ Sitemap: ${DOMAIN}/sitemap.xml
   };
   const trustRouteMap = {
     "/about": "about",
+    "/assurance": "assurance",
+    "/ukg-assurance": "assurance",
     "/contact": "contact",
     "/privacy": "privacy",
     "/terms": "terms",
