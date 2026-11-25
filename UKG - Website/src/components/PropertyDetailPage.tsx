@@ -611,12 +611,11 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
 
       {/* MAIN CONTENT CONTAINER — EXACT REQUESTED TOP-TO-BOTTOM FLOW:
           1. Thumbnail / Image / Video
-          2. Property Title
-          3. Price
-          4. Location / Map
-          5. All Property Info (Area, Type, Category, Age, Specs, Amenities, Docs)
-          6. About the Property
-          7. Seller Info
+          2. Property Title & Price
+          3. Property Information
+          4. About the Property
+          5. Location / Map
+          6. Seller Info
       */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 sm:pt-6 space-y-5 sm:space-y-6">
 
@@ -1046,7 +1045,20 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
           )}
         </section>
 
-        {/* 4. LOCATION / MAP */}
+        {/* 4. ABOUT THE PROPERTY */}
+        {property.description && (
+          <section className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#0c241c] border border-slate-200 dark:border-emerald-800/60 shadow-sm space-y-3">
+            <h2 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+              <Building className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              <span>{isHindi ? 'प्रॉपर्टी के बारे में' : 'About the Property'}</span>
+            </h2>
+            <div className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line font-normal">
+              {property.description}
+            </div>
+          </section>
+        )}
+
+        {/* 5. LOCATION / MAP */}
         <section className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#0c241c] border border-slate-200 dark:border-emerald-800/60 shadow-sm space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-start gap-2.5">
@@ -1100,19 +1112,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
             />
           </div>
         </section>
-
-        {/* 6. ABOUT THE PROPERTY */}
-        {property.description && (
-          <section className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#0c241c] border border-slate-200 dark:border-emerald-800/60 shadow-sm space-y-3">
-            <h2 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              <Building className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-              <span>{isHindi ? 'प्रॉपर्टी के बारे में' : 'About the Property'}</span>
-            </h2>
-            <div className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line font-normal">
-              {property.description}
-            </div>
-          </section>
-        )}
 
         {/* 7. SELLER INFO */}
         <section className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#0c241c] border-2 border-emerald-300/80 dark:border-emerald-800/80 shadow-md space-y-4">
