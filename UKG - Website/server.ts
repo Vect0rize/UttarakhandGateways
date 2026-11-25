@@ -105,7 +105,7 @@ app.use((req, res, next) => {
   res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
   res.setHeader('Referrer-Policy', 'no-referrer-when-downgrade');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-  res.setHeader('Content-Security-Policy', "default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data: blob:; media-src 'self' https: data: blob:; font-src 'self' https: data:; frame-ancestors 'self';");
+  res.setHeader('Content-Security-Policy', "default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data: blob:; media-src 'self' https: data: blob:; font-src 'self' https: data:; frame-ancestors 'self' https://tagassistant.google.com https://www.googletagmanager.com;");
   if (process.env.NODE_ENV === 'production') {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
   }
@@ -5000,7 +5000,7 @@ async function handleSeoPageRender(req: express.Request, res: express.Response, 
     html = html.replace('</head>', `  <meta name="google-site-verification" content="${escapeHtml(gscToken)}" />\n</head>`);
   }
   const gaMeasurementId = (process.env.GA_MEASUREMENT_ID || process.env.VITE_GA_MEASUREMENT_ID || '').trim();
-  if (/^G-[A-Z0-9]+$/i.test(gaMeasurementId)) {
+  if (/^G-[A-Z0-9]+$/i.test(gaMeasurementId) && !html.includes('googletagmanager.com/')) {
     const safeGaId = escapeHtml(gaMeasurementId);
     html = html.replace(
       '</head>',
