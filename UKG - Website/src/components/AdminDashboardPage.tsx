@@ -51,6 +51,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { isAppOwner, formatPropertyViewsCount, formatPropertyAge } from '../utils/propertyOwnership';
 import { getPropertySlugPath } from '../data/programmaticSeo';
 import { resolveApiUrl, isNativeAndroidApp } from '../config/apiConfig';
+import { AdminAssurancePanel } from './AdminAssurancePanel';
 
 interface AdminStats {
   totalProperties: number;
@@ -277,8 +278,12 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
   const isAdmin = isAppOwner(currentUser);
 
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'properties' | 'requirements' | 'users' | 'reports' | 'platform' | 'audit'
+    'overview' | 'properties' | 'assurance' | 'requirements' | 'users' | 'reports' | 'platform' | 'audit'
   >('properties');
+  const [assuranceBadgeCounts, setAssuranceBadgeCounts] = useState<{ newApps: number; total: number }>({
+    newApps: 0,
+    total: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
@@ -433,6 +438,12 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
         setRequirements(Array.isArray(data.requirements) ? data.requirements : []);
         setAuditLogs(Array.isArray(data.auditLogs) ? data.auditLogs : []);
         if (data.settings) setSettings(data.settings);
+        if (data.assuranceCounts) {
+          setAssuranceBadgeCounts({
+            newApps: Number(data.assuranceCounts.newApplications) || 0,
+            total: Number(data.assuranceCounts.total) || 0,
+          });
+        }
       } catch (err: any) {
         clearTimeout(timeoutId);
         if (err?.name === 'AbortError') {
@@ -1248,6 +1259,11 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
         <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8 flex items-center gap-1 overflow-x-auto no-scrollbar pt-0.5">
           {[
             { id: 'properties', label: `Properties Control (${statusCounts.all})`, icon: Building2 },
+            {
+              id: 'assurance',
+              label: `UKG Assurance (${assuranceBadgeCounts.newApps > 0 ? `${assuranceBadgeCounts.newApps} New` : assuranceBadgeCounts.total})`,
+              icon: ShieldCheck,
+            },
             { id: 'requirements', label: `Requirements (${requirements.filter((r) => r.approvalStatus === 'pending').length} Pending)`, icon: ClipboardList },
             { id: 'overview', label: 'Marketplace Stats', icon: BarChart3 },
             { id: 'users', label: `Users & Owners (${stats?.registeredUsers ?? users.length})`, icon: Users },
@@ -2887,6 +2903,15 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                   </div>
                 )}
               </div>
+            )}
+
+            {/* ================= UKG ASSURANCE TAB ================= */}
+            {activeTab === 'assurance' && (
+              <AdminAssurancePanel
+                onOverviewCountChange={(newApps, total) =>
+                  setAssuranceBadgeCounts({ newApps, total })
+                }
+              />
             )}
           </>
         )}

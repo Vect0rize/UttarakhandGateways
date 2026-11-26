@@ -249,3 +249,103 @@ export interface FilterState {
   homestayOnly?: boolean;
   sortBy: 'featured' | 'price-low' | 'price-high' | 'area-large' | 'area-small';
 }
+
+export type AssuranceApplicationStatus =
+  | 'Application Received'
+  | 'Under Document Review'
+  | 'Physical Inspection'
+  | 'Report Preparation'
+  | 'Report Ready'
+  | 'Completed';
+
+export type AssurancePaymentStatus =
+  | 'Quotation Pending'
+  | 'Payment Pending'
+  | 'Partially Paid'
+  | 'Paid'
+  | 'Refunded';
+
+export interface AssurancePriceBracket {
+  id: string;
+  label: string;
+  minAmount: number;
+  maxAmount: number | null;
+  fee: number | null;
+  isCustomQuote: boolean;
+}
+
+export interface AssurancePricingConfig {
+  brackets: AssurancePriceBracket[];
+  purchaseAssistancePrice: number | null;
+  dedicatedCoordinatorPrice: number | null;
+  updatedAt?: string;
+}
+
+export interface AssuranceDocumentMeta {
+  fileId: string;
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+  uploadedAt: string;
+  uploadedBy?: string;
+}
+
+export interface AssuranceTeamUpdate {
+  id: string;
+  message: string;
+  authorName: string;
+  statusAtTime: AssuranceApplicationStatus;
+  createdAt: string;
+}
+
+export interface AssuranceInternalNote {
+  id: string;
+  note: string;
+  adminName: string;
+  createdAt: string;
+}
+
+export interface AssuranceHistoryEntry {
+  id: string;
+  action: string;
+  actorName: string;
+  actorRole: 'customer' | 'admin';
+  details: string;
+  createdAt: string;
+}
+
+export interface AssuranceApplication {
+  id: string;
+  userId: string;
+  userEmail: string;
+  customerName: string;
+  mobileNumber: string;
+  propertyLocation: string;
+  propertyValueBracketId: string;
+  propertyValueBracketLabel: string;
+  propertyLinkOrId: string;
+  propertyType: string;
+  additionalRequirements: string;
+  additionalMessage?: string;
+  standardServicesIncluded: string[];
+  addonPurchaseAssistance: boolean;
+  addonDedicatedCoordinator: boolean;
+  snapshotStandardFee: number | null;
+  snapshotIsCustomQuote: boolean;
+  snapshotPurchaseAssistanceFee: number | null;
+  snapshotDedicatedCoordinatorFee: number | null;
+  snapshotCalculatedTotal: number | null;
+  customQuotationAmount: number | null;
+  customQuotationNotes?: string;
+  agreedFinalAmount: number | null;
+  status: AssuranceApplicationStatus;
+  paymentStatus: AssurancePaymentStatus;
+  assignedTeamMember: string;
+  customerDocuments: AssuranceDocumentMeta[];
+  finalReport: AssuranceDocumentMeta | null;
+  customerUpdates: AssuranceTeamUpdate[];
+  internalNotes?: AssuranceInternalNote[];
+  history: AssuranceHistoryEntry[];
+  createdAt: string;
+  updatedAt: string;
+}

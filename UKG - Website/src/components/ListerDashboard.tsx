@@ -31,6 +31,7 @@ import { isPropertyOwner } from '../utils/propertyOwnership';
 import { formatLocalizedPrice } from '../utils/language';
 import { sharePropertyListing } from '../utils/propertyShare';
 import { SeoKeywordsSection } from './SeoKeywordsSection';
+import { CustomerAssuranceSection } from './CustomerAssuranceSection';
 import type { AppPageRouteKey } from '../data/seoMetadata';
 
 interface ListerDashboardProps {
@@ -151,6 +152,13 @@ export const ListerDashboard: React.FC<ListerDashboardProps> = ({
 
       {/* Main Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* UKG ASSURANCE CUSTOMER DASHBOARD SECTION */}
+        <CustomerAssuranceSection
+          onOpenAssurancePage={() => {
+            if (onNavigatePage) onNavigatePage('assurance');
+            else window.location.href = '/ukg-assurance';
+          }}
+        />
         
         {/* Empty Notice Banner if 0 properties */}
         {myProperties.length === 0 && (

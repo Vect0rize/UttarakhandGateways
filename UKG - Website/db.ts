@@ -100,12 +100,49 @@ export interface DbAuditLog {
   adminEmail: string;
   adminName: string;
   action: string;
-  targetType: 'property' | 'user' | 'report' | 'settings' | 'bulk' | 'requirement';
+  targetType: 'property' | 'user' | 'report' | 'settings' | 'bulk' | 'requirement' | 'assurance';
   targetId: string;
   targetTitle?: string;
   details: string;
   createdAt: string;
 }
+
+export interface DbAssurancePriceBracket {
+  id: string;
+  label: string;
+  minAmount: number;
+  maxAmount: number | null;
+  fee: number | null;
+  isCustomQuote: boolean;
+}
+
+export interface DbAssurancePricingConfig {
+  brackets: DbAssurancePriceBracket[];
+  purchaseAssistancePrice: number | null;
+  dedicatedCoordinatorPrice: number | null;
+  updatedAt?: string;
+}
+
+export interface DbAssuranceFileMeta {
+  id: string;
+  applicationId: string;
+  uploaderId: string;
+  fileRole: 'customer_document' | 'final_report';
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt: string;
+}
+
+export type DbAssuranceApplication = Record<string, any> & {
+  id: string;
+  userId: string;
+  userEmail: string;
+  status: string;
+  paymentStatus: string;
+  createdAt: string;
+  updatedAt: string;
+};
 
 export interface DbSession {
   sessionId: string;
@@ -150,6 +187,10 @@ class DatabaseService {
   private auditLogsFilePath: string;
   private requirementsFilePath: string;
   private requirementResponsesFilePath: string;
+  private assurancePricingFilePath: string;
+  private assuranceAppsFilePath: string;
+  private assuranceFilesMetaPath: string;
+  private assurancePrivateDir: string;
   private revokedSessionsFilePath: string;
   private revokedTokens = new Set<string>();
   private writeLocks = new Map<string, Promise<unknown>>();
@@ -200,6 +241,10 @@ class DatabaseService {
     this.auditLogsFilePath = path.join(this.dataDir, 'admin_audit_logs.json');
     this.requirementsFilePath = path.join(this.dataDir, 'requirements.json');
     this.requirementResponsesFilePath = path.join(this.dataDir, 'requirement_responses.json');
+    this.assurancePricingFilePath = path.join(this.dataDir, 'assurance_pricing.json');
+    this.assuranceAppsFilePath = path.join(this.dataDir, 'assurance_applications.json');
+    this.assuranceFilesMetaPath = path.join(this.dataDir, 'assurance_files_meta.json');
+    this.assurancePrivateDir = path.join(this.dataDir, 'assurance_private');
     this.revokedSessionsFilePath = path.join(this.dataDir, 'revoked_sessions.json');
     try {
       const revokedList = this.readJsonFile(this.revokedSessionsFilePath);
@@ -217,6 +262,11 @@ class DatabaseService {
       } catch (err) {
         console.warn('[UKG DB] Could not create data directory:', err);
       }
+    }
+    if (!fs.existsSync(this.assurancePrivateDir)) {
+      try {
+        fs.mkdirSync(this.assurancePrivateDir, { recursive: true });
+      } catch {}
     }
   }
 
@@ -345,6 +395,32 @@ class DatabaseService {
               requirement_id VARCHAR(255) NOT NULL,
               responder_id VARCHAR(255) NOT NULL,
               data TEXT NOT NULL,
+              created_at VARCHAR(100) NOT NULL
+            );
+          `);
+
+          await client.query(`
+            CREATE TABLE IF NOT EXISTS ukg_assurance_applications (
+              id VARCHAR(255) PRIMARY KEY,
+              user_id VARCHAR(255) NOT NULL,
+              status VARCHAR(100) NOT NULL,
+              payment_status VARCHAR(100) NOT NULL,
+              data TEXT NOT NULL,
+              created_at VARCHAR(100) NOT NULL,
+              updated_at VARCHAR(100) NOT NULL
+            );
+          `);
+
+          await client.query(`
+            CREATE TABLE IF NOT EXISTS ukg_assurance_files (
+              id VARCHAR(255) PRIMARY KEY,
+              application_id VARCHAR(255) NOT NULL,
+              uploader_id VARCHAR(255) NOT NULL,
+              file_role VARCHAR(60) NOT NULL,
+              original_name VARCHAR(500) NOT NULL,
+              mime_type VARCHAR(150) NOT NULL,
+              size_bytes BIGINT NOT NULL,
+              content_base64 TEXT NOT NULL,
               created_at VARCHAR(100) NOT NULL
             );
           `);
@@ -525,6 +601,32 @@ class DatabaseService {
               requirement_id VARCHAR(255) NOT NULL,
               responder_id VARCHAR(255) NOT NULL,
               data LONGTEXT NOT NULL,
+              created_at VARCHAR(100) NOT NULL
+            );
+          `);
+
+          await conn.query(`
+            CREATE TABLE IF NOT EXISTS ukg_assurance_applications (
+              id VARCHAR(255) PRIMARY KEY,
+              user_id VARCHAR(255) NOT NULL,
+              status VARCHAR(100) NOT NULL,
+              payment_status VARCHAR(100) NOT NULL,
+              data LONGTEXT NOT NULL,
+              created_at VARCHAR(100) NOT NULL,
+              updated_at VARCHAR(100) NOT NULL
+            );
+          `);
+
+          await conn.query(`
+            CREATE TABLE IF NOT EXISTS ukg_assurance_files (
+              id VARCHAR(255) PRIMARY KEY,
+              application_id VARCHAR(255) NOT NULL,
+              uploader_id VARCHAR(255) NOT NULL,
+              file_role VARCHAR(60) NOT NULL,
+              original_name VARCHAR(500) NOT NULL,
+              mime_type VARCHAR(150) NOT NULL,
+              size_bytes BIGINT NOT NULL,
+              content_base64 LONGTEXT NOT NULL,
               created_at VARCHAR(100) NOT NULL
             );
           `);
@@ -2092,6 +2194,501 @@ class DatabaseService {
       this.writeJsonFileAtomically(this.requirementResponsesFilePath, [resp, ...existing]);
       return resp;
     });
+  }
+
+  // =================================================================
+  // UKG ASSURANCE PRICING, APPLICATIONS & PRIVATE DOCUMENT STORAGE
+  // =================================================================
+
+  public getDefaultAssurancePricing(): DbAssurancePricingConfig {
+    return {
+      brackets: [
+        {
+          id: 'below-10l',
+          label: 'Below ₹10 lakh',
+          minAmount: 0,
+          maxAmount: 1000000,
+          fee: 7999,
+          isCustomQuote: false,
+        },
+        {
+          id: '10l-25l',
+          label: '₹10–25 lakh',
+          minAmount: 1000000,
+          maxAmount: 2500000,
+          fee: 11999,
+          isCustomQuote: false,
+        },
+        {
+          id: '25l-50l',
+          label: '₹25–50 lakh',
+          minAmount: 2500000,
+          maxAmount: 5000000,
+          fee: 17999,
+          isCustomQuote: false,
+        },
+        {
+          id: '50l-1cr',
+          label: '₹50 lakh–₹1 crore',
+          minAmount: 5000000,
+          maxAmount: 10000000,
+          fee: 24999,
+          isCustomQuote: false,
+        },
+        {
+          id: 'above-1cr',
+          label: 'Above ₹1 crore',
+          minAmount: 10000000,
+          maxAmount: null,
+          fee: null,
+          isCustomQuote: true,
+        },
+      ],
+      purchaseAssistancePrice: null,
+      dedicatedCoordinatorPrice: null,
+    };
+  }
+
+  public async getAssurancePricing(): Promise<DbAssurancePricingConfig> {
+    if (!this.initialized) await this.initialize();
+    const defaults = this.getDefaultAssurancePricing();
+
+    if (this.dbType === 'postgres' && this.pgPool) {
+      try {
+        const res = await this.pgPool.query('SELECT data FROM ukg_settings WHERE id = $1', ['assurance_pricing']);
+        if (res.rows[0]?.data) {
+          const parsed = typeof res.rows[0].data === 'string' ? JSON.parse(res.rows[0].data) : res.rows[0].data;
+          return {
+            ...defaults,
+            ...parsed,
+            brackets: Array.isArray(parsed?.brackets) && parsed.brackets.length > 0 ? parsed.brackets : defaults.brackets,
+          };
+        }
+      } catch (err) {
+        console.error('[UKG DB] PostgreSQL getAssurancePricing error:', err);
+      }
+    }
+
+    if (this.dbType === 'mysql' && this.mysqlPool) {
+      try {
+        const [rows]: any = await this.mysqlPool.query('SELECT data FROM ukg_settings WHERE id = ?', ['assurance_pricing']);
+        if (rows[0]?.data) {
+          const parsed = typeof rows[0].data === 'string' ? JSON.parse(rows[0].data) : rows[0].data;
+          return {
+            ...defaults,
+            ...parsed,
+            brackets: Array.isArray(parsed?.brackets) && parsed.brackets.length > 0 ? parsed.brackets : defaults.brackets,
+          };
+        }
+      } catch (err) {
+        console.error('[UKG DB] MySQL getAssurancePricing error:', err);
+      }
+    }
+
+    const list = this.readJsonFile(this.assurancePricingFilePath);
+    if (list.length > 0 && list[0] && typeof list[0] === 'object') {
+      const parsed = list[0];
+      return {
+        ...defaults,
+        ...parsed,
+        brackets: Array.isArray(parsed?.brackets) && parsed.brackets.length > 0 ? parsed.brackets : defaults.brackets,
+      };
+    }
+    return defaults;
+  }
+
+  public async saveAssurancePricing(updates: DbAssurancePricingConfig): Promise<DbAssurancePricingConfig> {
+    if (!this.initialized) await this.initialize();
+    return this.withLock('assurance_pricing', async () => {
+      const current = await this.getAssurancePricing();
+      const merged: DbAssurancePricingConfig = {
+        brackets:
+          Array.isArray(updates.brackets) && updates.brackets.length > 0
+            ? updates.brackets
+            : current.brackets,
+        purchaseAssistancePrice:
+          updates.purchaseAssistancePrice === null || updates.purchaseAssistancePrice === undefined
+            ? null
+            : Math.max(0, Math.round(Number(updates.purchaseAssistancePrice) || 0)),
+        dedicatedCoordinatorPrice:
+          updates.dedicatedCoordinatorPrice === null || updates.dedicatedCoordinatorPrice === undefined
+            ? null
+            : Math.max(0, Math.round(Number(updates.dedicatedCoordinatorPrice) || 0)),
+        updatedAt: new Date().toISOString(),
+      };
+
+      const json = JSON.stringify(merged);
+      if (this.dbType === 'postgres' && this.pgPool) {
+        try {
+          await this.pgPool.query(
+            `INSERT INTO ukg_settings (id, data, updated_at)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (id) DO UPDATE SET data = $2, updated_at = $3`,
+            ['assurance_pricing', json, merged.updatedAt]
+          );
+        } catch (err) {
+          console.error('[UKG DB] PostgreSQL saveAssurancePricing error:', err);
+        }
+      } else if (this.dbType === 'mysql' && this.mysqlPool) {
+        try {
+          await this.mysqlPool.query(
+            `INSERT INTO ukg_settings (id, data, updated_at)
+             VALUES (?, ?, ?)
+             ON DUPLICATE KEY UPDATE data = VALUES(data), updated_at = VALUES(updated_at)`,
+            ['assurance_pricing', json, merged.updatedAt]
+          );
+        } catch (err) {
+          console.error('[UKG DB] MySQL saveAssurancePricing error:', err);
+        }
+      }
+
+      this.writeJsonFileAtomically(this.assurancePricingFilePath, [merged]);
+      return merged;
+    });
+  }
+
+  public async getAllAssuranceApplications(): Promise<DbAssuranceApplication[]> {
+    if (!this.initialized) await this.initialize();
+    if (this.dbType === 'postgres' && this.pgPool) {
+      try {
+        const res = await this.pgPool.query(
+          'SELECT data FROM ukg_assurance_applications ORDER BY created_at DESC'
+        );
+        return res.rows.map((r) => (typeof r.data === 'string' ? JSON.parse(r.data) : r.data));
+      } catch (err) {
+        console.error('[UKG DB] PostgreSQL getAllAssuranceApplications error:', err);
+      }
+    }
+    if (this.dbType === 'mysql' && this.mysqlPool) {
+      try {
+        const [rows]: any = await this.mysqlPool.query(
+          'SELECT data FROM ukg_assurance_applications ORDER BY created_at DESC'
+        );
+        return rows.map((r: any) => (typeof r.data === 'string' ? JSON.parse(r.data) : r.data));
+      } catch (err) {
+        console.error('[UKG DB] MySQL getAllAssuranceApplications error:', err);
+      }
+    }
+    return this.readJsonFile(this.assuranceAppsFilePath);
+  }
+
+  public async getAssuranceApplicationById(id: string): Promise<DbAssuranceApplication | null> {
+    const all = await this.getAllAssuranceApplications();
+    return all.find((a) => a && a.id === id) || null;
+  }
+
+  public async getAssuranceApplicationsByUser(
+    userId: string,
+    userEmail?: string
+  ): Promise<DbAssuranceApplication[]> {
+    const all = await this.getAllAssuranceApplications();
+    const normEmail = String(userEmail || '').trim().toLowerCase();
+    return all.filter(
+      (a) =>
+        a &&
+        (a.userId === userId ||
+          (normEmail && String(a.userEmail || '').trim().toLowerCase() === normEmail))
+    );
+  }
+
+  public async saveAssuranceApplication(
+    appRecord: DbAssuranceApplication
+  ): Promise<DbAssuranceApplication> {
+    if (!this.initialized) await this.initialize();
+    return this.withLock('assurance_apps', async () => {
+      const json = JSON.stringify(appRecord);
+      if (this.dbType === 'postgres' && this.pgPool) {
+        try {
+          await this.pgPool.query(
+            `INSERT INTO ukg_assurance_applications (id, user_id, status, payment_status, data, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             ON CONFLICT (id) DO UPDATE SET status = $3, payment_status = $4, data = $5, updated_at = $7`,
+            [
+              appRecord.id,
+              appRecord.userId,
+              appRecord.status,
+              appRecord.paymentStatus,
+              json,
+              appRecord.createdAt,
+              appRecord.updatedAt,
+            ]
+          );
+        } catch (err) {
+          console.error('[UKG DB] PostgreSQL saveAssuranceApplication error:', err);
+        }
+      } else if (this.dbType === 'mysql' && this.mysqlPool) {
+        try {
+          await this.mysqlPool.query(
+            `INSERT INTO ukg_assurance_applications (id, user_id, status, payment_status, data, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE status = VALUES(status), payment_status = VALUES(payment_status), data = VALUES(data), updated_at = VALUES(updated_at)`,
+            [
+              appRecord.id,
+              appRecord.userId,
+              appRecord.status,
+              appRecord.paymentStatus,
+              json,
+              appRecord.createdAt,
+              appRecord.updatedAt,
+            ]
+          );
+        } catch (err) {
+          console.error('[UKG DB] MySQL saveAssuranceApplication error:', err);
+        }
+      }
+
+      const existing = this.readJsonFile(this.assuranceAppsFilePath).filter(
+        (x: any) => x && x.id !== appRecord.id
+      );
+      const next = [appRecord, ...existing].sort(
+        (a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+      );
+      this.writeJsonFileAtomically(this.assuranceAppsFilePath, next);
+      return appRecord;
+    });
+  }
+
+  public async saveAssurancePrivateFile(fileRecord: {
+    id: string;
+    applicationId: string;
+    uploaderId: string;
+    fileRole: 'customer_document' | 'final_report';
+    originalName: string;
+    mimeType: string;
+    sizeBytes: number;
+    buffer: Buffer;
+    createdAt: string;
+  }): Promise<DbAssuranceFileMeta> {
+    if (!this.initialized) await this.initialize();
+    return this.withLock('assurance_files', async () => {
+      const meta: DbAssuranceFileMeta = {
+        id: fileRecord.id,
+        applicationId: fileRecord.applicationId,
+        uploaderId: fileRecord.uploaderId,
+        fileRole: fileRecord.fileRole,
+        originalName: fileRecord.originalName,
+        mimeType: fileRecord.mimeType,
+        sizeBytes: fileRecord.sizeBytes,
+        createdAt: fileRecord.createdAt,
+      };
+      const base64 = fileRecord.buffer.toString('base64');
+
+      if (this.dbType === 'postgres' && this.pgPool) {
+        try {
+          await this.pgPool.query(
+            `INSERT INTO ukg_assurance_files (id, application_id, uploader_id, file_role, original_name, mime_type, size_bytes, content_base64, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+             ON CONFLICT (id) DO UPDATE SET application_id = $2, content_base64 = $8`,
+            [
+              meta.id,
+              meta.applicationId,
+              meta.uploaderId,
+              meta.fileRole,
+              meta.originalName,
+              meta.mimeType,
+              meta.sizeBytes,
+              base64,
+              meta.createdAt,
+            ]
+          );
+        } catch (err) {
+          console.error('[UKG DB] PostgreSQL saveAssurancePrivateFile error:', err);
+        }
+      } else if (this.dbType === 'mysql' && this.mysqlPool) {
+        try {
+          await this.mysqlPool.query(
+            `INSERT INTO ukg_assurance_files (id, application_id, uploader_id, file_role, original_name, mime_type, size_bytes, content_base64, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE application_id = VALUES(application_id), content_base64 = VALUES(content_base64)`,
+            [
+              meta.id,
+              meta.applicationId,
+              meta.uploaderId,
+              meta.fileRole,
+              meta.originalName,
+              meta.mimeType,
+              meta.sizeBytes,
+              base64,
+              meta.createdAt,
+            ]
+          );
+        } catch (err) {
+          console.error('[UKG DB] MySQL saveAssurancePrivateFile error:', err);
+        }
+      }
+
+      // Always write encrypted/private binary file into non-public data/assurance_private directory
+      try {
+        if (!fs.existsSync(this.assurancePrivateDir)) {
+          fs.mkdirSync(this.assurancePrivateDir, { recursive: true });
+        }
+        const safeBinPath = path.join(this.assurancePrivateDir, `${meta.id.replace(/[^a-zA-Z0-9_-]/g, '')}.bin`);
+        fs.writeFileSync(safeBinPath, fileRecord.buffer);
+      } catch (err) {
+        console.warn('[UKG DB] Private file disk write warning:', err);
+      }
+
+      const existingMeta = this.readJsonFile(this.assuranceFilesMetaPath).filter(
+        (x: any) => x && x.id !== meta.id
+      );
+      this.writeJsonFileAtomically(this.assuranceFilesMetaPath, [meta, ...existingMeta]);
+      return meta;
+    });
+  }
+
+  public async attachPendingFilesToApplication(
+    fileIds: string[],
+    uploaderId: string,
+    applicationId: string
+  ): Promise<DbAssuranceFileMeta[]> {
+    if (!Array.isArray(fileIds) || fileIds.length === 0) return [];
+    if (!this.initialized) await this.initialize();
+    const attached: DbAssuranceFileMeta[] = [];
+
+    for (const rawId of fileIds) {
+      const fid = String(rawId || '').trim();
+      if (!fid) continue;
+      const found = await this.getAssurancePrivateFileMeta(fid);
+      if (!found) continue;
+      if (found.uploaderId !== uploaderId) continue;
+      if (found.applicationId !== 'PENDING' && found.applicationId !== applicationId) continue;
+
+      if (this.dbType === 'postgres' && this.pgPool) {
+        try {
+          await this.pgPool.query(
+            'UPDATE ukg_assurance_files SET application_id = $1 WHERE id = $2 AND uploader_id = $3',
+            [applicationId, fid, uploaderId]
+          );
+        } catch {}
+      } else if (this.dbType === 'mysql' && this.mysqlPool) {
+        try {
+          await this.mysqlPool.query(
+            'UPDATE ukg_assurance_files SET application_id = ? WHERE id = ? AND uploader_id = ?',
+            [applicationId, fid, uploaderId]
+          );
+        } catch {}
+      }
+
+      const metas = this.readJsonFile(this.assuranceFilesMetaPath);
+      const updatedMetas = metas.map((m: any) =>
+        m && m.id === fid && m.uploaderId === uploaderId ? { ...m, applicationId } : m
+      );
+      this.writeJsonFileAtomically(this.assuranceFilesMetaPath, updatedMetas);
+      attached.push({ ...found, applicationId });
+    }
+
+    return attached;
+  }
+
+  public async getAssurancePrivateFileMeta(fileId: string): Promise<DbAssuranceFileMeta | null> {
+    if (!this.initialized) await this.initialize();
+    if (this.dbType === 'postgres' && this.pgPool) {
+      try {
+        const res = await this.pgPool.query(
+          'SELECT id, application_id, uploader_id, file_role, original_name, mime_type, size_bytes, created_at FROM ukg_assurance_files WHERE id = $1',
+          [fileId]
+        );
+        if (res.rows[0]) {
+          const r = res.rows[0];
+          return {
+            id: r.id,
+            applicationId: r.application_id,
+            uploaderId: r.uploader_id,
+            fileRole: r.file_role,
+            originalName: r.original_name,
+            mimeType: r.mime_type,
+            sizeBytes: Number(r.size_bytes) || 0,
+            createdAt: r.created_at,
+          };
+        }
+      } catch {}
+    } else if (this.dbType === 'mysql' && this.mysqlPool) {
+      try {
+        const [rows]: any = await this.mysqlPool.query(
+          'SELECT id, application_id, uploader_id, file_role, original_name, mime_type, size_bytes, created_at FROM ukg_assurance_files WHERE id = ?',
+          [fileId]
+        );
+        if (rows[0]) {
+          const r = rows[0];
+          return {
+            id: r.id,
+            applicationId: r.application_id,
+            uploaderId: r.uploader_id,
+            fileRole: r.file_role,
+            originalName: r.original_name,
+            mimeType: r.mime_type,
+            sizeBytes: Number(r.size_bytes) || 0,
+            createdAt: r.created_at,
+          };
+        }
+      } catch {}
+    }
+
+    const metas = this.readJsonFile(this.assuranceFilesMetaPath);
+    const matched = metas.find((m: any) => m && m.id === fileId);
+    return matched || null;
+  }
+
+  public async getAssurancePrivateFile(
+    fileId: string
+  ): Promise<(DbAssuranceFileMeta & { buffer: Buffer }) | null> {
+    if (!this.initialized) await this.initialize();
+    if (this.dbType === 'postgres' && this.pgPool) {
+      try {
+        const res = await this.pgPool.query(
+          'SELECT id, application_id, uploader_id, file_role, original_name, mime_type, size_bytes, content_base64, created_at FROM ukg_assurance_files WHERE id = $1',
+          [fileId]
+        );
+        if (res.rows[0]?.content_base64) {
+          const r = res.rows[0];
+          return {
+            id: r.id,
+            applicationId: r.application_id,
+            uploaderId: r.uploader_id,
+            fileRole: r.file_role,
+            originalName: r.original_name,
+            mimeType: r.mime_type,
+            sizeBytes: Number(r.size_bytes) || 0,
+            createdAt: r.created_at,
+            buffer: Buffer.from(r.content_base64, 'base64'),
+          };
+        }
+      } catch (err) {
+        console.error('[UKG DB] PostgreSQL getAssurancePrivateFile error:', err);
+      }
+    } else if (this.dbType === 'mysql' && this.mysqlPool) {
+      try {
+        const [rows]: any = await this.mysqlPool.query(
+          'SELECT id, application_id, uploader_id, file_role, original_name, mime_type, size_bytes, content_base64, created_at FROM ukg_assurance_files WHERE id = ?',
+          [fileId]
+        );
+        if (rows[0]?.content_base64) {
+          const r = rows[0];
+          return {
+            id: r.id,
+            applicationId: r.application_id,
+            uploaderId: r.uploader_id,
+            fileRole: r.file_role,
+            originalName: r.original_name,
+            mimeType: r.mime_type,
+            sizeBytes: Number(r.size_bytes) || 0,
+            createdAt: r.created_at,
+            buffer: Buffer.from(r.content_base64, 'base64'),
+          };
+        }
+      } catch (err) {
+        console.error('[UKG DB] MySQL getAssurancePrivateFile error:', err);
+      }
+    }
+
+    const meta = await this.getAssurancePrivateFileMeta(fileId);
+    if (!meta) return null;
+    const safeBinPath = path.join(this.assurancePrivateDir, `${fileId.replace(/[^a-zA-Z0-9_-]/g, '')}.bin`);
+    if (!fs.existsSync(safeBinPath)) return null;
+    return {
+      ...meta,
+      buffer: fs.readFileSync(safeBinPath),
+    };
   }
 }
 

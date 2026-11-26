@@ -25,6 +25,7 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 var import_express = __toESM(require("express"), 1);
 var import_path2 = __toESM(require("path"), 1);
 var import_fs2 = __toESM(require("fs"), 1);
+var import_os = __toESM(require("os"), 1);
 var import_crypto2 = __toESM(require("crypto"), 1);
 var import_bcryptjs = __toESM(require("bcryptjs"), 1);
 var import_cookie_parser = __toESM(require("cookie-parser"), 1);
@@ -75,6 +76,10 @@ var DatabaseService = class {
     this.auditLogsFilePath = import_path.default.join(this.dataDir, "admin_audit_logs.json");
     this.requirementsFilePath = import_path.default.join(this.dataDir, "requirements.json");
     this.requirementResponsesFilePath = import_path.default.join(this.dataDir, "requirement_responses.json");
+    this.assurancePricingFilePath = import_path.default.join(this.dataDir, "assurance_pricing.json");
+    this.assuranceAppsFilePath = import_path.default.join(this.dataDir, "assurance_applications.json");
+    this.assuranceFilesMetaPath = import_path.default.join(this.dataDir, "assurance_files_meta.json");
+    this.assurancePrivateDir = import_path.default.join(this.dataDir, "assurance_private");
     this.revokedSessionsFilePath = import_path.default.join(this.dataDir, "revoked_sessions.json");
     try {
       const revokedList = this.readJsonFile(this.revokedSessionsFilePath);
@@ -91,6 +96,12 @@ var DatabaseService = class {
         import_fs.default.mkdirSync(this.dataDir, { recursive: true });
       } catch (err) {
         console.warn("[UKG DB] Could not create data directory:", err);
+      }
+    }
+    if (!import_fs.default.existsSync(this.assurancePrivateDir)) {
+      try {
+        import_fs.default.mkdirSync(this.assurancePrivateDir, { recursive: true });
+      } catch {
       }
     }
   }
@@ -223,6 +234,30 @@ var DatabaseService = class {
               requirement_id VARCHAR(255) NOT NULL,
               responder_id VARCHAR(255) NOT NULL,
               data TEXT NOT NULL,
+              created_at VARCHAR(100) NOT NULL
+            );
+          `);
+          await client.query(`
+            CREATE TABLE IF NOT EXISTS ukg_assurance_applications (
+              id VARCHAR(255) PRIMARY KEY,
+              user_id VARCHAR(255) NOT NULL,
+              status VARCHAR(100) NOT NULL,
+              payment_status VARCHAR(100) NOT NULL,
+              data TEXT NOT NULL,
+              created_at VARCHAR(100) NOT NULL,
+              updated_at VARCHAR(100) NOT NULL
+            );
+          `);
+          await client.query(`
+            CREATE TABLE IF NOT EXISTS ukg_assurance_files (
+              id VARCHAR(255) PRIMARY KEY,
+              application_id VARCHAR(255) NOT NULL,
+              uploader_id VARCHAR(255) NOT NULL,
+              file_role VARCHAR(60) NOT NULL,
+              original_name VARCHAR(500) NOT NULL,
+              mime_type VARCHAR(150) NOT NULL,
+              size_bytes BIGINT NOT NULL,
+              content_base64 TEXT NOT NULL,
               created_at VARCHAR(100) NOT NULL
             );
           `);
@@ -386,6 +421,30 @@ var DatabaseService = class {
               requirement_id VARCHAR(255) NOT NULL,
               responder_id VARCHAR(255) NOT NULL,
               data LONGTEXT NOT NULL,
+              created_at VARCHAR(100) NOT NULL
+            );
+          `);
+          await conn.query(`
+            CREATE TABLE IF NOT EXISTS ukg_assurance_applications (
+              id VARCHAR(255) PRIMARY KEY,
+              user_id VARCHAR(255) NOT NULL,
+              status VARCHAR(100) NOT NULL,
+              payment_status VARCHAR(100) NOT NULL,
+              data LONGTEXT NOT NULL,
+              created_at VARCHAR(100) NOT NULL,
+              updated_at VARCHAR(100) NOT NULL
+            );
+          `);
+          await conn.query(`
+            CREATE TABLE IF NOT EXISTS ukg_assurance_files (
+              id VARCHAR(255) PRIMARY KEY,
+              application_id VARCHAR(255) NOT NULL,
+              uploader_id VARCHAR(255) NOT NULL,
+              file_role VARCHAR(60) NOT NULL,
+              original_name VARCHAR(500) NOT NULL,
+              mime_type VARCHAR(150) NOT NULL,
+              size_bytes BIGINT NOT NULL,
+              content_base64 LONGTEXT NOT NULL,
               created_at VARCHAR(100) NOT NULL
             );
           `);
@@ -1752,6 +1811,444 @@ var DatabaseService = class {
       this.writeJsonFileAtomically(this.requirementResponsesFilePath, [resp, ...existing]);
       return resp;
     });
+  }
+  // =================================================================
+  // UKG ASSURANCE PRICING, APPLICATIONS & PRIVATE DOCUMENT STORAGE
+  // =================================================================
+  getDefaultAssurancePricing() {
+    return {
+      brackets: [
+        {
+          id: "below-10l",
+          label: "Below \u20B910 lakh",
+          minAmount: 0,
+          maxAmount: 1e6,
+          fee: 7999,
+          isCustomQuote: false
+        },
+        {
+          id: "10l-25l",
+          label: "\u20B910\u201325 lakh",
+          minAmount: 1e6,
+          maxAmount: 25e5,
+          fee: 11999,
+          isCustomQuote: false
+        },
+        {
+          id: "25l-50l",
+          label: "\u20B925\u201350 lakh",
+          minAmount: 25e5,
+          maxAmount: 5e6,
+          fee: 17999,
+          isCustomQuote: false
+        },
+        {
+          id: "50l-1cr",
+          label: "\u20B950 lakh\u2013\u20B91 crore",
+          minAmount: 5e6,
+          maxAmount: 1e7,
+          fee: 24999,
+          isCustomQuote: false
+        },
+        {
+          id: "above-1cr",
+          label: "Above \u20B91 crore",
+          minAmount: 1e7,
+          maxAmount: null,
+          fee: null,
+          isCustomQuote: true
+        }
+      ],
+      purchaseAssistancePrice: null,
+      dedicatedCoordinatorPrice: null
+    };
+  }
+  async getAssurancePricing() {
+    if (!this.initialized) await this.initialize();
+    const defaults = this.getDefaultAssurancePricing();
+    if (this.dbType === "postgres" && this.pgPool) {
+      try {
+        const res = await this.pgPool.query("SELECT data FROM ukg_settings WHERE id = $1", ["assurance_pricing"]);
+        if (res.rows[0]?.data) {
+          const parsed = typeof res.rows[0].data === "string" ? JSON.parse(res.rows[0].data) : res.rows[0].data;
+          return {
+            ...defaults,
+            ...parsed,
+            brackets: Array.isArray(parsed?.brackets) && parsed.brackets.length > 0 ? parsed.brackets : defaults.brackets
+          };
+        }
+      } catch (err) {
+        console.error("[UKG DB] PostgreSQL getAssurancePricing error:", err);
+      }
+    }
+    if (this.dbType === "mysql" && this.mysqlPool) {
+      try {
+        const [rows] = await this.mysqlPool.query("SELECT data FROM ukg_settings WHERE id = ?", ["assurance_pricing"]);
+        if (rows[0]?.data) {
+          const parsed = typeof rows[0].data === "string" ? JSON.parse(rows[0].data) : rows[0].data;
+          return {
+            ...defaults,
+            ...parsed,
+            brackets: Array.isArray(parsed?.brackets) && parsed.brackets.length > 0 ? parsed.brackets : defaults.brackets
+          };
+        }
+      } catch (err) {
+        console.error("[UKG DB] MySQL getAssurancePricing error:", err);
+      }
+    }
+    const list = this.readJsonFile(this.assurancePricingFilePath);
+    if (list.length > 0 && list[0] && typeof list[0] === "object") {
+      const parsed = list[0];
+      return {
+        ...defaults,
+        ...parsed,
+        brackets: Array.isArray(parsed?.brackets) && parsed.brackets.length > 0 ? parsed.brackets : defaults.brackets
+      };
+    }
+    return defaults;
+  }
+  async saveAssurancePricing(updates) {
+    if (!this.initialized) await this.initialize();
+    return this.withLock("assurance_pricing", async () => {
+      const current = await this.getAssurancePricing();
+      const merged = {
+        brackets: Array.isArray(updates.brackets) && updates.brackets.length > 0 ? updates.brackets : current.brackets,
+        purchaseAssistancePrice: updates.purchaseAssistancePrice === null || updates.purchaseAssistancePrice === void 0 ? null : Math.max(0, Math.round(Number(updates.purchaseAssistancePrice) || 0)),
+        dedicatedCoordinatorPrice: updates.dedicatedCoordinatorPrice === null || updates.dedicatedCoordinatorPrice === void 0 ? null : Math.max(0, Math.round(Number(updates.dedicatedCoordinatorPrice) || 0)),
+        updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      const json = JSON.stringify(merged);
+      if (this.dbType === "postgres" && this.pgPool) {
+        try {
+          await this.pgPool.query(
+            `INSERT INTO ukg_settings (id, data, updated_at)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (id) DO UPDATE SET data = $2, updated_at = $3`,
+            ["assurance_pricing", json, merged.updatedAt]
+          );
+        } catch (err) {
+          console.error("[UKG DB] PostgreSQL saveAssurancePricing error:", err);
+        }
+      } else if (this.dbType === "mysql" && this.mysqlPool) {
+        try {
+          await this.mysqlPool.query(
+            `INSERT INTO ukg_settings (id, data, updated_at)
+             VALUES (?, ?, ?)
+             ON DUPLICATE KEY UPDATE data = VALUES(data), updated_at = VALUES(updated_at)`,
+            ["assurance_pricing", json, merged.updatedAt]
+          );
+        } catch (err) {
+          console.error("[UKG DB] MySQL saveAssurancePricing error:", err);
+        }
+      }
+      this.writeJsonFileAtomically(this.assurancePricingFilePath, [merged]);
+      return merged;
+    });
+  }
+  async getAllAssuranceApplications() {
+    if (!this.initialized) await this.initialize();
+    if (this.dbType === "postgres" && this.pgPool) {
+      try {
+        const res = await this.pgPool.query(
+          "SELECT data FROM ukg_assurance_applications ORDER BY created_at DESC"
+        );
+        return res.rows.map((r) => typeof r.data === "string" ? JSON.parse(r.data) : r.data);
+      } catch (err) {
+        console.error("[UKG DB] PostgreSQL getAllAssuranceApplications error:", err);
+      }
+    }
+    if (this.dbType === "mysql" && this.mysqlPool) {
+      try {
+        const [rows] = await this.mysqlPool.query(
+          "SELECT data FROM ukg_assurance_applications ORDER BY created_at DESC"
+        );
+        return rows.map((r) => typeof r.data === "string" ? JSON.parse(r.data) : r.data);
+      } catch (err) {
+        console.error("[UKG DB] MySQL getAllAssuranceApplications error:", err);
+      }
+    }
+    return this.readJsonFile(this.assuranceAppsFilePath);
+  }
+  async getAssuranceApplicationById(id) {
+    const all = await this.getAllAssuranceApplications();
+    return all.find((a) => a && a.id === id) || null;
+  }
+  async getAssuranceApplicationsByUser(userId, userEmail) {
+    const all = await this.getAllAssuranceApplications();
+    const normEmail = String(userEmail || "").trim().toLowerCase();
+    return all.filter(
+      (a) => a && (a.userId === userId || normEmail && String(a.userEmail || "").trim().toLowerCase() === normEmail)
+    );
+  }
+  async saveAssuranceApplication(appRecord) {
+    if (!this.initialized) await this.initialize();
+    return this.withLock("assurance_apps", async () => {
+      const json = JSON.stringify(appRecord);
+      if (this.dbType === "postgres" && this.pgPool) {
+        try {
+          await this.pgPool.query(
+            `INSERT INTO ukg_assurance_applications (id, user_id, status, payment_status, data, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             ON CONFLICT (id) DO UPDATE SET status = $3, payment_status = $4, data = $5, updated_at = $7`,
+            [
+              appRecord.id,
+              appRecord.userId,
+              appRecord.status,
+              appRecord.paymentStatus,
+              json,
+              appRecord.createdAt,
+              appRecord.updatedAt
+            ]
+          );
+        } catch (err) {
+          console.error("[UKG DB] PostgreSQL saveAssuranceApplication error:", err);
+        }
+      } else if (this.dbType === "mysql" && this.mysqlPool) {
+        try {
+          await this.mysqlPool.query(
+            `INSERT INTO ukg_assurance_applications (id, user_id, status, payment_status, data, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE status = VALUES(status), payment_status = VALUES(payment_status), data = VALUES(data), updated_at = VALUES(updated_at)`,
+            [
+              appRecord.id,
+              appRecord.userId,
+              appRecord.status,
+              appRecord.paymentStatus,
+              json,
+              appRecord.createdAt,
+              appRecord.updatedAt
+            ]
+          );
+        } catch (err) {
+          console.error("[UKG DB] MySQL saveAssuranceApplication error:", err);
+        }
+      }
+      const existing = this.readJsonFile(this.assuranceAppsFilePath).filter(
+        (x) => x && x.id !== appRecord.id
+      );
+      const next = [appRecord, ...existing].sort(
+        (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+      );
+      this.writeJsonFileAtomically(this.assuranceAppsFilePath, next);
+      return appRecord;
+    });
+  }
+  async saveAssurancePrivateFile(fileRecord) {
+    if (!this.initialized) await this.initialize();
+    return this.withLock("assurance_files", async () => {
+      const meta = {
+        id: fileRecord.id,
+        applicationId: fileRecord.applicationId,
+        uploaderId: fileRecord.uploaderId,
+        fileRole: fileRecord.fileRole,
+        originalName: fileRecord.originalName,
+        mimeType: fileRecord.mimeType,
+        sizeBytes: fileRecord.sizeBytes,
+        createdAt: fileRecord.createdAt
+      };
+      const base64 = fileRecord.buffer.toString("base64");
+      if (this.dbType === "postgres" && this.pgPool) {
+        try {
+          await this.pgPool.query(
+            `INSERT INTO ukg_assurance_files (id, application_id, uploader_id, file_role, original_name, mime_type, size_bytes, content_base64, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+             ON CONFLICT (id) DO UPDATE SET application_id = $2, content_base64 = $8`,
+            [
+              meta.id,
+              meta.applicationId,
+              meta.uploaderId,
+              meta.fileRole,
+              meta.originalName,
+              meta.mimeType,
+              meta.sizeBytes,
+              base64,
+              meta.createdAt
+            ]
+          );
+        } catch (err) {
+          console.error("[UKG DB] PostgreSQL saveAssurancePrivateFile error:", err);
+        }
+      } else if (this.dbType === "mysql" && this.mysqlPool) {
+        try {
+          await this.mysqlPool.query(
+            `INSERT INTO ukg_assurance_files (id, application_id, uploader_id, file_role, original_name, mime_type, size_bytes, content_base64, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE application_id = VALUES(application_id), content_base64 = VALUES(content_base64)`,
+            [
+              meta.id,
+              meta.applicationId,
+              meta.uploaderId,
+              meta.fileRole,
+              meta.originalName,
+              meta.mimeType,
+              meta.sizeBytes,
+              base64,
+              meta.createdAt
+            ]
+          );
+        } catch (err) {
+          console.error("[UKG DB] MySQL saveAssurancePrivateFile error:", err);
+        }
+      }
+      try {
+        if (!import_fs.default.existsSync(this.assurancePrivateDir)) {
+          import_fs.default.mkdirSync(this.assurancePrivateDir, { recursive: true });
+        }
+        const safeBinPath = import_path.default.join(this.assurancePrivateDir, `${meta.id.replace(/[^a-zA-Z0-9_-]/g, "")}.bin`);
+        import_fs.default.writeFileSync(safeBinPath, fileRecord.buffer);
+      } catch (err) {
+        console.warn("[UKG DB] Private file disk write warning:", err);
+      }
+      const existingMeta = this.readJsonFile(this.assuranceFilesMetaPath).filter(
+        (x) => x && x.id !== meta.id
+      );
+      this.writeJsonFileAtomically(this.assuranceFilesMetaPath, [meta, ...existingMeta]);
+      return meta;
+    });
+  }
+  async attachPendingFilesToApplication(fileIds, uploaderId, applicationId) {
+    if (!Array.isArray(fileIds) || fileIds.length === 0) return [];
+    if (!this.initialized) await this.initialize();
+    const attached = [];
+    for (const rawId of fileIds) {
+      const fid = String(rawId || "").trim();
+      if (!fid) continue;
+      const found = await this.getAssurancePrivateFileMeta(fid);
+      if (!found) continue;
+      if (found.uploaderId !== uploaderId) continue;
+      if (found.applicationId !== "PENDING" && found.applicationId !== applicationId) continue;
+      if (this.dbType === "postgres" && this.pgPool) {
+        try {
+          await this.pgPool.query(
+            "UPDATE ukg_assurance_files SET application_id = $1 WHERE id = $2 AND uploader_id = $3",
+            [applicationId, fid, uploaderId]
+          );
+        } catch {
+        }
+      } else if (this.dbType === "mysql" && this.mysqlPool) {
+        try {
+          await this.mysqlPool.query(
+            "UPDATE ukg_assurance_files SET application_id = ? WHERE id = ? AND uploader_id = ?",
+            [applicationId, fid, uploaderId]
+          );
+        } catch {
+        }
+      }
+      const metas = this.readJsonFile(this.assuranceFilesMetaPath);
+      const updatedMetas = metas.map(
+        (m) => m && m.id === fid && m.uploaderId === uploaderId ? { ...m, applicationId } : m
+      );
+      this.writeJsonFileAtomically(this.assuranceFilesMetaPath, updatedMetas);
+      attached.push({ ...found, applicationId });
+    }
+    return attached;
+  }
+  async getAssurancePrivateFileMeta(fileId) {
+    if (!this.initialized) await this.initialize();
+    if (this.dbType === "postgres" && this.pgPool) {
+      try {
+        const res = await this.pgPool.query(
+          "SELECT id, application_id, uploader_id, file_role, original_name, mime_type, size_bytes, created_at FROM ukg_assurance_files WHERE id = $1",
+          [fileId]
+        );
+        if (res.rows[0]) {
+          const r = res.rows[0];
+          return {
+            id: r.id,
+            applicationId: r.application_id,
+            uploaderId: r.uploader_id,
+            fileRole: r.file_role,
+            originalName: r.original_name,
+            mimeType: r.mime_type,
+            sizeBytes: Number(r.size_bytes) || 0,
+            createdAt: r.created_at
+          };
+        }
+      } catch {
+      }
+    } else if (this.dbType === "mysql" && this.mysqlPool) {
+      try {
+        const [rows] = await this.mysqlPool.query(
+          "SELECT id, application_id, uploader_id, file_role, original_name, mime_type, size_bytes, created_at FROM ukg_assurance_files WHERE id = ?",
+          [fileId]
+        );
+        if (rows[0]) {
+          const r = rows[0];
+          return {
+            id: r.id,
+            applicationId: r.application_id,
+            uploaderId: r.uploader_id,
+            fileRole: r.file_role,
+            originalName: r.original_name,
+            mimeType: r.mime_type,
+            sizeBytes: Number(r.size_bytes) || 0,
+            createdAt: r.created_at
+          };
+        }
+      } catch {
+      }
+    }
+    const metas = this.readJsonFile(this.assuranceFilesMetaPath);
+    const matched = metas.find((m) => m && m.id === fileId);
+    return matched || null;
+  }
+  async getAssurancePrivateFile(fileId) {
+    if (!this.initialized) await this.initialize();
+    if (this.dbType === "postgres" && this.pgPool) {
+      try {
+        const res = await this.pgPool.query(
+          "SELECT id, application_id, uploader_id, file_role, original_name, mime_type, size_bytes, content_base64, created_at FROM ukg_assurance_files WHERE id = $1",
+          [fileId]
+        );
+        if (res.rows[0]?.content_base64) {
+          const r = res.rows[0];
+          return {
+            id: r.id,
+            applicationId: r.application_id,
+            uploaderId: r.uploader_id,
+            fileRole: r.file_role,
+            originalName: r.original_name,
+            mimeType: r.mime_type,
+            sizeBytes: Number(r.size_bytes) || 0,
+            createdAt: r.created_at,
+            buffer: Buffer.from(r.content_base64, "base64")
+          };
+        }
+      } catch (err) {
+        console.error("[UKG DB] PostgreSQL getAssurancePrivateFile error:", err);
+      }
+    } else if (this.dbType === "mysql" && this.mysqlPool) {
+      try {
+        const [rows] = await this.mysqlPool.query(
+          "SELECT id, application_id, uploader_id, file_role, original_name, mime_type, size_bytes, content_base64, created_at FROM ukg_assurance_files WHERE id = ?",
+          [fileId]
+        );
+        if (rows[0]?.content_base64) {
+          const r = rows[0];
+          return {
+            id: r.id,
+            applicationId: r.application_id,
+            uploaderId: r.uploader_id,
+            fileRole: r.file_role,
+            originalName: r.original_name,
+            mimeType: r.mime_type,
+            sizeBytes: Number(r.size_bytes) || 0,
+            createdAt: r.created_at,
+            buffer: Buffer.from(r.content_base64, "base64")
+          };
+        }
+      } catch (err) {
+        console.error("[UKG DB] MySQL getAssurancePrivateFile error:", err);
+      }
+    }
+    const meta = await this.getAssurancePrivateFileMeta(fileId);
+    if (!meta) return null;
+    const safeBinPath = import_path.default.join(this.assurancePrivateDir, `${fileId.replace(/[^a-zA-Z0-9_-]/g, "")}.bin`);
+    if (!import_fs.default.existsSync(safeBinPath)) return null;
+    return {
+      ...meta,
+      buffer: import_fs.default.readFileSync(safeBinPath)
+    };
   }
 };
 var db = new DatabaseService();
@@ -3666,9 +4163,9 @@ function getPageSeoMeta(page, options) {
       };
     case "assurance":
       return {
-        title: "UKG Assurance | Zero Platform Fee & Buyer Protection Standards | Uttarakhand Gateways",
-        description: "Discover UKG Assurance: 0% platform fee, direct owner-to-buyer communication, card contact privacy, Uttarakhand land due-diligence guidance, and listing moderation.",
-        keywords: "ukg assurance, uttarakhand gateways assurance, no platform fee real estate uttarakhand, buyer due diligence uttarakhand",
+        title: "UKG Assurance | Property Document Review & Physical Inspection | Uttarakhand Gateways",
+        description: "Buy property in Uttarakhand with greater confidence. Let UKG help review available property documents, land records, and conduct a physical site inspection before you purchase.",
+        keywords: "ukg assurance, property verification uttarakhand, property document review dehradun rishikesh, physical property inspection uttarakhand, khasra khatauni review uttarakhand",
         canonicalPath: "/ukg-assurance"
       };
     case "about":
@@ -6421,16 +6918,1185 @@ app.get("/api/admin/requirements", requirePlatformAdmin, async (_req, res) => {
     return res.status(500).json({ success: false, error: err?.message || "Failed to load requirements." });
   }
 });
+var ASSURANCE_ALLOWED_STATUSES = [
+  "Application Received",
+  "Under Document Review",
+  "Physical Inspection",
+  "Report Preparation",
+  "Report Ready",
+  "Completed"
+];
+var ASSURANCE_ALLOWED_PAYMENT_STATUSES = [
+  "Quotation Pending",
+  "Payment Pending",
+  "Partially Paid",
+  "Paid",
+  "Refunded"
+];
+var ASSURANCE_STANDARD_SERVICES = [
+  "Ownership Verification",
+  "Document Verification",
+  "Physical Property Inspection",
+  "UKG Assurance Report"
+];
+var ASSURANCE_LEGAL_DISCLAIMERS = [
+  "UKG Assurance is a property document review and inspection assistance service.",
+  "Verification is limited to available documents, accessible records and the inspection actually performed.",
+  "UKG does not guarantee that a property is free from every possible dispute, liability or legal issue.",
+  "UKG does not guarantee ownership or the future outcome of a property transaction.",
+  "Any formal legal opinion must be obtained from a qualified legal professional.",
+  "The final purchase decision remains with the buyer.",
+  "Additional services and expenses require customer approval."
+];
+var MAX_ASSURANCE_DOC_BYTES = 20 * 1024 * 1024;
+var MAX_ASSURANCE_REPORT_BYTES = 25 * 1024 * 1024;
+var assuranceTmpDir = import_path2.default.join(import_os.default.tmpdir(), "ukg_assurance_private_tmp");
+if (!import_fs2.default.existsSync(assuranceTmpDir)) {
+  try {
+    import_fs2.default.mkdirSync(assuranceTmpDir, { recursive: true });
+  } catch {
+  }
+}
+var assuranceUploadMiddleware = (0, import_multer.default)({
+  storage: import_multer.default.diskStorage({
+    destination: (_req, _file, cb) => {
+      if (!import_fs2.default.existsSync(assuranceTmpDir)) {
+        try {
+          import_fs2.default.mkdirSync(assuranceTmpDir, { recursive: true });
+        } catch {
+        }
+      }
+      cb(null, assuranceTmpDir);
+    },
+    filename: (_req, _file, cb) => cb(null, `ukg-assure-tmp-${Date.now()}-${import_crypto2.default.randomBytes(8).toString("hex")}.bin`)
+  }),
+  limits: {
+    fileSize: MAX_ASSURANCE_REPORT_BYTES,
+    files: 1
+  }
+}).single("file");
+function assuranceAppBelongsToUser(appRecord, u) {
+  if (!appRecord || !u) return false;
+  const uid = String(u.id || "").trim();
+  const uEmail = String(u.contact || u.email || "").trim().toLowerCase();
+  if (uid && String(appRecord.userId || "").trim() === uid) return true;
+  if (uEmail && String(appRecord.userEmail || "").trim().toLowerCase() === uEmail) return true;
+  return false;
+}
+function sanitizeCustomerAssuranceApp(appRecord) {
+  if (!appRecord) return null;
+  const { internalNotes: _internalNotes, ...rest } = appRecord;
+  return {
+    ...rest,
+    history: Array.isArray(rest.history) ? rest.history.filter((h) => h && h.action !== "INTERNAL_NOTE_ADDED") : []
+  };
+}
+function normalizeAsciiPdfText(input) {
+  return String(input || "").replace(/₹/g, "Rs. ").replace(/[–—]/g, "-").replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/•/g, "-").replace(/[^\x20-\x7E\n]/g, " ").replace(/\r\n/g, "\n");
+}
+function escapePdfLiteral(str) {
+  return str.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+}
+function wrapPdfParagraph(text, maxChars) {
+  const clean = normalizeAsciiPdfText(text).trim();
+  if (!clean) return ["Not specified."];
+  const out = [];
+  for (const rawLine of clean.split("\n")) {
+    const trimmed = rawLine.trim();
+    if (!trimmed) {
+      out.push("");
+      continue;
+    }
+    const words = trimmed.split(/\s+/);
+    let current = "";
+    for (const word of words) {
+      if (!current) {
+        current = word;
+      } else if (current.length + 1 + word.length <= maxChars) {
+        current += " " + word;
+      } else {
+        out.push(current);
+        current = word;
+      }
+    }
+    if (current) out.push(current);
+  }
+  return out.length > 0 ? out : ["Not specified."];
+}
+function buildAssurancePdfReportBuffer(appRecord, details) {
+  const lines = [];
+  const addHeading = (title) => {
+    lines.push({ text: "", font: "F1", size: 8, gapAfter: 6 });
+    lines.push({ text: normalizeAsciiPdfText(title).toUpperCase(), font: "F2", size: 11, gapAfter: 15 });
+  };
+  const addKeyVal = (key, val) => {
+    const wrapped = wrapPdfParagraph(`${key}: ${val}`, 86);
+    wrapped.forEach((ln, idx) => {
+      lines.push({
+        text: idx === 0 ? ln : `   ${ln}`,
+        font: idx === 0 ? "F2" : "F1",
+        size: 9.5,
+        gapAfter: 13
+      });
+    });
+  };
+  const addBody = (body) => {
+    for (const ln of wrapPdfParagraph(body, 88)) {
+      lines.push({ text: ln, font: "F1", size: 9.5, gapAfter: ln ? 13 : 7 });
+    }
+  };
+  lines.push({ text: "UTTARAKHAND GATE WAYS \u2014 UKG ASSURANCE REPORT", font: "F2", size: 15, gapAfter: 18 });
+  lines.push({
+    text: "Property Document Review & Physical Inspection Summary",
+    font: "F1",
+    size: 10,
+    gapAfter: 16
+  });
+  lines.push({
+    text: `Reference ID: ${appRecord.id}   |   Report Date: ${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}   |   Prepared By: ${normalizeAsciiPdfText(details.preparedBy || "UKG Verification Team")}`,
+    font: "F2",
+    size: 9,
+    gapAfter: 16
+  });
+  addHeading("1. Property & Applicant Details");
+  addKeyVal("Applicant Name", appRecord.customerName || "");
+  addKeyVal("Property Location", appRecord.propertyLocation || "");
+  addKeyVal("Property Type", appRecord.propertyType || "");
+  addKeyVal("Declared Value Range", appRecord.propertyValueBracketLabel || "");
+  addKeyVal("Listing Link / UKG Property ID", appRecord.propertyLinkOrId || "Not listed on UKG");
+  addHeading("2. Services Performed");
+  const performed = [
+    ...Array.isArray(appRecord.standardServicesIncluded) && appRecord.standardServicesIncluded.length > 0 ? appRecord.standardServicesIncluded : ASSURANCE_STANDARD_SERVICES,
+    ...appRecord.addonPurchaseAssistance ? ["Optional Add-On: Purchase Assistance"] : [],
+    ...appRecord.addonDedicatedCoordinator ? ["Optional Add-On: Dedicated UKG Coordinator"] : []
+  ];
+  for (const svc of performed) {
+    lines.push({ text: `- ${normalizeAsciiPdfText(svc)}`, font: "F1", size: 9.5, gapAfter: 13 });
+  }
+  addHeading("3. Documents Reviewed");
+  addBody(details.documentsReviewed);
+  addHeading("4. Verification Findings (Ownership & Records)");
+  addBody(details.verificationFindings);
+  addHeading("5. Physical Property Inspection & Photographs Log");
+  addBody(details.inspectionPhotographsSummary);
+  addHeading("6. Identified Concerns & Observations");
+  addBody(details.identifiedConcerns);
+  addHeading("7. Important Limitations & Legal Disclaimers");
+  for (const d of ASSURANCE_LEGAL_DISCLAIMERS) {
+    for (const ln of wrapPdfParagraph(`- ${d}`, 88)) {
+      lines.push({ text: ln, font: "F1", size: 8.8, gapAfter: 12 });
+    }
+  }
+  const pages = [];
+  let y = 785;
+  let currentOps = [];
+  const flushPage = () => {
+    if (currentOps.length > 0) {
+      pages.push(currentOps.join("\n"));
+      currentOps = [];
+    }
+    y = 785;
+  };
+  currentOps.push("0.055 0.227 0.169 rg 40 806 515 6 re f 0 0 0 rg");
+  for (const item of lines) {
+    if (y - item.gapAfter < 55) {
+      flushPage();
+      currentOps.push("0.055 0.227 0.169 rg 40 806 515 3 re f 0 0 0 rg");
+    }
+    if (item.text) {
+      const colorOp = item.font === "F2" && item.size >= 11 ? "0.055 0.227 0.169 rg" : "0.12 0.16 0.20 rg";
+      currentOps.push(
+        `BT /${item.font} ${item.size} Tf ${colorOp} 1 0 0 1 44 ${y.toFixed(1)} Tm (${escapePdfLiteral(item.text)}) Tj ET`
+      );
+    }
+    y -= item.gapAfter;
+  }
+  flushPage();
+  const objects = [];
+  const pageObjIds = [];
+  for (let i = 0; i < pages.length; i++) {
+    pageObjIds.push(5 + i * 2);
+  }
+  objects.push("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
+  objects.push(
+    `2 0 obj
+<< /Type /Pages /Kids [${pageObjIds.map((id) => `${id} 0 R`).join(" ")}] /Count ${pages.length} >>
+endobj
+`
+  );
+  objects.push("3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>\nendobj\n");
+  objects.push(
+    "4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>\nendobj\n"
+  );
+  for (let i = 0; i < pages.length; i++) {
+    const pageObjId = 5 + i * 2;
+    const contentObjId = 6 + i * 2;
+    const streamBody = `${pages[i]}
+BT /F1 8 Tf 0.45 0.50 0.55 rg 1 0 0 1 44 30 Tm (UKG Assurance - Page ${i + 1} of ${pages.length} - Non-guarantee document review & site inspection report) Tj ET`;
+    const streamLen = Buffer.byteLength(streamBody, "utf8");
+    objects.push(
+      `${pageObjId} 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentObjId} 0 R >>
+endobj
+`
+    );
+    objects.push(`${contentObjId} 0 obj
+<< /Length ${streamLen} >>
+stream
+${streamBody}
+endstream
+endobj
+`);
+  }
+  const header = "%PDF-1.4\n";
+  const offsets = [0];
+  let cursor = Buffer.byteLength(header, "utf8");
+  for (const obj of objects) {
+    offsets.push(cursor);
+    cursor += Buffer.byteLength(obj, "utf8");
+  }
+  const totalObjs = objects.length + 1;
+  let xref = `xref
+0 ${totalObjs}
+0000000000 65535 f 
+`;
+  for (let i = 1; i < offsets.length; i++) {
+    xref += `${String(offsets[i]).padStart(10, "0")} 00000 n 
+`;
+  }
+  const trailer = `trailer
+<< /Size ${totalObjs} /Root 1 0 R >>
+startxref
+${cursor}
+%%EOF
+`;
+  return Buffer.from(header + objects.join("") + xref + trailer, "utf8");
+}
+app.get("/api/assurance/pricing", async (_req, res) => {
+  try {
+    res.set("Cache-Control", "no-store");
+    const pricing = await db.getAssurancePricing();
+    return res.json({
+      success: true,
+      pricing,
+      standardServices: ASSURANCE_STANDARD_SERVICES,
+      disclaimers: ASSURANCE_LEGAL_DISCLAIMERS
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Failed to load UKG Assurance pricing."
+    });
+  }
+});
+app.post("/api/assurance/upload-document", async (req, res) => {
+  const clientIp = req.ip || req.socket.remoteAddress || "unknown";
+  const limit = checkRateLimit(`assurance_doc_${clientIp}`, 35, 15 * 60 * 1e3);
+  if (limit.limited) {
+    return res.status(429).json({
+      success: false,
+      error: `Too many document uploads. Please wait ${limit.retryAfterSeconds} seconds.`
+    });
+  }
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser) {
+    return res.status(401).json({
+      success: false,
+      error: "Authentication required. Please sign in to upload property documents securely."
+    });
+  }
+  assuranceUploadMiddleware(req, res, async (uploadErr) => {
+    const tempPath = req.file?.path;
+    try {
+      if (uploadErr) {
+        safeUnlinkFile(tempPath);
+        if (uploadErr instanceof import_multer.default.MulterError && uploadErr.code === "LIMIT_FILE_SIZE") {
+          return res.status(413).json({
+            success: false,
+            error: "Document exceeds the 20 MB maximum file size limit."
+          });
+        }
+        return res.status(400).json({
+          success: false,
+          error: uploadErr.message || "Invalid document upload request."
+        });
+      }
+      const file = req.file;
+      if (!file || !tempPath || !import_fs2.default.existsSync(tempPath) || file.size === 0) {
+        safeUnlinkFile(tempPath);
+        return res.status(400).json({
+          success: false,
+          error: "No valid document file received or the file is empty."
+        });
+      }
+      if (file.size > MAX_ASSURANCE_DOC_BYTES) {
+        safeUnlinkFile(tempPath);
+        return res.status(413).json({
+          success: false,
+          error: "Document exceeds the 20 MB maximum file size limit."
+        });
+      }
+      const originalName = stripHtmlTags(file.originalname || "property-document").trim().slice(0, 180) || "property-document";
+      const declaredMime = String(file.mimetype || "").toLowerCase();
+      if (DANGEROUS_UPLOAD_EXT_REGEX.test(originalName) || declaredMime === "image/svg+xml" || declaredMime === "text/html" || declaredMime.includes("javascript") || declaredMime.includes("executable")) {
+        safeUnlinkFile(tempPath);
+        return res.status(400).json({
+          success: false,
+          error: "Unsupported or unsafe file format. Allowed formats: PDF, JPG, PNG, WEBP (max 20 MB)."
+        });
+      }
+      const headerBytes = readHeaderMagicBytes(tempPath, 64);
+      const isPdf = isPdfMagic(headerBytes);
+      const imgFormat = detectImageFormatFromMagic(headerBytes);
+      if (!isPdf && (!imgFormat || !["jpeg", "png", "webp"].includes(imgFormat))) {
+        safeUnlinkFile(tempPath);
+        return res.status(400).json({
+          success: false,
+          error: "Invalid document binary. Please upload a valid PDF, JPG, PNG, or WEBP file."
+        });
+      }
+      const verifiedMime = isPdf ? "application/pdf" : imgFormat === "png" ? "image/png" : imgFormat === "webp" ? "image/webp" : "image/jpeg";
+      const fileBuffer = import_fs2.default.readFileSync(tempPath);
+      safeUnlinkFile(tempPath);
+      const fileId = `assurefile-${Date.now()}-${import_crypto2.default.randomBytes(6).toString("hex")}`;
+      const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+      const savedMeta = await db.saveAssurancePrivateFile({
+        id: fileId,
+        applicationId: "PENDING",
+        uploaderId: sessionUser.id,
+        fileRole: "customer_document",
+        originalName,
+        mimeType: verifiedMime,
+        sizeBytes: fileBuffer.length,
+        buffer: fileBuffer,
+        createdAt: nowIso
+      });
+      return res.status(201).json({
+        success: true,
+        document: {
+          fileId: savedMeta.id,
+          name: savedMeta.originalName,
+          mimeType: savedMeta.mimeType,
+          sizeBytes: savedMeta.sizeBytes,
+          uploadedAt: savedMeta.createdAt
+        }
+      });
+    } catch (err) {
+      safeUnlinkFile(tempPath);
+      return res.status(500).json({
+        success: false,
+        error: err?.message || "Failed to store document securely."
+      });
+    }
+  });
+});
+app.post("/api/assurance/applications", async (req, res) => {
+  try {
+    const clientIp = req.ip || req.socket.remoteAddress || "unknown";
+    const limit = checkRateLimit(`assurance_submit_${clientIp}`, 12, 15 * 60 * 1e3);
+    if (limit.limited) {
+      return res.status(429).json({
+        success: false,
+        error: `Too many requests. Please wait ${limit.retryAfterSeconds} seconds.`
+      });
+    }
+    const sessionUser = await getSessionUser(req);
+    if (!sessionUser) {
+      return res.status(401).json({
+        success: false,
+        error: "Please sign in or create an account to submit your UKG Assurance request and track it in your dashboard."
+      });
+    }
+    if (req.body?.companyWebsite && String(req.body.companyWebsite).trim().length > 0) {
+      return res.status(400).json({ success: false, error: "Invalid submission." });
+    }
+    const customerName = stripHtmlTags(String(req.body?.customerName || "")).trim().slice(0, 120);
+    const mobileNumber = normalizePhone(req.body?.mobileNumber);
+    const propertyLocation = stripHtmlTags(String(req.body?.propertyLocation || "")).trim().slice(0, 200);
+    const propertyValueBracketId = stripHtmlTags(String(req.body?.propertyValueBracketId || "")).trim();
+    const propertyLinkOrId = stripHtmlTags(String(req.body?.propertyLinkOrId || "")).trim().slice(0, 500);
+    const propertyType = stripHtmlTags(String(req.body?.propertyType || "")).trim().slice(0, 80);
+    const additionalRequirements = stripHtmlTags(String(req.body?.additionalRequirements || "")).trim().slice(0, 3e3);
+    const additionalMessage = stripHtmlTags(String(req.body?.additionalMessage || "")).trim().slice(0, 2e3);
+    const addonPurchaseAssistance = Boolean(req.body?.addonPurchaseAssistance);
+    const addonDedicatedCoordinator = Boolean(req.body?.addonDedicatedCoordinator);
+    if (customerName.length < 2) {
+      return res.status(400).json({ success: false, error: "Please enter a valid customer name (at least 2 characters)." });
+    }
+    if (!mobileNumber || mobileNumber.length !== 10 || !/^[6-9]\d{9}$/.test(mobileNumber)) {
+      return res.status(400).json({ success: false, error: "Please enter a valid 10-digit Indian mobile number." });
+    }
+    if (propertyLocation.length < 3) {
+      return res.status(400).json({ success: false, error: "Please enter the property location (at least 3 characters)." });
+    }
+    if (!propertyType || !ALLOWED_REQ_PROP_TYPES.has(propertyType) && propertyType.length < 2) {
+      return res.status(400).json({ success: false, error: "Please select a valid property type." });
+    }
+    if (propertyLinkOrId.length < 2) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please enter the property listing link / UKG Property ID (or select "Not listed on UKG").'
+      });
+    }
+    if (additionalRequirements.length < 3) {
+      return res.status(400).json({
+        success: false,
+        error: "Please describe your verification requirements (at least 3 characters)."
+      });
+    }
+    const pricing = await db.getAssurancePricing();
+    const matchedBracket = pricing.brackets.find((b) => b.id === propertyValueBracketId);
+    if (!matchedBracket) {
+      return res.status(400).json({
+        success: false,
+        error: "Please select a valid property value range."
+      });
+    }
+    const snapshotIsCustomQuote = Boolean(matchedBracket.isCustomQuote || matchedBracket.fee === null);
+    const snapshotStandardFee = snapshotIsCustomQuote ? null : Number(matchedBracket.fee);
+    const snapshotPurchaseAssistanceFee = addonPurchaseAssistance ? pricing.purchaseAssistancePrice !== null && pricing.purchaseAssistancePrice !== void 0 ? Number(pricing.purchaseAssistancePrice) : null : null;
+    const snapshotDedicatedCoordinatorFee = addonDedicatedCoordinator ? pricing.dedicatedCoordinatorPrice !== null && pricing.dedicatedCoordinatorPrice !== void 0 ? Number(pricing.dedicatedCoordinatorPrice) : null : null;
+    const hasUnpricedSelectedAddon = addonPurchaseAssistance && snapshotPurchaseAssistanceFee === null || addonDedicatedCoordinator && snapshotDedicatedCoordinatorFee === null;
+    const snapshotCalculatedTotal = snapshotIsCustomQuote || snapshotStandardFee === null || hasUnpricedSelectedAddon ? null : snapshotStandardFee + (addonPurchaseAssistance ? snapshotPurchaseAssistanceFee || 0 : 0) + (addonDedicatedCoordinator ? snapshotDedicatedCoordinatorFee || 0 : 0);
+    const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+    const appId = `UKGA-${Date.now().toString().slice(-6)}-${import_crypto2.default.randomBytes(2).toString("hex").toUpperCase()}`;
+    const rawDocIds = Array.isArray(req.body?.documentFileIds) ? req.body.documentFileIds.slice(0, 15) : [];
+    const attachedFiles = await db.attachPendingFilesToApplication(rawDocIds, sessionUser.id, appId);
+    const customerDocuments = attachedFiles.map((f) => ({
+      fileId: f.id,
+      name: f.originalName,
+      mimeType: f.mimeType,
+      sizeBytes: f.sizeBytes,
+      uploadedAt: f.createdAt,
+      uploadedBy: sessionUser.username || customerName
+    }));
+    const initialUpdateMsg = snapshotIsCustomQuote || hasUnpricedSelectedAddon ? "Your UKG Assurance request has been received. Our verification desk is reviewing your property details and will share a confirmed quotation shortly." : "Your UKG Assurance request has been received. Our team will confirm your application details and payment instructions shortly.";
+    const appRecord = await db.saveAssuranceApplication({
+      id: appId,
+      userId: sessionUser.id,
+      userEmail: sessionUser.contact || "",
+      customerName,
+      mobileNumber,
+      propertyLocation,
+      propertyValueBracketId: matchedBracket.id,
+      propertyValueBracketLabel: matchedBracket.label,
+      propertyLinkOrId,
+      propertyType,
+      additionalRequirements,
+      additionalMessage: additionalMessage || "",
+      standardServicesIncluded: [...ASSURANCE_STANDARD_SERVICES],
+      addonPurchaseAssistance,
+      addonDedicatedCoordinator,
+      snapshotStandardFee,
+      snapshotIsCustomQuote,
+      snapshotPurchaseAssistanceFee,
+      snapshotDedicatedCoordinatorFee,
+      snapshotCalculatedTotal,
+      customQuotationAmount: null,
+      customQuotationNotes: "",
+      agreedFinalAmount: snapshotCalculatedTotal,
+      status: "Application Received",
+      paymentStatus: "Quotation Pending",
+      assignedTeamMember: "",
+      customerDocuments,
+      finalReport: null,
+      customerUpdates: [
+        {
+          id: `upd-${Date.now()}`,
+          message: initialUpdateMsg,
+          authorName: "UKG Assurance Desk",
+          statusAtTime: "Application Received",
+          createdAt: nowIso
+        }
+      ],
+      internalNotes: [],
+      history: [
+        {
+          id: `hist-${Date.now()}`,
+          action: "APPLICATION_SUBMITTED",
+          actorName: customerName,
+          actorRole: "customer",
+          details: `Submitted UKG Assurance request for ${propertyType} in ${propertyLocation} (${matchedBracket.label})${customerDocuments.length > 0 ? ` with ${customerDocuments.length} document(s)` : ""}.`,
+          createdAt: nowIso
+        }
+      ],
+      createdAt: nowIso,
+      updatedAt: nowIso
+    });
+    return res.status(201).json({
+      success: true,
+      application: sanitizeCustomerAssuranceApp(appRecord)
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Failed to submit UKG Assurance request."
+    });
+  }
+});
+app.get("/api/assurance/my-applications", async (req, res) => {
+  try {
+    res.set("Cache-Control", "private, no-store");
+    const sessionUser = await getSessionUser(req);
+    if (!sessionUser) {
+      return res.status(401).json({ success: false, error: "Authentication required." });
+    }
+    const apps = await db.getAssuranceApplicationsByUser(sessionUser.id, sessionUser.contact);
+    return res.json({
+      success: true,
+      applications: apps.map((a) => sanitizeCustomerAssuranceApp(a))
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Failed to load your UKG Assurance applications."
+    });
+  }
+});
+app.post("/api/assurance/applications/:id/documents", async (req, res) => {
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser) {
+    return res.status(401).json({ success: false, error: "Authentication required." });
+  }
+  const appId = decodeURIComponent(req.params.id || "").trim();
+  const existing = await db.getAssuranceApplicationById(appId);
+  if (!existing) {
+    return res.status(404).json({ success: false, error: "Assurance application not found." });
+  }
+  if (!assuranceAppBelongsToUser(existing, sessionUser) && !isPlatformAdmin(sessionUser)) {
+    return res.status(403).json({ success: false, error: "Permission denied." });
+  }
+  assuranceUploadMiddleware(req, res, async (uploadErr) => {
+    const tempPath = req.file?.path;
+    try {
+      if (uploadErr || !req.file || !tempPath || !import_fs2.default.existsSync(tempPath) || req.file.size === 0) {
+        safeUnlinkFile(tempPath);
+        return res.status(400).json({ success: false, error: uploadErr?.message || "Invalid file upload." });
+      }
+      if (req.file.size > MAX_ASSURANCE_DOC_BYTES) {
+        safeUnlinkFile(tempPath);
+        return res.status(413).json({ success: false, error: "Document exceeds 20 MB limit." });
+      }
+      const originalName = stripHtmlTags(req.file.originalname || "document").trim().slice(0, 180) || "document";
+      if (DANGEROUS_UPLOAD_EXT_REGEX.test(originalName)) {
+        safeUnlinkFile(tempPath);
+        return res.status(400).json({ success: false, error: "Unsafe file type rejected." });
+      }
+      const headerBytes = readHeaderMagicBytes(tempPath, 64);
+      const isPdf = isPdfMagic(headerBytes);
+      const imgFormat = detectImageFormatFromMagic(headerBytes);
+      if (!isPdf && (!imgFormat || !["jpeg", "png", "webp"].includes(imgFormat))) {
+        safeUnlinkFile(tempPath);
+        return res.status(400).json({ success: false, error: "Allowed formats: PDF, JPG, PNG, WEBP." });
+      }
+      const verifiedMime = isPdf ? "application/pdf" : imgFormat === "png" ? "image/png" : imgFormat === "webp" ? "image/webp" : "image/jpeg";
+      const fileBuffer = import_fs2.default.readFileSync(tempPath);
+      safeUnlinkFile(tempPath);
+      const fileId = `assurefile-${Date.now()}-${import_crypto2.default.randomBytes(6).toString("hex")}`;
+      const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+      const savedMeta = await db.saveAssurancePrivateFile({
+        id: fileId,
+        applicationId: existing.id,
+        uploaderId: sessionUser.id,
+        fileRole: "customer_document",
+        originalName,
+        mimeType: verifiedMime,
+        sizeBytes: fileBuffer.length,
+        buffer: fileBuffer,
+        createdAt: nowIso
+      });
+      const docMeta = {
+        fileId: savedMeta.id,
+        name: savedMeta.originalName,
+        mimeType: savedMeta.mimeType,
+        sizeBytes: savedMeta.sizeBytes,
+        uploadedAt: savedMeta.createdAt,
+        uploadedBy: sessionUser.username || existing.customerName
+      };
+      const updated = await db.saveAssuranceApplication({
+        ...existing,
+        customerDocuments: [...Array.isArray(existing.customerDocuments) ? existing.customerDocuments : [], docMeta],
+        history: [
+          ...Array.isArray(existing.history) ? existing.history : [],
+          {
+            id: `hist-${Date.now()}`,
+            action: "DOCUMENT_UPLOADED",
+            actorName: sessionUser.username || existing.customerName,
+            actorRole: isPlatformAdmin(sessionUser) ? "admin" : "customer",
+            details: `Uploaded document "${savedMeta.originalName}".`,
+            createdAt: nowIso
+          }
+        ],
+        updatedAt: nowIso
+      });
+      return res.status(201).json({
+        success: true,
+        document: docMeta,
+        application: isPlatformAdmin(sessionUser) ? updated : sanitizeCustomerAssuranceApp(updated)
+      });
+    } catch (err) {
+      safeUnlinkFile(tempPath);
+      return res.status(500).json({ success: false, error: err?.message || "Document upload failed." });
+    }
+  });
+});
+app.patch("/api/assurance/applications/:id", async (_req, res) => {
+  return res.status(403).json({
+    success: false,
+    error: "Only authorized UKG administrators can update application statuses or quotations."
+  });
+});
+app.get("/api/assurance/files/:fileId", async (req, res) => {
+  try {
+    const sessionUser = await getSessionUser(req);
+    if (!sessionUser) {
+      return res.status(401).json({
+        success: false,
+        error: "Authentication required to access protected UKG Assurance documents."
+      });
+    }
+    const fileId = decodeURIComponent(req.params.fileId || "").trim();
+    if (!fileId) {
+      return res.status(400).json({ success: false, error: "Missing file identifier." });
+    }
+    const meta = await db.getAssurancePrivateFileMeta(fileId);
+    if (!meta) {
+      return res.status(404).json({ success: false, error: "Document not found." });
+    }
+    const isAdmin = isPlatformAdmin(sessionUser);
+    if (!isAdmin) {
+      if (meta.applicationId === "PENDING") {
+        if (meta.uploaderId !== sessionUser.id) {
+          return res.status(403).json({ success: false, error: "Access denied to private document." });
+        }
+      } else {
+        const parentApp = await db.getAssuranceApplicationById(meta.applicationId);
+        if (!parentApp || !assuranceAppBelongsToUser(parentApp, sessionUser)) {
+          return res.status(403).json({ success: false, error: "Access denied to private document." });
+        }
+      }
+    }
+    const fullFile = await db.getAssurancePrivateFile(fileId);
+    if (!fullFile || !fullFile.buffer) {
+      return res.status(404).json({ success: false, error: "Document binary not found." });
+    }
+    const safeDownloadName = String(fullFile.originalName || "ukg-assurance-document.pdf").replace(/["\r\n\\]/g, "_").slice(0, 150);
+    const disposition = req.query.inline === "1" ? "inline" : "attachment";
+    res.set({
+      "Content-Type": fullFile.mimeType || "application/octet-stream",
+      "Content-Length": String(fullFile.buffer.length),
+      "Content-Disposition": `${disposition}; filename="${safeDownloadName}"`,
+      "Cache-Control": "private, no-store, no-cache, must-revalidate",
+      "X-Robots-Tag": "noindex, nofollow",
+      "X-Content-Type-Options": "nosniff"
+    });
+    return res.send(fullFile.buffer);
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Failed to retrieve protected file."
+    });
+  }
+});
+app.get("/api/admin/assurance/overview", requirePlatformAdmin, async (_req, res) => {
+  try {
+    res.set("Cache-Control", "private, no-store");
+    const [applications, pricing] = await Promise.all([
+      db.getAllAssuranceApplications(),
+      db.getAssurancePricing()
+    ]);
+    const safeApps = Array.isArray(applications) ? applications.filter(Boolean) : [];
+    const counts = {
+      total: safeApps.length,
+      newApplications: safeApps.filter((a) => a.status === "Application Received").length,
+      inProgress: safeApps.filter(
+        (a) => ["Under Document Review", "Physical Inspection", "Report Preparation", "Report Ready"].includes(a.status)
+      ).length,
+      completed: safeApps.filter((a) => a.status === "Completed").length,
+      paymentPending: safeApps.filter(
+        (a) => ["Quotation Pending", "Payment Pending", "Partially Paid"].includes(a.paymentStatus)
+      ).length,
+      customQuotationRequired: safeApps.filter(
+        (a) => Boolean(a.snapshotIsCustomQuote) || a.snapshotCalculatedTotal === null
+      ).length
+    };
+    return res.json({
+      success: true,
+      applications: safeApps,
+      pricing,
+      counts
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Failed to load UKG Assurance admin overview."
+    });
+  }
+});
+app.put("/api/admin/assurance/pricing", requirePlatformAdmin, async (req, res) => {
+  try {
+    const adminUser = req.adminUser;
+    const rawBrackets = req.body?.brackets;
+    if (!Array.isArray(rawBrackets) || rawBrackets.length === 0 || rawBrackets.length > 20) {
+      return res.status(400).json({
+        success: false,
+        error: "At least one valid property value bracket is required."
+      });
+    }
+    const validatedBrackets = [];
+    for (let i = 0; i < rawBrackets.length; i++) {
+      const b = rawBrackets[i];
+      const id = stripHtmlTags(String(b?.id || `bracket-${i + 1}`)).trim().replace(/[^a-zA-Z0-9_-]/g, "-");
+      const label = stripHtmlTags(String(b?.label || "")).trim().slice(0, 100);
+      if (!id || !label) {
+        return res.status(400).json({
+          success: false,
+          error: `Bracket #${i + 1} must have a valid label.`
+        });
+      }
+      const minAmount = Math.max(0, Math.round(Number(b?.minAmount) || 0));
+      const maxAmount = b?.maxAmount === null || b?.maxAmount === void 0 || b?.maxAmount === "" ? null : Math.max(minAmount, Math.round(Number(b.maxAmount) || 0));
+      const isCustomQuote = Boolean(b?.isCustomQuote);
+      let fee = null;
+      if (!isCustomQuote) {
+        const parsedFee = Number(b?.fee);
+        if (!Number.isFinite(parsedFee) || parsedFee < 0) {
+          return res.status(400).json({
+            success: false,
+            error: `Bracket "${label}" requires a valid numeric Assurance fee (or mark it as Custom Quotation).`
+          });
+        }
+        fee = Math.round(parsedFee);
+      }
+      validatedBrackets.push({ id, label, minAmount, maxAmount, fee, isCustomQuote });
+    }
+    const parseOptionalAddonPrice = (val, fieldLabel) => {
+      if (val === null || val === void 0 || val === "") {
+        return { ok: true, value: null };
+      }
+      const num = Number(val);
+      if (!Number.isFinite(num) || num < 0 || num > 1e7) {
+        return { ok: false, value: null, error: `Invalid price for ${fieldLabel}.` };
+      }
+      return { ok: true, value: Math.round(num) };
+    };
+    const paParsed = parseOptionalAddonPrice(req.body?.purchaseAssistancePrice, "Purchase Assistance");
+    if (!paParsed.ok) {
+      return res.status(400).json({ success: false, error: paParsed.error });
+    }
+    const dcParsed = parseOptionalAddonPrice(req.body?.dedicatedCoordinatorPrice, "Dedicated UKG Coordinator");
+    if (!dcParsed.ok) {
+      return res.status(400).json({ success: false, error: dcParsed.error });
+    }
+    const updatedPricing = await db.saveAssurancePricing({
+      brackets: validatedBrackets,
+      purchaseAssistancePrice: paParsed.value,
+      dedicatedCoordinatorPrice: dcParsed.value
+    });
+    await logAdminAction(
+      adminUser,
+      "UPDATE_ASSURANCE_PRICING",
+      "assurance",
+      "assurance_pricing",
+      "UKG Assurance Pricing",
+      `Updated ${validatedBrackets.length} brackets; Purchase Assistance=${paParsed.value ?? "Custom/Unset"}, Dedicated Coordinator=${dcParsed.value ?? "Custom/Unset"}`
+    );
+    return res.json({ success: true, pricing: updatedPricing });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Failed to update UKG Assurance pricing."
+    });
+  }
+});
+app.patch("/api/admin/assurance/applications/:id", requirePlatformAdmin, async (req, res) => {
+  try {
+    const adminUser = req.adminUser;
+    const adminName = String(adminUser?.username || "UKG Admin");
+    const appId = decodeURIComponent(req.params.id || "").trim();
+    const existing = await db.getAssuranceApplicationById(appId);
+    if (!existing) {
+      return res.status(404).json({ success: false, error: "Assurance application not found." });
+    }
+    const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+    const history = Array.isArray(existing.history) ? [...existing.history] : [];
+    const customerUpdates = Array.isArray(existing.customerUpdates) ? [...existing.customerUpdates] : [];
+    const internalNotes = Array.isArray(existing.internalNotes) ? [...existing.internalNotes] : [];
+    const auditParts = [];
+    let nextStatus = existing.status;
+    if (req.body?.status !== void 0) {
+      if (!ASSURANCE_ALLOWED_STATUSES.includes(req.body.status)) {
+        return res.status(400).json({
+          success: false,
+          error: `Invalid application status. Allowed values: ${ASSURANCE_ALLOWED_STATUSES.join(", ")}.`
+        });
+      }
+      if (req.body.status !== existing.status) {
+        nextStatus = req.body.status;
+        history.push({
+          id: `hist-${Date.now()}-st`,
+          action: "STATUS_UPDATED",
+          actorName: adminName,
+          actorRole: "admin",
+          details: `Status changed from "${existing.status}" to "${nextStatus}".`,
+          createdAt: nowIso
+        });
+        auditParts.push(`status -> ${nextStatus}`);
+      }
+    }
+    let nextPaymentStatus = existing.paymentStatus;
+    if (req.body?.paymentStatus !== void 0) {
+      if (!ASSURANCE_ALLOWED_PAYMENT_STATUSES.includes(req.body.paymentStatus)) {
+        return res.status(400).json({
+          success: false,
+          error: `Invalid payment status. Allowed values: ${ASSURANCE_ALLOWED_PAYMENT_STATUSES.join(", ")}.`
+        });
+      }
+      if (req.body.paymentStatus !== existing.paymentStatus) {
+        nextPaymentStatus = req.body.paymentStatus;
+        history.push({
+          id: `hist-${Date.now()}-pay`,
+          action: "PAYMENT_STATUS_UPDATED",
+          actorName: adminName,
+          actorRole: "admin",
+          details: `Payment status updated from "${existing.paymentStatus}" to "${nextPaymentStatus}".`,
+          createdAt: nowIso
+        });
+        auditParts.push(`payment -> ${nextPaymentStatus}`);
+      }
+    }
+    let nextAssigned = existing.assignedTeamMember || "";
+    if (req.body?.assignedTeamMember !== void 0) {
+      const cleanedAssignee = stripHtmlTags(String(req.body.assignedTeamMember || "")).trim().slice(0, 120);
+      if (cleanedAssignee !== nextAssigned) {
+        nextAssigned = cleanedAssignee;
+        history.push({
+          id: `hist-${Date.now()}-asg`,
+          action: "TEAM_ASSIGNED",
+          actorName: adminName,
+          actorRole: "admin",
+          details: nextAssigned ? `Assigned to ${nextAssigned}.` : "Cleared team member assignment.",
+          createdAt: nowIso
+        });
+        auditParts.push(`assignee -> ${nextAssigned || "Unassigned"}`);
+      }
+    }
+    let nextCustomQuote = existing.customQuotationAmount ?? null;
+    let nextAgreedFinal = existing.agreedFinalAmount ?? existing.snapshotCalculatedTotal ?? null;
+    if (req.body?.customQuotationAmount !== void 0) {
+      if (req.body.customQuotationAmount === null || req.body.customQuotationAmount === "") {
+        nextCustomQuote = null;
+        nextAgreedFinal = existing.snapshotCalculatedTotal ?? null;
+      } else {
+        const qNum = Number(req.body.customQuotationAmount);
+        if (!Number.isFinite(qNum) || qNum < 0) {
+          return res.status(400).json({ success: false, error: "Invalid custom quotation amount." });
+        }
+        nextCustomQuote = Math.round(qNum);
+        nextAgreedFinal = nextCustomQuote;
+      }
+      if (nextCustomQuote !== existing.customQuotationAmount) {
+        history.push({
+          id: `hist-${Date.now()}-qt`,
+          action: "CUSTOM_QUOTATION_SET",
+          actorName: adminName,
+          actorRole: "admin",
+          details: nextCustomQuote !== null ? `Custom / confirmed quotation set to Rs. ${nextCustomQuote.toLocaleString("en-IN")}.` : "Cleared custom quotation override.",
+          createdAt: nowIso
+        });
+        auditParts.push(`quotation -> ${nextCustomQuote ?? "cleared"}`);
+      }
+    }
+    if (req.body?.agreedFinalAmount !== void 0 && req.body?.customQuotationAmount === void 0) {
+      if (req.body.agreedFinalAmount === null || req.body.agreedFinalAmount === "") {
+        nextAgreedFinal = existing.snapshotCalculatedTotal ?? null;
+      } else {
+        const aNum = Number(req.body.agreedFinalAmount);
+        if (Number.isFinite(aNum) && aNum >= 0) {
+          nextAgreedFinal = Math.round(aNum);
+        }
+      }
+    }
+    let nextCustomQuoteNotes = existing.customQuotationNotes || "";
+    if (req.body?.customQuotationNotes !== void 0) {
+      nextCustomQuoteNotes = stripHtmlTags(String(req.body.customQuotationNotes || "")).trim().slice(0, 1500);
+    }
+    if (req.body?.customerUpdateMessage !== void 0) {
+      const msg = stripHtmlTags(String(req.body.customerUpdateMessage || "")).trim().slice(0, 2e3);
+      if (msg) {
+        customerUpdates.unshift({
+          id: `upd-${Date.now()}-${import_crypto2.default.randomBytes(2).toString("hex")}`,
+          message: msg,
+          authorName: adminName,
+          statusAtTime: nextStatus,
+          createdAt: nowIso
+        });
+        history.push({
+          id: `hist-${Date.now()}-cu`,
+          action: "CUSTOMER_UPDATE_POSTED",
+          actorName: adminName,
+          actorRole: "admin",
+          details: `Posted customer update: "${msg.slice(0, 120)}${msg.length > 120 ? "..." : ""}"`,
+          createdAt: nowIso
+        });
+        auditParts.push("posted customer update");
+      }
+    }
+    if (req.body?.internalNote !== void 0) {
+      const note = stripHtmlTags(String(req.body.internalNote || "")).trim().slice(0, 2e3);
+      if (note) {
+        internalNotes.unshift({
+          id: `note-${Date.now()}-${import_crypto2.default.randomBytes(2).toString("hex")}`,
+          note,
+          adminName,
+          createdAt: nowIso
+        });
+        history.push({
+          id: `hist-${Date.now()}-in`,
+          action: "INTERNAL_NOTE_ADDED",
+          actorName: adminName,
+          actorRole: "admin",
+          details: `Added internal note.`,
+          createdAt: nowIso
+        });
+        auditParts.push("added internal note");
+      }
+    }
+    const updated = await db.saveAssuranceApplication({
+      ...existing,
+      status: nextStatus,
+      paymentStatus: nextPaymentStatus,
+      assignedTeamMember: nextAssigned,
+      customQuotationAmount: nextCustomQuote,
+      customQuotationNotes: nextCustomQuoteNotes,
+      agreedFinalAmount: nextAgreedFinal,
+      customerUpdates,
+      internalNotes,
+      history,
+      updatedAt: nowIso
+    });
+    if (auditParts.length > 0) {
+      await logAdminAction(
+        adminUser,
+        "UPDATE_ASSURANCE_APPLICATION",
+        "assurance",
+        updated.id,
+        `${updated.customerName} (${updated.propertyLocation})`,
+        `Updated UKG Assurance ${updated.id}: ${auditParts.join(", ")}`
+      );
+    }
+    return res.json({ success: true, application: updated });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Failed to update UKG Assurance application."
+    });
+  }
+});
+app.post("/api/admin/assurance/applications/:id/report-upload", requirePlatformAdmin, async (req, res) => {
+  const adminUser = req.adminUser;
+  const adminName = String(adminUser?.username || "UKG Admin");
+  const appId = decodeURIComponent(req.params.id || "").trim();
+  const existing = await db.getAssuranceApplicationById(appId);
+  if (!existing) {
+    return res.status(404).json({ success: false, error: "Assurance application not found." });
+  }
+  assuranceUploadMiddleware(req, res, async (uploadErr) => {
+    const tempPath = req.file?.path;
+    try {
+      if (uploadErr || !req.file || !tempPath || !import_fs2.default.existsSync(tempPath) || req.file.size === 0) {
+        safeUnlinkFile(tempPath);
+        return res.status(400).json({
+          success: false,
+          error: uploadErr?.message || "Please select a valid PDF report file."
+        });
+      }
+      if (req.file.size > MAX_ASSURANCE_REPORT_BYTES) {
+        safeUnlinkFile(tempPath);
+        return res.status(413).json({ success: false, error: "PDF report exceeds 25 MB limit." });
+      }
+      const headerBytes = readHeaderMagicBytes(tempPath, 64);
+      if (!isPdfMagic(headerBytes)) {
+        safeUnlinkFile(tempPath);
+        return res.status(400).json({
+          success: false,
+          error: "Only valid PDF files (%PDF) can be uploaded as the Final UKG Assurance Report."
+        });
+      }
+      const rawName = stripHtmlTags(req.file.originalname || `UKG-Assurance-Report-${existing.id}.pdf`).trim();
+      const originalName = rawName.toLowerCase().endsWith(".pdf") ? rawName : `${rawName}.pdf`;
+      const pdfBuffer = import_fs2.default.readFileSync(tempPath);
+      safeUnlinkFile(tempPath);
+      const fileId = `assurereport-${Date.now()}-${import_crypto2.default.randomBytes(6).toString("hex")}`;
+      const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+      const savedMeta = await db.saveAssurancePrivateFile({
+        id: fileId,
+        applicationId: existing.id,
+        uploaderId: String(adminUser?.id || "admin"),
+        fileRole: "final_report",
+        originalName,
+        mimeType: "application/pdf",
+        sizeBytes: pdfBuffer.length,
+        buffer: pdfBuffer,
+        createdAt: nowIso
+      });
+      const reportMeta = {
+        fileId: savedMeta.id,
+        name: savedMeta.originalName,
+        mimeType: "application/pdf",
+        sizeBytes: savedMeta.sizeBytes,
+        uploadedAt: nowIso,
+        uploadedBy: adminName
+      };
+      const nextStatus = existing.status === "Completed" ? "Completed" : "Report Ready";
+      const updated = await db.saveAssuranceApplication({
+        ...existing,
+        status: nextStatus,
+        finalReport: reportMeta,
+        customerUpdates: [
+          {
+            id: `upd-${Date.now()}-rep`,
+            message: "Your Final UKG Assurance PDF Report is ready and available for download in your dashboard.",
+            authorName: adminName,
+            statusAtTime: nextStatus,
+            createdAt: nowIso
+          },
+          ...Array.isArray(existing.customerUpdates) ? existing.customerUpdates : []
+        ],
+        history: [
+          ...Array.isArray(existing.history) ? existing.history : [],
+          {
+            id: `hist-${Date.now()}-rep`,
+            action: "FINAL_REPORT_UPLOADED",
+            actorName: adminName,
+            actorRole: "admin",
+            details: `Uploaded final PDF report "${originalName}" (${Math.max(1, Math.round(pdfBuffer.length / 1024))} KB).`,
+            createdAt: nowIso
+          }
+        ],
+        updatedAt: nowIso
+      });
+      await logAdminAction(
+        adminUser,
+        "UPLOAD_ASSURANCE_REPORT",
+        "assurance",
+        updated.id,
+        `${updated.customerName} (${updated.propertyLocation})`,
+        `Uploaded final Assurance PDF report "${originalName}" for ${updated.id}`
+      );
+      return res.status(201).json({ success: true, report: reportMeta, application: updated });
+    } catch (err) {
+      safeUnlinkFile(tempPath);
+      return res.status(500).json({
+        success: false,
+        error: err?.message || "Failed to upload final PDF report."
+      });
+    }
+  });
+});
+app.post("/api/admin/assurance/applications/:id/generate-report", requirePlatformAdmin, async (req, res) => {
+  try {
+    const adminUser = req.adminUser;
+    const adminName = String(adminUser?.username || "UKG Verification Team");
+    const appId = decodeURIComponent(req.params.id || "").trim();
+    const existing = await db.getAssuranceApplicationById(appId);
+    if (!existing) {
+      return res.status(404).json({ success: false, error: "Assurance application not found." });
+    }
+    const documentsReviewed = stripHtmlTags(String(req.body?.documentsReviewed || "")).trim().slice(0, 4e3);
+    const verificationFindings = stripHtmlTags(String(req.body?.verificationFindings || "")).trim().slice(0, 5e3);
+    const inspectionPhotographsSummary = stripHtmlTags(String(req.body?.inspectionPhotographsSummary || "")).trim().slice(0, 4e3);
+    const identifiedConcerns = stripHtmlTags(String(req.body?.identifiedConcerns || "")).trim().slice(0, 4e3);
+    if (!documentsReviewed || !verificationFindings) {
+      return res.status(400).json({
+        success: false,
+        error: "Please enter the Documents Reviewed and Verification Findings to generate the official PDF report."
+      });
+    }
+    const pdfBuffer = buildAssurancePdfReportBuffer(existing, {
+      documentsReviewed,
+      verificationFindings,
+      inspectionPhotographsSummary: inspectionPhotographsSummary || "Physical site visit conducted; boundary, road access, and site photographs logged.",
+      identifiedConcerns: identifiedConcerns || "No apparent discrepancies noted within the scope of reviewed documents and visual inspection.",
+      preparedBy: adminName
+    });
+    const fileId = `assurereport-${Date.now()}-${import_crypto2.default.randomBytes(6).toString("hex")}`;
+    const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+    const originalName = `UKG-Assurance-Report-${existing.id}.pdf`;
+    const savedMeta = await db.saveAssurancePrivateFile({
+      id: fileId,
+      applicationId: existing.id,
+      uploaderId: String(adminUser?.id || "admin"),
+      fileRole: "final_report",
+      originalName,
+      mimeType: "application/pdf",
+      sizeBytes: pdfBuffer.length,
+      buffer: pdfBuffer,
+      createdAt: nowIso
+    });
+    const reportMeta = {
+      fileId: savedMeta.id,
+      name: savedMeta.originalName,
+      mimeType: "application/pdf",
+      sizeBytes: savedMeta.sizeBytes,
+      uploadedAt: nowIso,
+      uploadedBy: adminName
+    };
+    const nextStatus = existing.status === "Completed" ? "Completed" : "Report Ready";
+    const updated = await db.saveAssuranceApplication({
+      ...existing,
+      status: nextStatus,
+      finalReport: reportMeta,
+      customerUpdates: [
+        {
+          id: `upd-${Date.now()}-genrep`,
+          message: "Your Final UKG Assurance PDF Report has been prepared and is ready for download in your dashboard.",
+          authorName: adminName,
+          statusAtTime: nextStatus,
+          createdAt: nowIso
+        },
+        ...Array.isArray(existing.customerUpdates) ? existing.customerUpdates : []
+      ],
+      history: [
+        ...Array.isArray(existing.history) ? existing.history : [],
+        {
+          id: `hist-${Date.now()}-genrep`,
+          action: "FINAL_REPORT_GENERATED",
+          actorName: adminName,
+          actorRole: "admin",
+          details: `Generated official PDF report "${originalName}" (${Math.max(1, Math.round(pdfBuffer.length / 1024))} KB).`,
+          createdAt: nowIso
+        }
+      ],
+      updatedAt: nowIso
+    });
+    await logAdminAction(
+      adminUser,
+      "GENERATE_ASSURANCE_REPORT",
+      "assurance",
+      updated.id,
+      `${updated.customerName} (${updated.propertyLocation})`,
+      `Generated official Assurance PDF report "${originalName}" for ${updated.id}`
+    );
+    return res.status(201).json({ success: true, report: reportMeta, application: updated });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Failed to generate official PDF report."
+    });
+  }
+});
 app.get("/api/admin/overview", requirePlatformAdmin, async (_req, res) => {
   try {
-    const [rawProperties, rawUsers, rawReports, settings, auditLogs, rawRequirements, rawReqResponses] = await Promise.all([
+    const [rawProperties, rawUsers, rawReports, settings, auditLogs, rawRequirements, rawReqResponses, rawAssuranceApps] = await Promise.all([
       db.getAllProperties(),
       db.getAllUsers(),
       db.getAllReports(),
       db.getPlatformSettings(),
       db.getAuditLogs(250),
       db.getAllRequirements(),
-      db.getAllRequirementResponses()
+      db.getAllRequirementResponses(),
+      db.getAllAssuranceApplications().catch(() => [])
     ]);
     const safeProps = Array.isArray(rawProperties) ? rawProperties.filter(Boolean) : [];
     const safeUsers = Array.isArray(rawUsers) ? rawUsers.filter(Boolean) : [];
@@ -6438,6 +8104,7 @@ app.get("/api/admin/overview", requirePlatformAdmin, async (_req, res) => {
     const safeReqs = Array.isArray(rawRequirements) ? rawRequirements.filter(Boolean) : [];
     const safeReqResponses = Array.isArray(rawReqResponses) ? rawReqResponses.filter(Boolean) : [];
     const safeAuditLogs = Array.isArray(auditLogs) ? auditLogs.filter(Boolean) : [];
+    const safeAssuranceApps = Array.isArray(rawAssuranceApps) ? rawAssuranceApps.filter(Boolean) : [];
     const adminProperties = safeProps.map((p) => formatAdminProperty(p));
     const nonDeletedProperties = adminProperties.filter((p) => !p.isDeleted);
     const propMap = /* @__PURE__ */ new Map();
@@ -6532,7 +8199,11 @@ app.get("/api/admin/overview", requirePlatformAdmin, async (_req, res) => {
         responsesCount: safeReqResponses.filter((resp) => resp.requirementId === r.id).length
       })),
       settings,
-      auditLogs: safeAuditLogs
+      auditLogs: safeAuditLogs,
+      assuranceCounts: {
+        total: safeAssuranceApps.length,
+        newApplications: safeAssuranceApps.filter((a) => a.status === "Application Received").length
+      }
     });
   } catch (err) {
     console.error("[UKG Admin] Overview error:", err);

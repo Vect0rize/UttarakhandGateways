@@ -98,6 +98,9 @@ const HomeLoanPage = lazyWithReload(() =>
 const TrustPolicyPage = lazyWithReload(() =>
   import('./components/TrustPolicyPage').then((m) => ({ default: m.TrustPolicyPage }))
 );
+const UKGAssurancePage = lazyWithReload(() =>
+  import('./components/UKGAssurancePage').then((m) => ({ default: m.UKGAssurancePage }))
+);
 const ProgrammaticLandingPage = lazyWithReload(() =>
   import('./components/ProgrammaticLandingPage').then((m) => ({ default: m.ProgrammaticLandingPage }))
 );
@@ -2263,11 +2266,20 @@ export default function App() {
             );
           })()}
         </main>
-      ) : (['about', 'assurance', 'contact', 'privacy', 'terms', 'disclaimer', 'listing-guidelines', 'not-found'].includes(activePage)) ? (
+      ) : activePage === 'assurance' ? (
+        <main className="relative z-20 flex-1 w-full">
+          <Suspense fallback={lazyFallback}>
+            <UKGAssurancePage
+              onBackToMain={() => navigateToPage('home')}
+              onOpenCustomerDashboard={() => navigateToPage('dashboard')}
+            />
+          </Suspense>
+        </main>
+      ) : (['about', 'contact', 'privacy', 'terms', 'disclaimer', 'listing-guidelines', 'not-found'].includes(activePage)) ? (
         <main className="relative z-20 flex-1 w-full">
           <Suspense fallback={lazyFallback}>
             <TrustPolicyPage
-              routeKey={activePage as 'about' | 'assurance' | 'contact' | 'privacy' | 'terms' | 'disclaimer' | 'listing-guidelines' | 'not-found'}
+              routeKey={activePage as 'about' | 'contact' | 'privacy' | 'terms' | 'disclaimer' | 'listing-guidelines' | 'not-found'}
               onNavigatePath={navigateToPath}
               totalPropertiesCount={properties.length}
             />

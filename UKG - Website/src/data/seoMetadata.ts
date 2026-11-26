@@ -222,11 +222,11 @@ export function getPageSeoMeta(
       };
     case 'assurance':
       return {
-        title: 'UKG Assurance | Zero Platform Fee & Buyer Protection Standards | Uttarakhand Gateways',
+        title: 'UKG Assurance | Property Document Review & Physical Inspection | Uttarakhand Gateways',
         description:
-          'Discover UKG Assurance: 0% platform fee, direct owner-to-buyer communication, card contact privacy, Uttarakhand land due-diligence guidance, and listing moderation.',
+          'Buy property in Uttarakhand with greater confidence. Let UKG help review available property documents, land records, and conduct a physical site inspection before you purchase.',
         keywords:
-          'ukg assurance, uttarakhand gateways assurance, no platform fee real estate uttarakhand, buyer due diligence uttarakhand',
+          'ukg assurance, property verification uttarakhand, property document review dehradun rishikesh, physical property inspection uttarakhand, khasra khatauni review uttarakhand',
         canonicalPath: '/ukg-assurance',
       };
     case 'about':

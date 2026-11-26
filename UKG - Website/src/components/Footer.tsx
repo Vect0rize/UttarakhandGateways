@@ -196,6 +196,21 @@ export const Footer: React.FC<FooterProps> = ({
             <ul className="space-y-1.5">
               <li>
                 <a
+                  href="/ukg-assurance"
+                  onClick={(e) => {
+                    if (!e.ctrlKey && !e.metaKey && e.button === 0 && onNavigatePath) {
+                      e.preventDefault();
+                      onNavigatePath('/ukg-assurance');
+                    }
+                  }}
+                  className="text-xs font-bold text-[#0E3A2B] dark:text-[#C2A691] hover:underline transition-colors text-left flex items-center gap-1.5 py-0.5 group"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-700 dark:text-[#C2A691]" />
+                  <span>{isHindi ? 'यूकेजी एश्योरेंस' : 'UKG Assurance'}</span>
+                </a>
+              </li>
+              <li>
+                <a
                   href="/about"
                   onClick={(e) => {
                     if (!e.ctrlKey && !e.metaKey && e.button === 0 && onNavigatePath) {

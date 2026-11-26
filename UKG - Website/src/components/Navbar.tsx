@@ -330,6 +330,23 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             </div>
 
+            {/* UKG Assurance Link in Main Website Navigation */}
+            <a
+              id="main-nav-ukg-assurance"
+              href="/ukg-assurance"
+              onClick={(e) => {
+                if (!e.ctrlKey && !e.metaKey && e.button === 0 && onOpenAssurancePage) {
+                  e.preventDefault();
+                  onOpenAssurancePage();
+                }
+              }}
+              className="hidden md:flex items-center gap-1.5 px-3 py-1.5 sm:py-2 rounded-full bg-[#0E3A2B] dark:bg-[#0C3628] hover:bg-[#09281d] dark:hover:bg-emerald-900/80 text-[#FAF9F6] border border-[#C2A691]/40 font-bold text-xs shadow-xs transition-all cursor-pointer whitespace-nowrap no-underline"
+              title={isHindi ? 'यूकेजी एश्योरेंस - प्रॉपर्टी दस्तावेज़ समीक्षा व निरीक्षण' : 'UKG Assurance — Property Document Review & Inspection'}
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-[#C2A691] shrink-0" />
+              <span>{isHindi ? 'यूकेजी एश्योरेंस' : 'UKG Assurance'}</span>
+            </a>
+
             {/* Post Your Requirements Link in Main Navigation */}
             <a
               href="/requirements"
