@@ -13,7 +13,8 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  Eye
+  Eye,
+  ShieldCheck
 } from 'lucide-react';
 import { Property } from '../types';
 import { useLanguage } from '../context/LanguageContext';
@@ -22,6 +23,7 @@ import { formatLocalizedPrice } from '../utils/language';
 import { isLandOrPlotProperty } from '../utils/areaUnits';
 import { isPropertyOwner, canManageProperty, formatCardDisplayViewsCount, formatPropertyAge } from '../utils/propertyOwnership';
 import { formatPostTime } from '../utils/timeAgo';
+import { getPropertyAssuranceHref, openPropertyAssurance } from '../utils/assuranceApi';
 
 interface TrendingCarouselProps {
   properties: Property[];
@@ -392,6 +394,15 @@ export const TrendingCarousel: React.FC<TrendingCarouselProps> = ({
                       {isLand ? 'Plot/Land' : (property.configuration || (property.bedrooms ? `${property.bedrooms} BHK` : property.type))}
                     </span>
                   </div>
+
+                  <a
+                    href={getPropertyAssuranceHref(property.id)}
+                    onClick={(e) => openPropertyAssurance(property, e)}
+                    className="w-full py-1.5 px-2.5 rounded-lg bg-[#0E3A2B] hover:bg-[#09281d] dark:bg-[#0C3628] text-[#FAF9F6] border border-[#C2A691]/40 font-bold text-[10.5px] flex items-center justify-center gap-1.5 no-underline cursor-pointer"
+                  >
+                    <ShieldCheck className="w-3 h-3 text-[#C2A691] shrink-0" />
+                    <span>{isHindi ? 'यूकेजी एश्योरेंस लें' : 'Get UKG Assurance'}</span>
+                  </a>
                 </div>
               </div>
 

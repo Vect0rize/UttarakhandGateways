@@ -1,4 +1,5 @@
 import React from 'react';
+import { ShieldCheck, ArrowRight } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { isNativeAndroidApp } from '../config/apiConfig';
 
@@ -11,6 +12,7 @@ interface HeroProps {
   onExploreClick?: () => void;
   onContactClick?: () => void;
   onPostRequirementClick?: () => void;
+  onAssuranceClick?: () => void;
   searchBarSlot?: React.ReactNode;
 }
 
@@ -20,7 +22,7 @@ export const Hero: React.FC<HeroProps> = ({
   onRentClick,
   onExploreClick,
   onContactClick,
-  onPostRequirementClick,
+  onAssuranceClick,
   searchBarSlot,
 }) => {
   const { isHindi } = useLanguage();
@@ -122,10 +124,34 @@ export const Hero: React.FC<HeroProps> = ({
 
         {/* Small Menu (Locations & Property Type dropboxes) & Search Bar below */}
         {searchBarSlot && (
-          <div className="w-full mb-2 sm:mb-2.5 relative z-40">
+          <div className="w-full mb-2.5 sm:mb-3 relative z-40">
             {searchBarSlot}
           </div>
         )}
+
+        {/* UKG Assurance Info Button Below Search Bar */}
+        <div className="w-full flex justify-center mt-1 mb-1 relative z-30">
+          <a
+            id="hero-ukg-assurance-btn"
+            href="/ukg-assurance"
+            onClick={(e) => {
+              if (!e.ctrlKey && !e.metaKey && e.button === 0 && onAssuranceClick) {
+                e.preventDefault();
+                onAssuranceClick();
+              }
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#0E3A2B] dark:bg-[#0C3628] hover:bg-[#09281d] dark:hover:bg-[#134433] text-[#FAF9F6] border border-[#C2A691]/50 shadow-md hover:scale-[1.02] active:scale-95 transition-all cursor-pointer text-xs sm:text-sm font-bold no-underline"
+            title={isHindi ? 'यूकेजी एश्योरेंस - प्रॉपर्टी दस्तावेज़ समीक्षा व निरीक्षण' : 'UKG Assurance — Property Document Review & Inspection'}
+          >
+            <ShieldCheck className="w-4 h-4 text-[#C2A691] shrink-0" />
+            <span>
+              {isHindi
+                ? 'यूकेजी एश्योरेंस — प्रॉपर्टी दस्तावेज़ समीक्षा व निरीक्षण'
+                : 'UKG Assurance — Document Review & Site Inspection'}
+            </span>
+            <ArrowRight className="w-3.5 h-3.5 text-[#C2A691] shrink-0" />
+          </a>
+        </div>
 
       </div>
 

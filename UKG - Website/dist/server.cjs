@@ -4168,6 +4168,13 @@ function getPageSeoMeta(page, options) {
         keywords: "ukg assurance, property verification uttarakhand, property document review dehradun rishikesh, physical property inspection uttarakhand, khasra khatauni review uttarakhand",
         canonicalPath: "/ukg-assurance"
       };
+    case "assurance-apply":
+      return {
+        title: "Request UKG Assurance for Property | Uttarakhand Gateways",
+        description: "Submit a personalized UKG Assurance request for your selected property in Uttarakhand with pre-filled property details and transparent plan options.",
+        keywords: "request ukg assurance, property verification request uttarakhand, property inspection uttarakhand",
+        canonicalPath: "/ukg-assurance/apply"
+      };
     case "about":
       return {
         title: "About Uttarakhand Gateways | Property Listing & Discovery Platform",
@@ -4494,6 +4501,7 @@ var GENERIC_OWNER_PLACEHOLDERS = /* @__PURE__ */ new Set([
   "verified broker",
   "property owner",
   "property broker",
+  "amit tyagi",
   "\u0938\u0924\u094D\u092F\u093E\u092A\u093F\u0924 \u0921\u093E\u092F\u0930\u0947\u0915\u094D\u091F \u0913\u0928\u0930",
   "\u0938\u0940\u0927\u0947 \u092E\u093E\u0932\u093F\u0915"
 ]);
@@ -10091,6 +10099,8 @@ Sitemap: ${DOMAIN}/sitemap.xml
     "/about": "about",
     "/assurance": "assurance",
     "/ukg-assurance": "assurance",
+    "/ukg-assurance/apply": "assurance-apply",
+    "/assurance/apply": "assurance-apply",
     "/contact": "contact",
     "/privacy": "privacy",
     "/terms": "terms",

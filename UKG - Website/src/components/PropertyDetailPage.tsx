@@ -46,6 +46,7 @@ import {
   Eye
 } from 'lucide-react';
 import { resolveApiUrl, isNativeAndroidApp } from '../config/apiConfig';
+import { getPropertyAssuranceHref, openPropertyAssurance } from '../utils/assuranceApi';
 import { SeoKeywordsSection } from './SeoKeywordsSection';
 import type { AppPageRouteKey } from '../data/seoMetadata';
 import { EmiCalculatorModal } from './EmiCalculatorModal';
@@ -835,6 +836,28 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = ({
                 </span>
               )}
             </div>
+          </div>
+
+          {/* Personalized UKG Assurance Option for This Property */}
+          <div className="pt-3 border-t border-slate-100 dark:border-emerald-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="text-xs text-slate-600 dark:text-emerald-200/85 flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-[#0E3A2B] dark:text-[#C2A691] shrink-0" />
+              <span>
+                {isHindi
+                  ? 'खरीदने से पहले इस प्रॉपर्टी के दस्तावेज़ और साइट की समीक्षा करवाएं।'
+                  : 'Want UKG to review available documents & inspect this property before you buy?'}
+              </span>
+            </div>
+            <a
+              id="property-detail-ukg-assurance-btn"
+              href={getPropertyAssuranceHref(property.id)}
+              onClick={(e) => openPropertyAssurance(property, e)}
+              className="px-4 py-2.5 rounded-2xl bg-[#0E3A2B] hover:bg-[#09281d] dark:bg-[#C2A691] dark:hover:bg-[#d2b8a5] text-[#FAF9F6] dark:text-[#032D1F] font-extrabold text-xs shadow-sm transition-all active:scale-98 cursor-pointer inline-flex items-center justify-center gap-1.5 whitespace-nowrap no-underline shrink-0"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-[#C2A691] dark:text-[#032D1F] shrink-0" />
+              <span>{isHindi ? 'इस प्रॉपर्टी पर यूकेजी एश्योरेंस लें' : 'Get UKG Assurance on This Property'}</span>
+              <ArrowRight className="w-3.5 h-3.5 shrink-0" />
+            </a>
           </div>
         </section>
 

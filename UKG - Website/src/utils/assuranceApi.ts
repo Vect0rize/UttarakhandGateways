@@ -1,5 +1,11 @@
+import React from 'react';
 import { resolveApiUrl, isNativeAndroidApp } from '../config/apiConfig';
-import type { AssuranceApplicationStatus, RequirementPropertyType } from '../types';
+import type {
+  AssuranceApplicationStatus,
+  AssurancePriceBracket,
+  Property,
+  RequirementPropertyType,
+} from '../types';
 
 export const ASSURANCE_STATUS_STEPS: AssuranceApplicationStatus[] = [
   'Application Received',
@@ -39,6 +45,61 @@ export const ASSURANCE_PROPERTY_TYPES: RequirementPropertyType[] = [
   'Warehouse',
   'Other',
 ];
+
+export function stripExcludedNames(input: string | null | undefined): string {
+  if (!input) return '';
+  return String(input)
+    .replace(/\bamit\s*tyagi\b/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+export function getPropertyAssuranceHref(propertyId: string): string {
+  return `/ukg-assurance/apply?propertyId=${encodeURIComponent(propertyId)}`;
+}
+
+export function openPropertyAssurance(
+  property: Property,
+  e?: React.MouseEvent<HTMLElement>
+): void {
+  if (e) {
+    if ((e as React.MouseEvent<HTMLAnchorElement>).ctrlKey || (e as React.MouseEvent<HTMLAnchorElement>).metaKey) {
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent('ukg_open_property_assurance', {
+        detail: { propertyId: property.id, property },
+      })
+    );
+  }
+}
+
+export function matchBracketIdForPrice(
+  rawPrice: number | string | null | undefined,
+  brackets: AssurancePriceBracket[]
+): string {
+  if (!Array.isArray(brackets) || brackets.length === 0) return '10l-25l';
+  const price = Number(rawPrice) || 0;
+  if (price <= 0) return brackets[0].id;
+
+  for (let i = 0; i < brackets.length; i++) {
+    const b = brackets[i];
+    const min = Number(b.minAmount) || 0;
+    const max = b.maxAmount === null || b.maxAmount === undefined ? null : Number(b.maxAmount);
+    if (max === null) {
+      if (price >= min) return b.id;
+    } else if (i === 0) {
+      if (price < max) return b.id;
+    } else if (price >= min && price <= max) {
+      return b.id;
+    }
+  }
+  return brackets[brackets.length - 1].id;
+}
 
 export function formatAssuranceRupees(amount: number | null | undefined): string {
   if (amount === null || amount === undefined || !Number.isFinite(Number(amount))) {

@@ -16,6 +16,7 @@ import {
   Eye,
   Sparkles,
   Calendar,
+  ShieldCheck,
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
@@ -30,6 +31,7 @@ import { getPropertySlugPath } from '../data/programmaticSeo';
 import { formatPostTime } from '../utils/timeAgo';
 import { formatPropertyArea, formatPropertyRate, isLandOrPlotProperty } from '../utils/areaUnits';
 import { sharePropertyListing } from '../utils/propertyShare';
+import { getPropertyAssuranceHref, openPropertyAssurance } from '../utils/assuranceApi';
 
 interface PropertyCardProps {
   property: Property;
@@ -343,59 +345,71 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
           </div>
         </div>
 
-        {/* Single-Line Actions Footer (Owner Name & Number Shown Only Inside Property Details) */}
-        <div className="pt-2 border-t border-slate-200/70 dark:border-emerald-800/50 flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              sharePropertyListing(property, { isHindi });
-            }}
-            className="h-9 w-9 shrink-0 rounded-xl bg-green-50 dark:bg-green-950/80 hover:bg-green-100 dark:hover:bg-green-900/80 text-green-700 dark:text-green-300 flex items-center justify-center border border-green-300 dark:border-green-800 cursor-pointer transition-all active:scale-95"
-            title={isHindi ? 'प्रॉपर्टी शेयर करें' : 'Share Property'}
-            aria-label={isHindi ? 'प्रॉपर्टी शेयर करें' : 'Share Property'}
+        {/* Actions Footer (Owner Name & Number Shown Only Inside Property Details) */}
+        <div className="pt-2 border-t border-slate-200/70 dark:border-emerald-800/50 space-y-2">
+          <a
+            href={getPropertyAssuranceHref(property.id)}
+            onClick={(e) => openPropertyAssurance(property, e)}
+            className="w-full h-8.5 px-3 rounded-xl bg-[#0E3A2B] hover:bg-[#09281d] dark:bg-[#0C3628] dark:hover:bg-[#134433] text-[#FAF9F6] border border-[#C2A691]/45 font-bold text-[11.5px] transition-all flex items-center justify-center gap-1.5 shadow-2xs active:scale-98 cursor-pointer no-underline whitespace-nowrap"
+            title={isHindi ? 'इस प्रॉपर्टी पर यूकेजी एश्योरेंस प्राप्त करें' : 'Get UKG Assurance for this property'}
           >
-            <Share2 className="w-3.5 h-3.5" />
-          </button>
+            <ShieldCheck className="w-3.5 h-3.5 text-[#C2A691] shrink-0" />
+            <span>{isHindi ? 'यूकेजी एश्योरेंस प्राप्त करें' : 'Get UKG Assurance'}</span>
+          </a>
 
-          {!isDirectOwner && onStartChat && (
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                if (!currentUser) {
-                  openAuthModal(
-                    'login',
-                    isHindi ? 'मालिक से सीधे चैट करने हेतु कृपया लॉगिन करें।' : 'Please log in to chat with property owner.',
-                    () => onStartChat(property)
-                  );
-                  return;
-                }
-                onStartChat(property);
+                sharePropertyListing(property, { isHindi });
               }}
-              className="h-9 px-3 shrink-0 rounded-xl bg-emerald-50 dark:bg-emerald-950/80 hover:bg-emerald-100 dark:hover:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200 font-bold text-xs flex items-center justify-center gap-1 border border-emerald-300 dark:border-emerald-700 cursor-pointer transition-all active:scale-95 whitespace-nowrap"
-              title={isHindi ? 'मालिक से चैट करें' : 'Chat'}
+              className="h-9 w-9 shrink-0 rounded-xl bg-green-50 dark:bg-green-950/80 hover:bg-green-100 dark:hover:bg-green-900/80 text-green-700 dark:text-green-300 flex items-center justify-center border border-green-300 dark:border-green-800 cursor-pointer transition-all active:scale-95"
+              title={isHindi ? 'प्रॉपर्टी शेयर करें' : 'Share Property'}
+              aria-label={isHindi ? 'प्रॉपर्टी शेयर करें' : 'Share Property'}
             >
-              <MessageSquare className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <span>{isHindi ? 'चैट' : 'Chat'}</span>
+              <Share2 className="w-3.5 h-3.5" />
             </button>
-          )}
 
-          <a
-            href={`/property/${encodeURIComponent(property.id)}`}
-            onClick={(e) => {
-              if (!e.ctrlKey && !e.metaKey && e.button === 0) {
-                e.preventDefault();
-                e.stopPropagation();
-                onSelect(property);
-              }
-            }}
-            className="flex-1 h-9 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-98 text-white font-extrabold text-xs transition-all flex items-center justify-center gap-1 shadow-sm cursor-pointer no-underline whitespace-nowrap"
-            title={isHindi ? 'पूरा विवरण व संपर्क नंबर देखें' : 'View Full Details & Contact'}
-          >
-            <span>{isHindi ? 'विवरण देखें' : 'View Details'}</span>
-            <ArrowRight className="w-3.5 h-3.5 text-emerald-100 shrink-0" />
-          </a>
+            {!isDirectOwner && onStartChat && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!currentUser) {
+                    openAuthModal(
+                      'login',
+                      isHindi ? 'मालिक से सीधे चैट करने हेतु कृपया लॉगिन करें।' : 'Please log in to chat with property owner.',
+                      () => onStartChat(property)
+                    );
+                    return;
+                  }
+                  onStartChat(property);
+                }}
+                className="h-9 px-3 shrink-0 rounded-xl bg-emerald-50 dark:bg-emerald-950/80 hover:bg-emerald-100 dark:hover:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200 font-bold text-xs flex items-center justify-center gap-1 border border-emerald-300 dark:border-emerald-700 cursor-pointer transition-all active:scale-95 whitespace-nowrap"
+                title={isHindi ? 'मालिक से चैट करें' : 'Chat'}
+              >
+                <MessageSquare className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span>{isHindi ? 'चैट' : 'Chat'}</span>
+              </button>
+            )}
+
+            <a
+              href={`/property/${encodeURIComponent(property.id)}`}
+              onClick={(e) => {
+                if (!e.ctrlKey && !e.metaKey && e.button === 0) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onSelect(property);
+                }
+              }}
+              className="flex-1 h-9 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-98 text-white font-extrabold text-xs transition-all flex items-center justify-center gap-1 shadow-sm cursor-pointer no-underline whitespace-nowrap"
+              title={isHindi ? 'पूरा विवरण व संपर्क नंबर देखें' : 'View Full Details & Contact'}
+            >
+              <span>{isHindi ? 'विवरण देखें' : 'View Details'}</span>
+              <ArrowRight className="w-3.5 h-3.5 text-emerald-100 shrink-0" />
+            </a>
+          </div>
         </div>
       </div>
 

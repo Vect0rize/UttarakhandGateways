@@ -269,6 +269,7 @@ const GENERIC_OWNER_PLACEHOLDERS = new Set([
   'verified broker',
   'property owner',
   'property broker',
+  'amit tyagi',
   'सत्यापित डायरेक्ट ओनर',
   'सीधे मालिक',
   'सत्यापित ब्रोकर',

@@ -16,6 +16,7 @@ export type AppPageRouteKey =
   | 'admin'
   | 'about'
   | 'assurance'
+  | 'assurance-apply'
   | 'contact'
   | 'privacy'
   | 'terms'
@@ -80,6 +81,7 @@ export const ROUTE_PATH_MAP: Record<
   'home-loan': '/home-loan',
   about: '/about',
   assurance: '/ukg-assurance',
+  'assurance-apply': '/ukg-assurance/apply',
   contact: '/contact',
   privacy: '/privacy',
   terms: '/terms',
@@ -228,6 +230,15 @@ export function getPageSeoMeta(
         keywords:
           'ukg assurance, property verification uttarakhand, property document review dehradun rishikesh, physical property inspection uttarakhand, khasra khatauni review uttarakhand',
         canonicalPath: '/ukg-assurance',
+      };
+    case 'assurance-apply':
+      return {
+        title: 'Request UKG Assurance for Property | Uttarakhand Gateways',
+        description:
+          'Submit a personalized UKG Assurance request for your selected property in Uttarakhand with pre-filled property details and transparent plan options.',
+        keywords:
+          'request ukg assurance, property verification request uttarakhand, property inspection uttarakhand',
+        canonicalPath: '/ukg-assurance/apply',
       };
     case 'about':
       return {

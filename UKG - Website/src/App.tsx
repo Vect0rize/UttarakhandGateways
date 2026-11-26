@@ -101,6 +101,9 @@ const TrustPolicyPage = lazyWithReload(() =>
 const UKGAssurancePage = lazyWithReload(() =>
   import('./components/UKGAssurancePage').then((m) => ({ default: m.UKGAssurancePage }))
 );
+const PropertyAssuranceRequestPage = lazyWithReload(() =>
+  import('./components/PropertyAssuranceRequestPage').then((m) => ({ default: m.PropertyAssuranceRequestPage }))
+);
 const ProgrammaticLandingPage = lazyWithReload(() =>
   import('./components/ProgrammaticLandingPage').then((m) => ({ default: m.ProgrammaticLandingPage }))
 );
@@ -210,6 +213,9 @@ export default function App() {
     if (p === 'buy' || path === '/buy' || path === '/lbuy' || path === '/buy-property') return { page: 'buy', cleanPath: '/buy' };
     if (p === 'rent' || path === '/rent' || p === 'rent-property' || path === '/rent-property') return { page: 'rent', cleanPath: '/rent' };
     if (p === 'about' || path === '/about') return { page: 'about', cleanPath: '/about' };
+    if (p === 'assurance-apply' || path === '/ukg-assurance/apply' || path === '/assurance/apply') {
+      return { page: 'assurance-apply', cleanPath: '/ukg-assurance/apply' };
+    }
     if (p === 'assurance' || p === 'ukg-assurance' || path === '/assurance' || path === '/ukg-assurance') return { page: 'assurance', cleanPath: '/ukg-assurance' };
     if (p === 'contact' || path === '/contact') return { page: 'contact', cleanPath: '/contact' };
     if (p === 'privacy' || path === '/privacy') return { page: 'privacy', cleanPath: '/privacy' };
@@ -264,6 +270,38 @@ export default function App() {
   };
 
   const [activePage, setActivePage] = useState<ActivePageView>(getInitialActivePage);
+  const [assuranceTargetProperty, setAssuranceTargetProperty] = useState<Property | null>(null);
+  const [assuranceTargetPropertyId, setAssuranceTargetPropertyId] = useState<string | null>(() => {
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      return sp.get('propertyId') || null;
+    } catch {
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    const handleOpenPropertyAssurance = (evt: Event) => {
+      const detail = (evt as CustomEvent<{ propertyId?: string; property?: Property }>).detail;
+      if (!detail?.propertyId) return;
+      setAssuranceTargetProperty(detail.property || null);
+      setAssuranceTargetPropertyId(detail.propertyId);
+      setSelectedProperty(null);
+      setPropertyNotFound(false);
+      setActivePath('/ukg-assurance/apply');
+      setActivePage('assurance-apply');
+      try {
+        window.history.pushState(
+          { page: 'assurance-apply', propertyId: detail.propertyId },
+          '',
+          `/ukg-assurance/apply?propertyId=${encodeURIComponent(detail.propertyId)}`
+        );
+      } catch {}
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    window.addEventListener('ukg_open_property_assurance', handleOpenPropertyAssurance);
+    return () => window.removeEventListener('ukg_open_property_assurance', handleOpenPropertyAssurance);
+  }, []);
   const [showListChooser, setShowListChooser] = useState(false);
   const [listChooserStep, setListChooserStep] = useState<'type' | 'sale-role' | 'rent-role'>('type');
   const [sellListingRole, setSellListingRole] = useState<'Owner' | 'Broker'>('Owner');
@@ -2266,11 +2304,31 @@ export default function App() {
             );
           })()}
         </main>
+      ) : activePage === 'assurance-apply' ? (
+        <main className="relative z-20 flex-1 w-full">
+          <Suspense fallback={lazyFallback}>
+            <PropertyAssuranceRequestPage
+              propertyId={assuranceTargetPropertyId}
+              initialProperty={assuranceTargetProperty}
+              allProperties={properties}
+              onBack={() => {
+                if (assuranceTargetProperty) {
+                  handleSelectProperty(assuranceTargetProperty);
+                } else {
+                  navigateToPage('home');
+                }
+              }}
+              onOpenAssuranceInfoPage={() => navigateToPage('assurance')}
+              onOpenCustomerDashboard={() => navigateToPage('dashboard')}
+            />
+          </Suspense>
+        </main>
       ) : activePage === 'assurance' ? (
         <main className="relative z-20 flex-1 w-full">
           <Suspense fallback={lazyFallback}>
             <UKGAssurancePage
               onBackToMain={() => navigateToPage('home')}
+              onBrowseProperties={() => navigateToPage('buy')}
               onOpenCustomerDashboard={() => navigateToPage('dashboard')}
             />
           </Suspense>
@@ -2297,6 +2355,7 @@ export default function App() {
             onExploreClick={scrollToProperties}
             onContactClick={scrollToContact}
             onPostRequirementClick={() => navigateToPage('requirements')}
+            onAssuranceClick={() => navigateToPage('assurance')}
             searchBarSlot={
               <SearchBar
                 filters={filters}
