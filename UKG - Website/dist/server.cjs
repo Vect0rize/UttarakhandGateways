@@ -6032,7 +6032,35 @@ function propertyBelongsToUser(prop, u) {
   return false;
 }
 var ALLOWED_REQ_TYPES = /* @__PURE__ */ new Set(["Buy", "Rent"]);
-var ALLOWED_REQ_PROP_TYPES = /* @__PURE__ */ new Set(["Plot", "House", "Flat", "Villa", "Commercial", "Other"]);
+var ALLOWED_REQ_PROP_TYPES = /* @__PURE__ */ new Set([
+  "Plot",
+  "Land",
+  "Agricultural Land",
+  "Commercial Plot",
+  "Industrial Land",
+  "House",
+  "Villa",
+  "Flat",
+  "Apartment",
+  "Cottage",
+  "Farmhouse",
+  "Homestay",
+  "Duplex",
+  "Penthouse",
+  "Studio",
+  "PG",
+  "Hostel",
+  "Shop",
+  "Showroom",
+  "Office",
+  "Commercial",
+  "Hotel",
+  "Resort",
+  "Restaurant",
+  "Cafe",
+  "Warehouse",
+  "Other"
+]);
 var THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1e3;
 function sanitizePublicRequirement(reqItem, responsesCount = 0) {
   return {
@@ -6404,14 +6432,21 @@ app.get("/api/admin/overview", requirePlatformAdmin, async (_req, res) => {
       db.getAllRequirements(),
       db.getAllRequirementResponses()
     ]);
-    const adminProperties = rawProperties.map((p) => formatAdminProperty(p));
+    const safeProps = Array.isArray(rawProperties) ? rawProperties.filter(Boolean) : [];
+    const safeUsers = Array.isArray(rawUsers) ? rawUsers.filter(Boolean) : [];
+    const safeReports = Array.isArray(rawReports) ? rawReports.filter(Boolean) : [];
+    const safeReqs = Array.isArray(rawRequirements) ? rawRequirements.filter(Boolean) : [];
+    const safeReqResponses = Array.isArray(rawReqResponses) ? rawReqResponses.filter(Boolean) : [];
+    const safeAuditLogs = Array.isArray(auditLogs) ? auditLogs.filter(Boolean) : [];
+    const adminProperties = safeProps.map((p) => formatAdminProperty(p));
     const nonDeletedProperties = adminProperties.filter((p) => !p.isDeleted);
     const propMap = /* @__PURE__ */ new Map();
     for (const p of adminProperties) {
       if (p?.id) propMap.set(p.id, p);
     }
-    const enrichedUsers = rawUsers.map((u) => {
+    const enrichedUsers = safeUsers.map((u) => {
       const safe = formatSafeUser(u);
+      if (!safe) return null;
       const owned = nonDeletedProperties.filter((p) => propertyBelongsToUser(p, u));
       return {
         ...safe,
@@ -6435,8 +6470,8 @@ app.get("/api/admin/overview", requirePlatformAdmin, async (_req, res) => {
           updatedAt: p.updatedAt
         }))
       };
-    });
-    const enrichedReports = rawReports.map((r) => {
+    }).filter((u) => Boolean(u));
+    const enrichedReports = safeReports.map((r) => {
       const matched = propMap.get(r.propertyId);
       return {
         ...r,
@@ -6478,8 +6513,8 @@ app.get("/api/admin/overview", requirePlatformAdmin, async (_req, res) => {
       suspendedUsers: enrichedUsers.filter((u) => u.isSuspended).length,
       openReports: enrichedReports.filter((r) => r.status === "open").length,
       totalReports: enrichedReports.length,
-      pendingRequirements: rawRequirements.filter((r) => r.approvalStatus === "pending").length,
-      totalRequirements: rawRequirements.length,
+      pendingRequirements: safeReqs.filter((r) => r.approvalStatus === "pending").length,
+      totalRequirements: safeReqs.length,
       totalPropertyViews: nonDeletedProperties.reduce((sum, p) => sum + (Number(p.views) || 0), 0),
       totalInquiries: nonDeletedProperties.reduce((sum, p) => sum + (Number(p.inquiries) || 0), 0),
       totalShares: nonDeletedProperties.reduce((sum, p) => sum + (Number(p.shares) || 0), 0),
@@ -6491,13 +6526,13 @@ app.get("/api/admin/overview", requirePlatformAdmin, async (_req, res) => {
       properties: adminProperties,
       users: enrichedUsers,
       reports: enrichedReports,
-      requirements: rawRequirements.map((r) => ({
+      requirements: safeReqs.map((r) => ({
         ...r,
-        responses: rawReqResponses.filter((resp) => resp.requirementId === r.id),
-        responsesCount: rawReqResponses.filter((resp) => resp.requirementId === r.id).length
+        responses: safeReqResponses.filter((resp) => resp.requirementId === r.id),
+        responsesCount: safeReqResponses.filter((resp) => resp.requirementId === r.id).length
       })),
       settings,
-      auditLogs
+      auditLogs: safeAuditLogs
     });
   } catch (err) {
     console.error("[UKG Admin] Overview error:", err);
@@ -7986,6 +8021,9 @@ Sitemap: ${DOMAIN}/sitemap.xml
   if (!import_fs2.default.existsSync(indexPath)) {
     return res.status(404).send("Not Found");
   }
+  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
   let html = import_fs2.default.readFileSync(indexPath, "utf8");
   html = html.replace(/<meta\s+name="google-site-verification"\s+content="GSC_VERIFICATION_TOKEN_PLACEHOLDER"\s*\/?>\s*/gi, "");
   const gscToken = (process.env.GOOGLE_SITE_VERIFICATION || process.env.GSC_VERIFICATION_TOKEN || "").trim();
@@ -8496,6 +8534,9 @@ async function startServer() {
       await handleSeoPageRender(req, res, distPath);
     });
     app.use(import_express.default.static(distPath, { index: false }));
+    app.use("/assets", (_req, res) => {
+      res.status(404).set("Cache-Control", "no-store").type("text/plain").send("Asset not found");
+    });
     app.get("*", async (req, res) => {
       await handleSeoPageRender(req, res, distPath);
     });

@@ -50,43 +50,59 @@ import { FirstVisitLanguageModal } from './components/FirstVisitLanguageModal';
 import { LegalModal } from './components/LegalModal';
 import { EditPropertyModal } from './components/EditPropertyModal';
 import { LegalPolicyId } from './data/legalPolicies';
-const PropertyDetailPage = lazy(() =>
+function lazyWithReload<T extends React.ComponentType<any>>(
+  factory: () => Promise<{ default: T }>
+) {
+  return lazy(() =>
+    factory().catch((err) => {
+      try {
+        const key = `ukg_lazy_reload_${window.location.pathname}`;
+        const last = Number(sessionStorage.getItem(key) || 0);
+        if (Date.now() - last > 15000) {
+          sessionStorage.setItem(key, String(Date.now()));
+          window.location.reload();
+        }
+      } catch {}
+      throw err;
+    })
+  );
+}
+
+const PropertyDetailPage = lazyWithReload(() =>
   import('./components/PropertyDetailPage').then((m) => ({ default: m.PropertyDetailPage }))
 );
-const BuyPage = lazy(() =>
+const BuyPage = lazyWithReload(() =>
   import('./components/BuyPage').then((m) => ({ default: m.BuyPage }))
 );
-const RentPage = lazy(() =>
+const RentPage = lazyWithReload(() =>
   import('./components/RentPage').then((m) => ({ default: m.RentPage }))
 );
-const SellGuiPage = lazy(() =>
+const SellGuiPage = lazyWithReload(() =>
   import('./components/SellGuiPage').then((m) => ({ default: m.SellGuiPage }))
 );
-const RentGuiPage = lazy(() =>
+const RentGuiPage = lazyWithReload(() =>
   import('./components/RentGuiPage').then((m) => ({ default: m.RentGuiPage }))
 );
-const ListerDashboard = lazy(() =>
+const ListerDashboard = lazyWithReload(() =>
   import('./components/ListerDashboard').then((m) => ({ default: m.ListerDashboard }))
 );
-const CityPropertyLandingPage = lazy(() =>
+const CityPropertyLandingPage = lazyWithReload(() =>
   import('./components/CityPropertyLandingPage').then((m) => ({ default: m.CityPropertyLandingPage }))
 );
-const GuidesHubPage = lazy(() =>
+const GuidesHubPage = lazyWithReload(() =>
   import('./components/GuidesHubPage').then((m) => ({ default: m.GuidesHubPage }))
 );
-const HomeLoanPage = lazy(() =>
+const HomeLoanPage = lazyWithReload(() =>
   import('./components/HomeLoanPage').then((m) => ({ default: m.HomeLoanPage }))
 );
-const TrustPolicyPage = lazy(() =>
+const TrustPolicyPage = lazyWithReload(() =>
   import('./components/TrustPolicyPage').then((m) => ({ default: m.TrustPolicyPage }))
 );
-const ProgrammaticLandingPage = lazy(() =>
+const ProgrammaticLandingPage = lazyWithReload(() =>
   import('./components/ProgrammaticLandingPage').then((m) => ({ default: m.ProgrammaticLandingPage }))
 );
-const AdminDashboardPage = lazy(() =>
-  import('./components/AdminDashboardPage').then((m) => ({ default: m.AdminDashboardPage }))
-);
-const RequirementsPage = lazy(() =>
+import { AdminDashboardPage } from './components/AdminDashboardPage';
+const RequirementsPage = lazyWithReload(() =>
   import('./components/RequirementsPage').then((m) => ({ default: m.RequirementsPage }))
 );
 import { LoginPage } from './components/LoginPage';
@@ -1872,16 +1888,27 @@ export default function App() {
     );
   }
 
-  if (activePage === 'admin' && !selectedProperty) {
+  if (activePage === 'admin') {
     return (
       <ErrorBoundary fallbackTitle="Unable to load Admin Dashboard" onReset={() => navigateToPage('home')}>
-        <Suspense fallback={lazyFallback}>
-          <AdminDashboardPage
-            onBackToMain={() => navigateToPage('home')}
-            onOpenAddProperty={() => navigateToPage('list')}
-            onOpenFullEditModal={(prop) => setEditingProperty(prop)}
-          />
-        </Suspense>
+        <AdminDashboardPage
+          onBackToMain={() => navigateToPage('home')}
+          onOpenAddProperty={() => navigateToPage('list')}
+          onOpenFullEditModal={(prop) => setEditingProperty(prop)}
+          onCatalogChanged={async () => {
+            try {
+              const res = await fetch('/api/properties', { cache: 'no-store' });
+              if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data?.properties)) {
+                  setProperties(data.properties);
+                } else if (Array.isArray(data)) {
+                  setProperties(data);
+                }
+              }
+            } catch {}
+          }}
+        />
         <EditPropertyModal
           isOpen={Boolean(editingProperty)}
           onClose={() => setEditingProperty(null)}

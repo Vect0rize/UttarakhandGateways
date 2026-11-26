@@ -369,12 +369,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
 
             {/* Admin Console Button (Only for Platform Administrator) */}
-            {isOwner && (onOpenAdminDashboard || onOpenAdminAccounts) && (
+            {isOwner && (
               <button
                 type="button"
                 onClick={() => {
                   if (onOpenAdminDashboard) onOpenAdminDashboard();
                   else if (onOpenAdminAccounts) onOpenAdminAccounts();
+                  else window.location.href = '/admin';
                 }}
                 className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 text-xs font-black shadow-sm transition-all cursor-pointer active:scale-95 whitespace-nowrap"
                 title={isHindi ? 'एडमिन कंट्रोल पैनल खोलें' : 'Open Admin Dashboard'}
@@ -585,13 +586,14 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Scrollable Side Menu Items */}
             <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2.5">
-              {isOwner && (onOpenAdminDashboard || onOpenAdminAccounts) && (
+              {isOwner && (
                 <button
                   type="button"
                   onClick={() => {
                     setMobileMenuOpen(false);
                     if (onOpenAdminDashboard) onOpenAdminDashboard();
                     else if (onOpenAdminAccounts) onOpenAdminAccounts();
+                    else window.location.href = '/admin';
                   }}
                   className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-black bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 shadow-sm transition-all cursor-pointer"
                 >

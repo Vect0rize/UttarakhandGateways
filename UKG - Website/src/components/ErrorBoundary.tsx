@@ -1,5 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, Home } from 'lucide-react';
+import { AlertTriangle, Home, RefreshCw } from 'lucide-react';
 
 interface Props {
   children: ReactNode;
@@ -10,6 +10,17 @@ interface Props {
 interface State {
   hasError: boolean;
   error?: Error;
+}
+
+function isChunkLoadError(err?: Error): boolean {
+  const msg = String(err?.message || err || '').toLowerCase();
+  return (
+    msg.includes('failed to fetch dynamically imported module') ||
+    msg.includes('importing a module script failed') ||
+    msg.includes('unable to preload css') ||
+    msg.includes('loading chunk') ||
+    msg.includes('loading css chunk')
+  );
 }
 
 export class ErrorBoundary extends Component<Props, State> {
@@ -23,6 +34,16 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('ErrorBoundary caught error:', error, errorInfo);
+    if (isChunkLoadError(error)) {
+      try {
+        const reloadKey = `ukg_chunk_reload_${window.location.pathname}`;
+        const lastReload = Number(sessionStorage.getItem(reloadKey) || 0);
+        if (Date.now() - lastReload > 15000) {
+          sessionStorage.setItem(reloadKey, String(Date.now()));
+          window.location.reload();
+        }
+      } catch {}
+    }
   }
 
   private handleReset = () => {
@@ -32,6 +53,10 @@ export class ErrorBoundary extends Component<Props, State> {
     } else {
       window.location.href = '/';
     }
+  };
+
+  private handleReload = () => {
+    window.location.reload();
   };
 
   public render() {
@@ -46,13 +71,21 @@ export class ErrorBoundary extends Component<Props, State> {
               {this.props.fallbackTitle || 'Unable to display page'}
             </h2>
             <p className="text-xs text-slate-600 dark:text-slate-300">
-              An unexpected issue occurred while rendering this page. You can return to the marketplace anytime.
+              A new update may have been deployed or a temporary connection issue occurred. Reloading refreshes the latest version.
             </p>
-            <div className="pt-2 flex gap-3 justify-center">
+            <div className="pt-2 flex flex-wrap gap-2.5 justify-center">
+              <button
+                type="button"
+                onClick={this.handleReload}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span>Reload Page</span>
+              </button>
               <button
                 type="button"
                 onClick={this.handleReset}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-slate-300 dark:border-emerald-700 text-slate-700 dark:text-emerald-200 font-bold text-xs transition-all cursor-pointer"
               >
                 <Home className="w-4 h-4" />
                 <span>Return to Home</span>

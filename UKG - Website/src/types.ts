@@ -147,10 +147,31 @@ export type RequirementType = 'Buy' | 'Rent';
 
 export type RequirementPropertyType =
   | 'Plot'
+  | 'Land'
+  | 'Agricultural Land'
+  | 'Commercial Plot'
+  | 'Industrial Land'
   | 'House'
-  | 'Flat'
   | 'Villa'
+  | 'Flat'
+  | 'Apartment'
+  | 'Cottage'
+  | 'Farmhouse'
+  | 'Homestay'
+  | 'Duplex'
+  | 'Penthouse'
+  | 'Studio'
+  | 'PG'
+  | 'Hostel'
+  | 'Shop'
+  | 'Showroom'
+  | 'Office'
   | 'Commercial'
+  | 'Hotel'
+  | 'Resort'
+  | 'Restaurant'
+  | 'Cafe'
+  | 'Warehouse'
   | 'Other';
 
 export interface RequirementResponseRecord {

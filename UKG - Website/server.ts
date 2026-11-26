@@ -2776,7 +2776,35 @@ function propertyBelongsToUser(prop: any, u: any): boolean {
 // =================================================================
 
 const ALLOWED_REQ_TYPES = new Set(['Buy', 'Rent']);
-const ALLOWED_REQ_PROP_TYPES = new Set(['Plot', 'House', 'Flat', 'Villa', 'Commercial', 'Other']);
+const ALLOWED_REQ_PROP_TYPES = new Set([
+  'Plot',
+  'Land',
+  'Agricultural Land',
+  'Commercial Plot',
+  'Industrial Land',
+  'House',
+  'Villa',
+  'Flat',
+  'Apartment',
+  'Cottage',
+  'Farmhouse',
+  'Homestay',
+  'Duplex',
+  'Penthouse',
+  'Studio',
+  'PG',
+  'Hostel',
+  'Shop',
+  'Showroom',
+  'Office',
+  'Commercial',
+  'Hotel',
+  'Resort',
+  'Restaurant',
+  'Cafe',
+  'Warehouse',
+  'Other',
+]);
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 function sanitizePublicRequirement(reqItem: any, responsesCount = 0): any {
@@ -3256,41 +3284,51 @@ app.get('/api/admin/overview', requirePlatformAdmin, async (_req, res) => {
       db.getAllRequirementResponses(),
     ]);
 
-    const adminProperties = rawProperties.map((p) => formatAdminProperty(p));
+    const safeProps = Array.isArray(rawProperties) ? rawProperties.filter(Boolean) : [];
+    const safeUsers = Array.isArray(rawUsers) ? rawUsers.filter(Boolean) : [];
+    const safeReports = Array.isArray(rawReports) ? rawReports.filter(Boolean) : [];
+    const safeReqs = Array.isArray(rawRequirements) ? rawRequirements.filter(Boolean) : [];
+    const safeReqResponses = Array.isArray(rawReqResponses) ? rawReqResponses.filter(Boolean) : [];
+    const safeAuditLogs = Array.isArray(auditLogs) ? auditLogs.filter(Boolean) : [];
+
+    const adminProperties = safeProps.map((p) => formatAdminProperty(p));
     const nonDeletedProperties = adminProperties.filter((p) => !p.isDeleted);
     const propMap = new Map<string, any>();
     for (const p of adminProperties) {
       if (p?.id) propMap.set(p.id, p);
     }
 
-    const enrichedUsers = rawUsers.map((u: any) => {
-      const safe = formatSafeUser(u)!;
-      const owned = nonDeletedProperties.filter((p) => propertyBelongsToUser(p, u));
-      return {
-        ...safe,
-        propertiesCount: owned.length,
-        totalViews: owned.reduce((acc, p) => acc + (Number(p.views) || 0), 0),
-        ownedProperties: owned.map((p) => ({
-          id: p.id,
-          title: p.title,
-          city: p.city,
-          type: p.type,
-          category: p.category,
-          price: p.price,
-          priceDisplay: p.priceDisplay,
-          views: p.views,
-          approvalStatus: p.approvalStatus,
-          isPublished: p.isPublished,
-          isHidden: p.isHidden,
-          featured: p.featured,
-          isSold: p.isSold,
-          createdAt: p.createdAt,
-          updatedAt: p.updatedAt,
-        })),
-      };
-    });
+    const enrichedUsers = safeUsers
+      .map((u: any) => {
+        const safe = formatSafeUser(u);
+        if (!safe) return null;
+        const owned = nonDeletedProperties.filter((p) => propertyBelongsToUser(p, u));
+        return {
+          ...safe,
+          propertiesCount: owned.length,
+          totalViews: owned.reduce((acc, p) => acc + (Number(p.views) || 0), 0),
+          ownedProperties: owned.map((p) => ({
+            id: p.id,
+            title: p.title,
+            city: p.city,
+            type: p.type,
+            category: p.category,
+            price: p.price,
+            priceDisplay: p.priceDisplay,
+            views: p.views,
+            approvalStatus: p.approvalStatus,
+            isPublished: p.isPublished,
+            isHidden: p.isHidden,
+            featured: p.featured,
+            isSold: p.isSold,
+            createdAt: p.createdAt,
+            updatedAt: p.updatedAt,
+          })),
+        };
+      })
+      .filter((u): u is NonNullable<typeof u> => Boolean(u));
 
-    const enrichedReports = rawReports.map((r: any) => {
+    const enrichedReports = safeReports.map((r: any) => {
       const matched = propMap.get(r.propertyId);
       return {
         ...r,
@@ -3334,8 +3372,8 @@ app.get('/api/admin/overview', requirePlatformAdmin, async (_req, res) => {
       suspendedUsers: enrichedUsers.filter((u) => u.isSuspended).length,
       openReports: enrichedReports.filter((r) => r.status === 'open').length,
       totalReports: enrichedReports.length,
-      pendingRequirements: rawRequirements.filter((r) => r.approvalStatus === 'pending').length,
-      totalRequirements: rawRequirements.length,
+      pendingRequirements: safeReqs.filter((r) => r.approvalStatus === 'pending').length,
+      totalRequirements: safeReqs.length,
       totalPropertyViews: nonDeletedProperties.reduce((sum, p) => sum + (Number(p.views) || 0), 0),
       totalInquiries: nonDeletedProperties.reduce((sum, p) => sum + (Number(p.inquiries) || 0), 0),
       totalShares: nonDeletedProperties.reduce((sum, p) => sum + (Number(p.shares) || 0), 0),
@@ -3348,13 +3386,13 @@ app.get('/api/admin/overview', requirePlatformAdmin, async (_req, res) => {
       properties: adminProperties,
       users: enrichedUsers,
       reports: enrichedReports,
-      requirements: rawRequirements.map((r) => ({
+      requirements: safeReqs.map((r) => ({
         ...r,
-        responses: rawReqResponses.filter((resp) => resp.requirementId === r.id),
-        responsesCount: rawReqResponses.filter((resp) => resp.requirementId === r.id).length,
+        responses: safeReqResponses.filter((resp) => resp.requirementId === r.id),
+        responsesCount: safeReqResponses.filter((resp) => resp.requirementId === r.id).length,
       })),
       settings,
-      auditLogs,
+      auditLogs: safeAuditLogs,
     });
   } catch (err: any) {
     console.error('[UKG Admin] Overview error:', err);
@@ -4991,6 +5029,9 @@ async function handleSeoPageRender(req: express.Request, res: express.Response, 
   if (!fs.existsSync(indexPath)) {
     return res.status(404).send('Not Found');
   }
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   let html = fs.readFileSync(indexPath, 'utf8');
 
   // Strip unused verification placeholders & dynamically inject configured GA4 / Search Console tags
@@ -5567,6 +5608,9 @@ async function startServer() {
       await handleSeoPageRender(req, res, distPath);
     });
     app.use(express.static(distPath, { index: false }));
+    app.use('/assets', (_req, res) => {
+      res.status(404).set('Cache-Control', 'no-store').type('text/plain').send('Asset not found');
+    });
     app.get('*', async (req, res) => {
       await handleSeoPageRender(req, res, distPath);
     });

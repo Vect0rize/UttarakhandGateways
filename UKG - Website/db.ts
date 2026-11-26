@@ -62,7 +62,7 @@ export interface DbReport {
 export interface DbRequirement {
   id: string;
   requirementType: 'Buy' | 'Rent';
-  propertyType: 'Plot' | 'House' | 'Flat' | 'Villa' | 'Commercial' | 'Other';
+  propertyType: string;
   city: string;
   preferredLocation: string;
   minBudget: number;

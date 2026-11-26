@@ -281,6 +281,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
   >('properties');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
@@ -405,10 +406,23 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
       if (!silent) setLoading(true);
       else setRefreshing(true);
       setErrorMsg(null);
+      setSessionExpired(false);
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 25000);
 
       try {
-        const res = await adminFetch('/api/admin/overview', { cache: 'no-store' });
+        const res = await adminFetch('/api/admin/overview', {
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
         const data = await res.json().catch(() => ({}));
+        if (res.status === 401) {
+          setSessionExpired(true);
+          setErrorMsg('Your administrator session expired. Please sign in again to load live controls.');
+          return;
+        }
         if (!res.ok || !data?.success) {
           throw new Error(data?.error || `Failed to load admin dashboard (${res.status})`);
         }
@@ -420,13 +434,18 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
         setAuditLogs(Array.isArray(data.auditLogs) ? data.auditLogs : []);
         if (data.settings) setSettings(data.settings);
       } catch (err: any) {
-        setErrorMsg(err?.message || 'Unable to load administrator data.');
+        clearTimeout(timeoutId);
+        if (err?.name === 'AbortError') {
+          setErrorMsg('Admin overview request timed out. Tap Refresh to try again.');
+        } else {
+          setErrorMsg(err?.message || 'Unable to load administrator data.');
+        }
       } finally {
         setLoading(false);
         setRefreshing(false);
       }
     },
-    [isAdmin, getAuthHeaders]
+    [isAdmin, adminFetch]
   );
 
   useEffect(() => {
@@ -1272,14 +1291,29 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
         )}
 
         {errorMsg && (
-          <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs sm:text-sm font-bold flex items-center justify-between">
+          <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs sm:text-sm font-bold flex flex-wrap items-center justify-between gap-2">
             <span className="flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 shrink-0" />
               <span>{errorMsg}</span>
             </span>
-            <button type="button" onClick={() => setErrorMsg(null)} className="opacity-80 hover:opacity-100 cursor-pointer">
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-2">
+              {sessionExpired && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    openAuthModal('login', 'Sign in with your administrator account to continue.', () => {
+                      void loadAdminOverview(false);
+                    })
+                  }
+                  className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold cursor-pointer"
+                >
+                  Sign In Again
+                </button>
+              )}
+              <button type="button" onClick={() => setErrorMsg(null)} className="opacity-80 hover:opacity-100 cursor-pointer">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
 
@@ -2901,7 +2935,35 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                     }
                     className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-[#051811]"
                   >
-                    {['Plot', 'House', 'Flat', 'Villa', 'Commercial', 'Other'].map((t) => (
+                    {[
+                      'Plot',
+                      'Land',
+                      'Agricultural Land',
+                      'Commercial Plot',
+                      'Industrial Land',
+                      'House',
+                      'Villa',
+                      'Flat',
+                      'Apartment',
+                      'Cottage',
+                      'Farmhouse',
+                      'Homestay',
+                      'Duplex',
+                      'Penthouse',
+                      'Studio',
+                      'PG',
+                      'Hostel',
+                      'Shop',
+                      'Showroom',
+                      'Office',
+                      'Commercial',
+                      'Hotel',
+                      'Resort',
+                      'Restaurant',
+                      'Cafe',
+                      'Warehouse',
+                      'Other',
+                    ].map((t) => (
                       <option key={t} value={t}>
                         {t}
                       </option>
