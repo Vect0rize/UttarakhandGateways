@@ -2004,23 +2004,41 @@ var DatabaseService = class {
           console.error("[UKG DB] PostgreSQL saveAssuranceApplication error:", err);
         }
       } else if (this.dbType === "mysql" && this.mysqlPool) {
-        try {
-          await this.mysqlPool.query(
-            `INSERT INTO ukg_assurance_applications (id, user_id, status, payment_status, data, created_at, updated_at)
+        const insertSql = `INSERT INTO ukg_assurance_applications (id, user_id, status, payment_status, data, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?)
-             ON DUPLICATE KEY UPDATE status = VALUES(status), payment_status = VALUES(payment_status), data = VALUES(data), updated_at = VALUES(updated_at)`,
-            [
-              appRecord.id,
-              appRecord.userId,
-              appRecord.status,
-              appRecord.paymentStatus,
-              json,
-              appRecord.createdAt,
-              appRecord.updatedAt
-            ]
-          );
+             ON DUPLICATE KEY UPDATE status = VALUES(status), payment_status = VALUES(payment_status), data = VALUES(data), updated_at = VALUES(updated_at)`;
+        const insertParams = [
+          appRecord.id,
+          appRecord.userId,
+          appRecord.status,
+          appRecord.paymentStatus,
+          json,
+          appRecord.createdAt,
+          appRecord.updatedAt
+        ];
+        try {
+          await this.mysqlPool.query(insertSql, insertParams);
         } catch (err) {
-          console.error("[UKG DB] MySQL saveAssuranceApplication error:", err);
+          if (err?.code === "ER_NO_SUCH_TABLE") {
+            try {
+              await this.mysqlPool.query(`
+                CREATE TABLE IF NOT EXISTS ukg_assurance_applications (
+                  id VARCHAR(255) PRIMARY KEY,
+                  user_id VARCHAR(255) NOT NULL,
+                  status VARCHAR(100) NOT NULL,
+                  payment_status VARCHAR(100) NOT NULL,
+                  data LONGTEXT NOT NULL,
+                  created_at VARCHAR(100) NOT NULL,
+                  updated_at VARCHAR(100) NOT NULL
+                );
+              `);
+              await this.mysqlPool.query(insertSql, insertParams);
+            } catch (retryErr) {
+              console.error("[UKG DB] MySQL saveAssuranceApplication retry error:", retryErr);
+            }
+          } else {
+            console.error("[UKG DB] MySQL saveAssuranceApplication error:", err);
+          }
         }
       }
       const existing = this.readJsonFile(this.assuranceAppsFilePath).filter(
@@ -7301,64 +7319,60 @@ app.post("/api/assurance/upload-document", async (req, res) => {
 app.post("/api/assurance/applications", async (req, res) => {
   try {
     const clientIp = req.ip || req.socket.remoteAddress || "unknown";
-    const limit = checkRateLimit(`assurance_submit_${clientIp}`, 12, 15 * 60 * 1e3);
+    const limit = checkRateLimit(`assurance_submit_${clientIp}`, 25, 15 * 60 * 1e3);
     if (limit.limited) {
       return res.status(429).json({
         success: false,
         error: `Too many requests. Please wait ${limit.retryAfterSeconds} seconds.`
       });
     }
-    const sessionUser = await getSessionUser(req);
-    if (!sessionUser) {
-      return res.status(401).json({
-        success: false,
-        error: "Please sign in or create an account to submit your UKG Assurance request and track it in your dashboard."
-      });
-    }
-    if (req.body?.companyWebsite && String(req.body.companyWebsite).trim().length > 0) {
-      return res.status(400).json({ success: false, error: "Invalid submission." });
-    }
+    const sessionUser = await getSessionUser(req).catch(() => null);
     const customerName = stripHtmlTags(String(req.body?.customerName || "")).trim().slice(0, 120);
-    const mobileNumber = normalizePhone(req.body?.mobileNumber);
+    const rawMobile = String(req.body?.mobileNumber || "").trim();
+    const normalizedTenDigit = normalizePhone(rawMobile);
+    const allPhoneDigits = rawMobile.replace(/\D/g, "");
+    const mobileNumber = normalizedTenDigit.length >= 10 && normalizedTenDigit.length <= 15 ? normalizedTenDigit : allPhoneDigits;
     const propertyLocation = stripHtmlTags(String(req.body?.propertyLocation || "")).trim().slice(0, 200);
     const propertyValueBracketId = stripHtmlTags(String(req.body?.propertyValueBracketId || "")).trim();
-    const propertyLinkOrId = stripHtmlTags(String(req.body?.propertyLinkOrId || "")).trim().slice(0, 500);
-    const propertyType = stripHtmlTags(String(req.body?.propertyType || "")).trim().slice(0, 80);
-    const additionalRequirements = stripHtmlTags(String(req.body?.additionalRequirements || "")).trim().slice(0, 3e3);
+    const rawLinkOrId = stripHtmlTags(String(req.body?.propertyLinkOrId || "")).trim().slice(0, 500);
+    const propertyLinkOrId = rawLinkOrId || "Direct UKG Assurance Request";
+    const rawPropType = stripHtmlTags(String(req.body?.propertyType || "")).trim().slice(0, 80);
+    const propertyType = rawPropType || "Plot";
+    const rawRequirements = stripHtmlTags(String(req.body?.additionalRequirements || "")).trim().slice(0, 3e3);
+    const additionalRequirements = rawRequirements || "Standard UKG Assurance verification (Ownership, Documents, Physical Site Inspection & PDF Report)";
     const additionalMessage = stripHtmlTags(String(req.body?.additionalMessage || "")).trim().slice(0, 2e3);
     const addonPurchaseAssistance = Boolean(req.body?.addonPurchaseAssistance);
     const addonDedicatedCoordinator = Boolean(req.body?.addonDedicatedCoordinator);
     if (customerName.length < 2) {
-      return res.status(400).json({ success: false, error: "Please enter a valid customer name (at least 2 characters)." });
+      return res.status(400).json({ success: false, error: "Please enter your full name (at least 2 characters)." });
     }
-    if (!mobileNumber || mobileNumber.length !== 10 || !/^[6-9]\d{9}$/.test(mobileNumber)) {
-      return res.status(400).json({ success: false, error: "Please enter a valid 10-digit Indian mobile number." });
+    if (!mobileNumber || mobileNumber.length < 10 || mobileNumber.length > 15) {
+      return res.status(400).json({ success: false, error: "Please enter a valid 10-digit mobile number." });
     }
-    if (propertyLocation.length < 3) {
-      return res.status(400).json({ success: false, error: "Please enter the property location (at least 3 characters)." });
-    }
-    if (!propertyType || !ALLOWED_REQ_PROP_TYPES.has(propertyType) && propertyType.length < 2) {
-      return res.status(400).json({ success: false, error: "Please select a valid property type." });
-    }
-    if (propertyLinkOrId.length < 2) {
-      return res.status(400).json({
-        success: false,
-        error: 'Please enter the property listing link / UKG Property ID (or select "Not listed on UKG").'
-      });
-    }
-    if (additionalRequirements.length < 3) {
-      return res.status(400).json({
-        success: false,
-        error: "Please describe your verification requirements (at least 3 characters)."
-      });
+    if (propertyLocation.length < 2) {
+      return res.status(400).json({ success: false, error: "Please enter the property location." });
     }
     const pricing = await db.getAssurancePricing();
-    const matchedBracket = pricing.brackets.find((b) => b.id === propertyValueBracketId);
+    const matchedBracket = pricing.brackets.find((b) => b.id === propertyValueBracketId) || pricing.brackets[0];
     if (!matchedBracket) {
       return res.status(400).json({
         success: false,
         error: "Please select a valid property value range."
       });
+    }
+    const submittedEmail = stripHtmlTags(String(req.body?.customerEmail || "")).trim().toLowerCase();
+    let effectiveUserId = sessionUser?.id || "";
+    let effectiveUserEmail = String(sessionUser?.contact || submittedEmail || "").trim().toLowerCase();
+    let effectiveUsername = sessionUser?.username || customerName;
+    if (!effectiveUserId && effectiveUserEmail && effectiveUserEmail.includes("@")) {
+      const matchedAccount = await db.findUserByEmail(effectiveUserEmail).catch(() => null);
+      if (matchedAccount) {
+        effectiveUserId = matchedAccount.id;
+        effectiveUsername = matchedAccount.username || customerName;
+      }
+    }
+    if (!effectiveUserId) {
+      effectiveUserId = `guest-${mobileNumber}-${Date.now().toString().slice(-5)}`;
     }
     const snapshotIsCustomQuote = Boolean(matchedBracket.isCustomQuote || matchedBracket.fee === null);
     const snapshotStandardFee = snapshotIsCustomQuote ? null : Number(matchedBracket.fee);
@@ -7368,21 +7382,21 @@ app.post("/api/assurance/applications", async (req, res) => {
     const snapshotCalculatedTotal = snapshotIsCustomQuote || snapshotStandardFee === null || hasUnpricedSelectedAddon ? null : snapshotStandardFee + (addonPurchaseAssistance ? snapshotPurchaseAssistanceFee || 0 : 0) + (addonDedicatedCoordinator ? snapshotDedicatedCoordinatorFee || 0 : 0);
     const nowIso = (/* @__PURE__ */ new Date()).toISOString();
     const appId = `UKGA-${Date.now().toString().slice(-6)}-${import_crypto2.default.randomBytes(2).toString("hex").toUpperCase()}`;
-    const rawDocIds = Array.isArray(req.body?.documentFileIds) ? req.body.documentFileIds.slice(0, 15) : [];
-    const attachedFiles = await db.attachPendingFilesToApplication(rawDocIds, sessionUser.id, appId);
+    const rawDocIds = sessionUser && Array.isArray(req.body?.documentFileIds) ? req.body.documentFileIds.slice(0, 15) : [];
+    const attachedFiles = sessionUser ? await db.attachPendingFilesToApplication(rawDocIds, sessionUser.id, appId) : [];
     const customerDocuments = attachedFiles.map((f) => ({
       fileId: f.id,
       name: f.originalName,
       mimeType: f.mimeType,
       sizeBytes: f.sizeBytes,
       uploadedAt: f.createdAt,
-      uploadedBy: sessionUser.username || customerName
+      uploadedBy: effectiveUsername
     }));
     const initialUpdateMsg = snapshotIsCustomQuote || hasUnpricedSelectedAddon ? "Your UKG Assurance request has been received. Our verification desk is reviewing your property details and will share a confirmed quotation shortly." : "Your UKG Assurance request has been received. Our team will confirm your application details and payment instructions shortly.";
     const appRecord = await db.saveAssuranceApplication({
       id: appId,
-      userId: sessionUser.id,
-      userEmail: sessionUser.contact || "",
+      userId: effectiveUserId,
+      userEmail: effectiveUserEmail,
       customerName,
       mobileNumber,
       propertyLocation,
@@ -7436,6 +7450,7 @@ app.post("/api/assurance/applications", async (req, res) => {
       application: sanitizeCustomerAssuranceApp(appRecord)
     });
   } catch (err) {
+    console.error("[UKG Assurance] Application submission error:", err);
     return res.status(500).json({
       success: false,
       error: err?.message || "Failed to submit UKG Assurance request."

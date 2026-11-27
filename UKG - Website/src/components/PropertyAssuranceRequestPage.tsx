@@ -80,7 +80,7 @@ export const PropertyAssuranceRequestPage: React.FC<PropertyAssuranceRequestPage
   const [resolvedProperty, setResolvedProperty] = useState<Property | null>(initialProperty);
   const [loadingProperty, setLoadingProperty] = useState<boolean>(false);
 
-  // Personalized Form State (Customer Name NEVER pre-filled with Amit Tyagi or owner/admin username)
+  // Personalized Form State (Customer Name NEVER auto-prefilled with Amit Tyagi or owner/admin username)
   const [customerName, setCustomerName] = useState<string>('');
   const [mobileNumber, setMobileNumber] = useState<string>('');
   const [propertyLocation, setPropertyLocation] = useState<string>('');
@@ -90,13 +90,11 @@ export const PropertyAssuranceRequestPage: React.FC<PropertyAssuranceRequestPage
   const [additionalRequirements, setAdditionalRequirements] = useState<string>('');
   const [addonPurchaseAssistance, setAddonPurchaseAssistance] = useState<boolean>(false);
   const [addonDedicatedCoordinator, setAddonDedicatedCoordinator] = useState<boolean>(false);
-  const [honeypotWebsite, setHoneypotWebsite] = useState<string>('');
 
   // Submission State
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [submittedApp, setSubmittedApp] = useState<AssuranceApplication | null>(null);
-  const pendingAutoSubmitRef = useRef<boolean>(false);
   const prefilledForPropIdRef = useRef<string | null>(null);
 
   // Resolve target property ID from prop or URL query parameter
@@ -249,30 +247,38 @@ export const PropertyAssuranceRequestPage: React.FC<PropertyAssuranceRequestPage
     };
   }, [selectedBracket, addonPurchaseAssistance, addonDedicatedCoordinator, pricing]);
 
+  const focusFieldById = (id: string) => {
+    try {
+      const el = document.getElementById(id) as HTMLElement | null;
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.focus({ preventScroll: true });
+      }
+    } catch {}
+  };
+
   const validateFormInputs = (): string | null => {
     if (customerName.trim().length < 2) {
-      return 'Please enter your full name.';
+      focusFieldById('assurance-customer-name');
+      return 'Please enter your full name (at least 2 characters).';
     }
-    const digitsOnly = mobileNumber.replace(/\D/g, '');
-    const tenDigit =
-      digitsOnly.length === 12 && digitsOnly.startsWith('91') ? digitsOnly.slice(2) : digitsOnly;
-    if (!/^[6-9]\d{9}$/.test(tenDigit)) {
-      return 'Please enter a valid 10-digit Indian mobile number.';
+    const rawDigits = mobileNumber.replace(/\D/g, '');
+    const normalizedPhone =
+      rawDigits.length === 12 && rawDigits.startsWith('91')
+        ? rawDigits.slice(2)
+        : rawDigits.length === 11 && rawDigits.startsWith('0')
+          ? rawDigits.slice(1)
+          : rawDigits;
+    if (normalizedPhone.length < 10 || normalizedPhone.length > 15) {
+      focusFieldById('assurance-mobile-number');
+      return 'Please enter a valid 10-digit mobile number.';
     }
-    if (propertyLocation.trim().length < 3) {
+    const effectiveLocation =
+      propertyLocation.trim() ||
+      stripExcludedNames(resolvedProperty?.location || resolvedProperty?.city || '');
+    if (effectiveLocation.length < 2) {
+      focusFieldById('assurance-property-location');
       return 'Please enter the property location.';
-    }
-    if (!propertyValueBracketId) {
-      return 'Please select the property value range.';
-    }
-    if (propertyLinkOrId.trim().length < 2) {
-      return 'Property listing reference is required.';
-    }
-    if (!propertyType) {
-      return 'Please select the property type.';
-    }
-    if (additionalRequirements.trim().length < 3) {
-      return 'Please describe your verification requirements.';
     }
     return null;
   };
@@ -285,23 +291,35 @@ export const PropertyAssuranceRequestPage: React.FC<PropertyAssuranceRequestPage
       return;
     }
 
+    const effectiveLocation =
+      propertyLocation.trim() ||
+      stripExcludedNames(resolvedProperty?.location || resolvedProperty?.city || '');
+    const effectiveLinkOrId =
+      propertyLinkOrId.trim() ||
+      (targetPropertyId
+        ? `https://uttarakhandgateways.com/?property=${encodeURIComponent(targetPropertyId)} (${targetPropertyId})`
+        : 'Direct UKG Assurance Request');
+    const effectiveRequirements =
+      additionalRequirements.trim() ||
+      'Standard UKG Assurance verification (Ownership, Documents, Physical Site Inspection & PDF Report)';
+
     setSubmitting(true);
     try {
       const res = await assuranceFetch('/api/assurance/applications', {
         method: 'POST',
         body: JSON.stringify({
-          customerName: stripExcludedNames(customerName),
+          customerName: customerName.trim(),
+          customerEmail: currentUser?.contact || '',
           mobileNumber: mobileNumber.trim(),
-          propertyLocation: stripExcludedNames(propertyLocation),
-          propertyValueBracketId,
-          propertyLinkOrId: stripExcludedNames(propertyLinkOrId),
-          propertyType,
-          additionalRequirements: additionalRequirements.trim(),
+          propertyLocation: effectiveLocation,
+          propertyValueBracketId: propertyValueBracketId || selectedBracket.id,
+          propertyLinkOrId: effectiveLinkOrId,
+          propertyType: propertyType || 'Plot',
+          additionalRequirements: effectiveRequirements,
           additionalMessage: '',
           addonPurchaseAssistance,
           addonDedicatedCoordinator,
           documentFileIds: [],
-          companyWebsite: honeypotWebsite,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -311,52 +329,28 @@ export const PropertyAssuranceRequestPage: React.FC<PropertyAssuranceRequestPage
       setSubmittedApp(data.application);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: any) {
-      setFormError(err?.message || 'Unable to submit your UKG Assurance request.');
+      setFormError(err?.message || 'Unable to submit your UKG Assurance request. Please check your connection and try again.');
     } finally {
       setSubmitting(false);
     }
   }, [
     customerName,
+    currentUser?.contact,
     mobileNumber,
     propertyLocation,
+    resolvedProperty,
     propertyValueBracketId,
+    selectedBracket.id,
     propertyLinkOrId,
+    targetPropertyId,
     propertyType,
     additionalRequirements,
     addonPurchaseAssistance,
     addonDedicatedCoordinator,
-    honeypotWebsite,
   ]);
-
-  useEffect(() => {
-    if (currentUser && pendingAutoSubmitRef.current) {
-      pendingAutoSubmitRef.current = false;
-      void executeApplicationSubmit();
-    }
-  }, [currentUser, executeApplicationSubmit]);
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormError(null);
-
-    const validationErr = validateFormInputs();
-    if (validationErr) {
-      setFormError(validationErr);
-      return;
-    }
-
-    if (!currentUser) {
-      pendingAutoSubmitRef.current = true;
-      openAuthModal(
-        'login',
-        'Please sign in or register so your UKG Assurance application and final PDF report are linked securely to your dashboard.',
-        () => {
-          pendingAutoSubmitRef.current = true;
-        }
-      );
-      return;
-    }
-
     await executeApplicationSubmit();
   };
 
@@ -596,10 +590,22 @@ export const PropertyAssuranceRequestPage: React.FC<PropertyAssuranceRequestPage
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
               <button
                 type="button"
-                onClick={onOpenCustomerDashboard}
+                onClick={() => {
+                  if (currentUser) {
+                    onOpenCustomerDashboard();
+                  } else {
+                    openAuthModal(
+                      'login',
+                      'Sign in or create an account to track your UKG Assurance status and download your PDF report.',
+                      () => onOpenCustomerDashboard()
+                    );
+                  }
+                }}
                 className="px-6 py-3 rounded-2xl bg-[#0E3A2B] hover:bg-[#09281d] text-white font-extrabold text-xs sm:text-sm shadow-md transition-all cursor-pointer inline-flex items-center justify-center gap-2"
               >
-                <span>Track in Customer Dashboard</span>
+                <span>
+                  {currentUser ? 'Track in Customer Dashboard' : 'Sign In to Track in Dashboard'}
+                </span>
                 <ArrowRight className="w-4 h-4" />
               </button>
               <button
@@ -616,6 +622,7 @@ export const PropertyAssuranceRequestPage: React.FC<PropertyAssuranceRequestPage
             {/* Left 7 Columns: Personalized Form */}
             <form
               id="assurance-application-form"
+              noValidate
               onSubmit={handleFormSubmit}
               className="lg:col-span-7 p-6 sm:p-8 rounded-3xl bg-white dark:bg-[#072118] border border-emerald-200/85 dark:border-emerald-800/80 shadow-md space-y-5"
             >
@@ -624,20 +631,9 @@ export const PropertyAssuranceRequestPage: React.FC<PropertyAssuranceRequestPage
                   Your Details & Pre-Filled Property Information
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-emerald-200/75 mt-0.5">
-                  Property fields below have been pre-filled from your selected listing. Enter your contact details and requirements to submit.
+                  Property fields below have been pre-filled from your selected listing. Enter your name and mobile number to submit.
                 </p>
               </div>
-
-              <input
-                type="text"
-                name="companyWebsite"
-                value={honeypotWebsite}
-                onChange={(e) => setHoneypotWebsite(e.target.value)}
-                tabIndex={-1}
-                autoComplete="off"
-                className="hidden"
-                aria-hidden="true"
-              />
 
               {formError && (
                 <div className="p-3.5 rounded-2xl bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-200 text-xs font-semibold flex items-start gap-2.5">
@@ -788,21 +784,20 @@ export const PropertyAssuranceRequestPage: React.FC<PropertyAssuranceRequestPage
                 </div>
               </div>
 
-              {/* Required: Additional Requirements */}
+              {/* Optional: Specific Verification Requirements */}
               <div className="space-y-1.5">
                 <label
                   htmlFor="assurance-additional-requirements"
                   className="block text-xs font-bold text-slate-700 dark:text-emerald-100"
                 >
-                  Verification Focus / Specific Requirements <span className="text-red-500">*</span>
+                  Verification Focus / Specific Requirements (Optional)
                 </label>
                 <textarea
                   id="assurance-additional-requirements"
                   rows={3}
-                  required
                   value={additionalRequirements}
                   onChange={(e) => setAdditionalRequirements(e.target.value)}
-                  placeholder="Specify what you want checked on this property (e.g., Khasra/Khatauni verification, approach road width, boundary markers)..."
+                  placeholder="Optional: specify any extra focus areas (e.g., Khasra/Khatauni check, approach road width, boundary markers)..."
                   className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F6] dark:bg-[#051A12] border border-slate-300 dark:border-emerald-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-600"
                 />
               </div>
@@ -865,6 +860,16 @@ export const PropertyAssuranceRequestPage: React.FC<PropertyAssuranceRequestPage
               </div>
 
               <div className="pt-2 space-y-2.5">
+                {formError && (
+                  <div
+                    role="alert"
+                    className="p-3.5 rounded-2xl bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-200 text-xs font-semibold flex items-start gap-2.5"
+                  >
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{formError}</span>
+                  </div>
+                )}
+
                 <button
                   id="submit-assurance-request-btn"
                   type="submit"

@@ -3719,7 +3719,7 @@ app.post('/api/assurance/upload-document', async (req, res) => {
 app.post('/api/assurance/applications', async (req, res) => {
   try {
     const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
-    const limit = checkRateLimit(`assurance_submit_${clientIp}`, 12, 15 * 60 * 1000);
+    const limit = checkRateLimit(`assurance_submit_${clientIp}`, 25, 15 * 60 * 1000);
     if (limit.limited) {
       return res.status(429).json({
         success: false,
@@ -3727,61 +3727,67 @@ app.post('/api/assurance/applications', async (req, res) => {
       });
     }
 
-    const sessionUser = await getSessionUser(req);
-    if (!sessionUser) {
-      return res.status(401).json({
-        success: false,
-        error: 'Please sign in or create an account to submit your UKG Assurance request and track it in your dashboard.',
-      });
-    }
-
-    if (req.body?.companyWebsite && String(req.body.companyWebsite).trim().length > 0) {
-      return res.status(400).json({ success: false, error: 'Invalid submission.' });
-    }
+    const sessionUser = await getSessionUser(req).catch(() => null);
 
     const customerName = stripHtmlTags(String(req.body?.customerName || '')).trim().slice(0, 120);
-    const mobileNumber = normalizePhone(req.body?.mobileNumber);
+    const rawMobile = String(req.body?.mobileNumber || '').trim();
+    const normalizedTenDigit = normalizePhone(rawMobile);
+    const allPhoneDigits = rawMobile.replace(/\D/g, '');
+    const mobileNumber =
+      normalizedTenDigit.length >= 10 && normalizedTenDigit.length <= 15
+        ? normalizedTenDigit
+        : allPhoneDigits;
+
     const propertyLocation = stripHtmlTags(String(req.body?.propertyLocation || '')).trim().slice(0, 200);
     const propertyValueBracketId = stripHtmlTags(String(req.body?.propertyValueBracketId || '')).trim();
-    const propertyLinkOrId = stripHtmlTags(String(req.body?.propertyLinkOrId || '')).trim().slice(0, 500);
-    const propertyType = stripHtmlTags(String(req.body?.propertyType || '')).trim().slice(0, 80);
-    const additionalRequirements = stripHtmlTags(String(req.body?.additionalRequirements || '')).trim().slice(0, 3000);
+    const rawLinkOrId = stripHtmlTags(String(req.body?.propertyLinkOrId || '')).trim().slice(0, 500);
+    const propertyLinkOrId = rawLinkOrId || 'Direct UKG Assurance Request';
+    const rawPropType = stripHtmlTags(String(req.body?.propertyType || '')).trim().slice(0, 80);
+    const propertyType = rawPropType || 'Plot';
+    const rawRequirements = stripHtmlTags(String(req.body?.additionalRequirements || '')).trim().slice(0, 3000);
+    const additionalRequirements =
+      rawRequirements ||
+      'Standard UKG Assurance verification (Ownership, Documents, Physical Site Inspection & PDF Report)';
     const additionalMessage = stripHtmlTags(String(req.body?.additionalMessage || '')).trim().slice(0, 2000);
     const addonPurchaseAssistance = Boolean(req.body?.addonPurchaseAssistance);
     const addonDedicatedCoordinator = Boolean(req.body?.addonDedicatedCoordinator);
 
     if (customerName.length < 2) {
-      return res.status(400).json({ success: false, error: 'Please enter a valid customer name (at least 2 characters).' });
+      return res.status(400).json({ success: false, error: 'Please enter your full name (at least 2 characters).' });
     }
-    if (!mobileNumber || mobileNumber.length !== 10 || !/^[6-9]\d{9}$/.test(mobileNumber)) {
-      return res.status(400).json({ success: false, error: 'Please enter a valid 10-digit Indian mobile number.' });
+    if (!mobileNumber || mobileNumber.length < 10 || mobileNumber.length > 15) {
+      return res.status(400).json({ success: false, error: 'Please enter a valid 10-digit mobile number.' });
     }
-    if (propertyLocation.length < 3) {
-      return res.status(400).json({ success: false, error: 'Please enter the property location (at least 3 characters).' });
-    }
-    if (!propertyType || (!ALLOWED_REQ_PROP_TYPES.has(propertyType) && propertyType.length < 2)) {
-      return res.status(400).json({ success: false, error: 'Please select a valid property type.' });
-    }
-    if (propertyLinkOrId.length < 2) {
-      return res.status(400).json({
-        success: false,
-        error: 'Please enter the property listing link / UKG Property ID (or select "Not listed on UKG").',
-      });
-    }
-    if (additionalRequirements.length < 3) {
-      return res.status(400).json({
-        success: false,
-        error: 'Please describe your verification requirements (at least 3 characters).',
-      });
+    if (propertyLocation.length < 2) {
+      return res.status(400).json({ success: false, error: 'Please enter the property location.' });
     }
 
     const pricing = await db.getAssurancePricing();
-    const matchedBracket = pricing.brackets.find((b) => b.id === propertyValueBracketId);
+    const matchedBracket =
+      pricing.brackets.find((b) => b.id === propertyValueBracketId) ||
+      pricing.brackets[0];
     if (!matchedBracket) {
       return res.status(400).json({
         success: false,
         error: 'Please select a valid property value range.',
       });
+    }
+
+    // Resolve customer account association (authenticated session, matching email account, or guest lead)
+    const submittedEmail = stripHtmlTags(String(req.body?.customerEmail || '')).trim().toLowerCase();
+    let effectiveUserId = sessionUser?.id || '';
+    let effectiveUserEmail = String(sessionUser?.contact || submittedEmail || '').trim().toLowerCase();
+    let effectiveUsername = sessionUser?.username || customerName;
+
+    if (!effectiveUserId && effectiveUserEmail && effectiveUserEmail.includes('@')) {
+      const matchedAccount = await db.findUserByEmail(effectiveUserEmail).catch(() => null);
+      if (matchedAccount) {
+        effectiveUserId = matchedAccount.id;
+        effectiveUsername = matchedAccount.username || customerName;
+      }
+    }
+    if (!effectiveUserId) {
+      effectiveUserId = `guest-${mobileNumber}-${Date.now().toString().slice(-5)}`;
     }
 
     const snapshotIsCustomQuote = Boolean(matchedBracket.isCustomQuote || matchedBracket.fee === null);
@@ -3811,15 +3817,20 @@ app.post('/api/assurance/applications', async (req, res) => {
     const nowIso = new Date().toISOString();
     const appId = `UKGA-${Date.now().toString().slice(-6)}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
 
-    const rawDocIds = Array.isArray(req.body?.documentFileIds) ? req.body.documentFileIds.slice(0, 15) : [];
-    const attachedFiles = await db.attachPendingFilesToApplication(rawDocIds, sessionUser.id, appId);
+    const rawDocIds =
+      sessionUser && Array.isArray(req.body?.documentFileIds)
+        ? req.body.documentFileIds.slice(0, 15)
+        : [];
+    const attachedFiles = sessionUser
+      ? await db.attachPendingFilesToApplication(rawDocIds, sessionUser.id, appId)
+      : [];
     const customerDocuments = attachedFiles.map((f) => ({
       fileId: f.id,
       name: f.originalName,
       mimeType: f.mimeType,
       sizeBytes: f.sizeBytes,
       uploadedAt: f.createdAt,
-      uploadedBy: sessionUser.username || customerName,
+      uploadedBy: effectiveUsername,
     }));
 
     const initialUpdateMsg =
@@ -3829,8 +3840,8 @@ app.post('/api/assurance/applications', async (req, res) => {
 
     const appRecord = await db.saveAssuranceApplication({
       id: appId,
-      userId: sessionUser.id,
-      userEmail: sessionUser.contact || '',
+      userId: effectiveUserId,
+      userEmail: effectiveUserEmail,
       customerName,
       mobileNumber,
       propertyLocation,
@@ -3885,6 +3896,7 @@ app.post('/api/assurance/applications', async (req, res) => {
       application: sanitizeCustomerAssuranceApp(appRecord),
     });
   } catch (err: any) {
+    console.error('[UKG Assurance] Application submission error:', err);
     return res.status(500).json({
       success: false,
       error: err?.message || 'Failed to submit UKG Assurance request.',

@@ -2417,23 +2417,41 @@ class DatabaseService {
           console.error('[UKG DB] PostgreSQL saveAssuranceApplication error:', err);
         }
       } else if (this.dbType === 'mysql' && this.mysqlPool) {
-        try {
-          await this.mysqlPool.query(
-            `INSERT INTO ukg_assurance_applications (id, user_id, status, payment_status, data, created_at, updated_at)
+        const insertSql = `INSERT INTO ukg_assurance_applications (id, user_id, status, payment_status, data, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?)
-             ON DUPLICATE KEY UPDATE status = VALUES(status), payment_status = VALUES(payment_status), data = VALUES(data), updated_at = VALUES(updated_at)`,
-            [
-              appRecord.id,
-              appRecord.userId,
-              appRecord.status,
-              appRecord.paymentStatus,
-              json,
-              appRecord.createdAt,
-              appRecord.updatedAt,
-            ]
-          );
-        } catch (err) {
-          console.error('[UKG DB] MySQL saveAssuranceApplication error:', err);
+             ON DUPLICATE KEY UPDATE status = VALUES(status), payment_status = VALUES(payment_status), data = VALUES(data), updated_at = VALUES(updated_at)`;
+        const insertParams = [
+          appRecord.id,
+          appRecord.userId,
+          appRecord.status,
+          appRecord.paymentStatus,
+          json,
+          appRecord.createdAt,
+          appRecord.updatedAt,
+        ];
+        try {
+          await this.mysqlPool.query(insertSql, insertParams);
+        } catch (err: any) {
+          if (err?.code === 'ER_NO_SUCH_TABLE') {
+            try {
+              await this.mysqlPool.query(`
+                CREATE TABLE IF NOT EXISTS ukg_assurance_applications (
+                  id VARCHAR(255) PRIMARY KEY,
+                  user_id VARCHAR(255) NOT NULL,
+                  status VARCHAR(100) NOT NULL,
+                  payment_status VARCHAR(100) NOT NULL,
+                  data LONGTEXT NOT NULL,
+                  created_at VARCHAR(100) NOT NULL,
+                  updated_at VARCHAR(100) NOT NULL
+                );
+              `);
+              await this.mysqlPool.query(insertSql, insertParams);
+            } catch (retryErr) {
+              console.error('[UKG DB] MySQL saveAssuranceApplication retry error:', retryErr);
+            }
+          } else {
+            console.error('[UKG DB] MySQL saveAssuranceApplication error:', err);
+          }
         }
       }
 
