@@ -11,7 +11,6 @@ import {
   UserCheck,
   Briefcase,
   Info,
-  Compass,
   Scale,
   ChevronRight,
   Loader2,
@@ -376,65 +375,6 @@ export const UKGAssurancePage: React.FC<UKGAssurancePageProps> = ({
             </div>
           </div>
         </section>
-
-        {/* 2. WHY UKG ASSURANCE? */}
-        <motion.section
-          initial={{ opacity: 0.96, y: 12 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.02 }}
-          transition={{ duration: 0.35 }}
-          className="space-y-8"
-        >
-          <div className="max-w-3xl space-y-3">
-            <div className="text-xs font-bold uppercase tracking-[0.14em] text-emerald-800 dark:text-[#C2A691]">
-              Why UKG Assurance?
-            </div>
-            <h2 className="font-serif-luxury text-2xl sm:text-3xl lg:text-4xl font-bold text-[#0E3A2B] dark:text-white">
-              Informed Decisions Before You Commit Your Capital
-            </h2>
-            <p className="text-sm sm:text-base text-slate-600 dark:text-emerald-100/80 leading-relaxed">
-              Purchasing land, plots, cottages, or residential property in Uttarakhand involves regional revenue records, hill terrain considerations, and road-access realities that are not always obvious from a listing alone. Reviewing available paperwork and inspecting the property on the ground helps buyers spot apparent concerns before entering into an agreement.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <div className="p-6 rounded-2xl bg-white dark:bg-[#072118] border border-emerald-200/80 dark:border-emerald-800/70 shadow-xs space-y-3">
-              <div className="w-11 h-11 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-[#0E3A2B] dark:text-emerald-300 flex items-center justify-center">
-                <FileSearch className="w-5 h-5" />
-              </div>
-              <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
-                Early Paperwork Clarity
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-                Examining available registry deeds, Khasra and Khatauni extracts, and land-use records helps surface apparent gaps, missing pages, or record mismatches early.
-              </p>
-            </div>
-
-            <div className="p-6 rounded-2xl bg-white dark:bg-[#072118] border border-emerald-200/80 dark:border-emerald-800/70 shadow-xs space-y-3">
-              <div className="w-11 h-11 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-[#0E3A2B] dark:text-emerald-300 flex items-center justify-center">
-                <Compass className="w-5 h-5" />
-              </div>
-              <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
-                Ground Reality Verification
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-                Especially for out-of-town buyers, an independent site visit verifies visible boundaries, actual approach road access, terrain condition, and current site photographs.
-              </p>
-            </div>
-
-            <div className="p-6 rounded-2xl bg-white dark:bg-[#072118] border border-emerald-200/80 dark:border-emerald-800/70 shadow-xs space-y-3">
-              <div className="w-11 h-11 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-[#0E3A2B] dark:text-emerald-300 flex items-center justify-center">
-                <FileText className="w-5 h-5" />
-              </div>
-              <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
-                Structured Written Findings
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-                Receive a consolidated UKG Assurance PDF Report documenting what was reviewed, site photographs, and apparent observations so you can evaluate next steps clearly.
-              </p>
-            </div>
-          </div>
-        </motion.section>
 
         {/* 3. OUR SERVICES & STANDARD ASSURANCE PACKAGE PRICING */}
         <motion.section

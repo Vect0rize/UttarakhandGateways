@@ -5,11 +5,7 @@ import {
   CheckCircle2,
   ArrowRight,
   ArrowLeft,
-  Upload,
-  X,
   AlertCircle,
-  Lock,
-  FileText,
   Scale,
   Clock,
   Loader2,
@@ -20,7 +16,6 @@ import {
 } from 'lucide-react';
 import type {
   AssuranceApplication,
-  AssuranceDocumentMeta,
   AssurancePriceBracket,
   AssurancePricingConfig,
   Property,
@@ -33,7 +28,6 @@ import {
   assuranceFetch,
   ASSURANCE_PROPERTY_TYPES,
   formatAssuranceRupees,
-  formatFileSize,
   matchBracketIdForPrice,
   stripExcludedNames,
 } from '../utils/assuranceApi';
@@ -76,7 +70,6 @@ export const PropertyAssuranceRequestPage: React.FC<PropertyAssuranceRequestPage
   embeddedInMobileApp = false,
 }) => {
   const { currentUser, openAuthModal } = useAuth();
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [pricing, setPricing] = useState<AssurancePricingConfig>({
     brackets: DEFAULT_BRACKETS,
@@ -95,15 +88,9 @@ export const PropertyAssuranceRequestPage: React.FC<PropertyAssuranceRequestPage
   const [propertyLinkOrId, setPropertyLinkOrId] = useState<string>('');
   const [propertyType, setPropertyType] = useState<string>('Plot');
   const [additionalRequirements, setAdditionalRequirements] = useState<string>('');
-  const [additionalMessage, setAdditionalMessage] = useState<string>('');
   const [addonPurchaseAssistance, setAddonPurchaseAssistance] = useState<boolean>(false);
   const [addonDedicatedCoordinator, setAddonDedicatedCoordinator] = useState<boolean>(false);
   const [honeypotWebsite, setHoneypotWebsite] = useState<string>('');
-
-  // Private Document Upload State
-  const [uploadedDocs, setUploadedDocs] = useState<AssuranceDocumentMeta[]>([]);
-  const [uploadingDoc, setUploadingDoc] = useState<boolean>(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // Submission State
   const [submitting, setSubmitting] = useState<boolean>(false);
@@ -262,51 +249,6 @@ export const PropertyAssuranceRequestPage: React.FC<PropertyAssuranceRequestPage
     };
   }, [selectedBracket, addonPurchaseAssistance, addonDedicatedCoordinator, pricing]);
 
-  const handleDocumentSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files ? Array.from(e.target.files) : [];
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-    if (files.length === 0) return;
-
-    if (!currentUser) {
-      openAuthModal(
-        'login',
-        'Please sign in or create an account to upload confidential property documents.'
-      );
-      return;
-    }
-
-    setUploadError(null);
-    setUploadingDoc(true);
-    try {
-      for (const file of files) {
-        if (file.size > 20 * 1024 * 1024) {
-          throw new Error(`"${file.name}" exceeds the 20 MB maximum file size.`);
-        }
-        const formData = new FormData();
-        formData.append('file', file);
-        const res = await assuranceFetch('/api/assurance/upload-document', {
-          method: 'POST',
-          body: formData,
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data?.success || !data?.document) {
-          throw new Error(data?.error || `Failed to upload "${file.name}".`);
-        }
-        setUploadedDocs((prev) => [...prev, data.document]);
-      }
-    } catch (err: any) {
-      setUploadError(err?.message || 'Document upload failed.');
-    } finally {
-      setUploadingDoc(false);
-    }
-  };
-
-  const removeUploadedDoc = (fileId: string) => {
-    setUploadedDocs((prev) => prev.filter((d) => d.fileId !== fileId));
-  };
-
   const validateFormInputs = (): string | null => {
     if (customerName.trim().length < 2) {
       return 'Please enter your full name.';
@@ -355,10 +297,10 @@ export const PropertyAssuranceRequestPage: React.FC<PropertyAssuranceRequestPage
           propertyLinkOrId: stripExcludedNames(propertyLinkOrId),
           propertyType,
           additionalRequirements: additionalRequirements.trim(),
-          additionalMessage: additionalMessage.trim(),
+          additionalMessage: '',
           addonPurchaseAssistance,
           addonDedicatedCoordinator,
-          documentFileIds: uploadedDocs.map((d) => d.fileId),
+          documentFileIds: [],
           companyWebsite: honeypotWebsite,
         }),
       });
@@ -381,10 +323,8 @@ export const PropertyAssuranceRequestPage: React.FC<PropertyAssuranceRequestPage
     propertyLinkOrId,
     propertyType,
     additionalRequirements,
-    additionalMessage,
     addonPurchaseAssistance,
     addonDedicatedCoordinator,
-    uploadedDocs,
     honeypotWebsite,
   ]);
 
@@ -594,29 +534,19 @@ export const PropertyAssuranceRequestPage: React.FC<PropertyAssuranceRequestPage
             ))}
           </div>
 
-          {/* Compact Value-Bracket Fee Strip */}
+          {/* Selected Price Group Pill */}
           <div className="pt-1 flex flex-wrap items-center gap-2 text-[11px]">
             <span className="font-bold text-slate-700 dark:text-emerald-200 mr-1">
-              Standard Package Tiers:
+              Selected Price Group:
             </span>
-            {pricing.brackets.map((b) => {
-              const active = b.id === propertyValueBracketId;
-              return (
-                <span
-                  key={b.id}
-                  className={`px-2.5 py-1 rounded-lg border font-semibold ${
-                    active
-                      ? 'bg-[#0E3A2B] text-white border-[#0E3A2B] dark:bg-[#C2A691] dark:text-[#032D1F] dark:border-[#C2A691]'
-                      : 'bg-slate-50 dark:bg-[#051811] text-slate-600 dark:text-slate-300 border-slate-200 dark:border-emerald-900'
-                  }`}
-                >
-                  {b.label}:{' '}
-                  <strong>
-                    {b.isCustomQuote || b.fee === null ? 'Custom Quote' : formatAssuranceRupees(b.fee)}
-                  </strong>
-                </span>
-              );
-            })}
+            <span className="px-3 py-1 rounded-lg border font-semibold bg-[#0E3A2B] text-white border-[#0E3A2B] dark:bg-[#C2A691] dark:text-[#032D1F] dark:border-[#C2A691]">
+              {selectedBracket.label}:{' '}
+              <strong>
+                {selectedBracket.isCustomQuote || selectedBracket.fee === null
+                  ? 'Custom Quotation Required'
+                  : formatAssuranceRupees(selectedBracket.fee)}
+              </strong>
+            </span>
           </div>
         </section>
 
@@ -809,22 +739,34 @@ export const PropertyAssuranceRequestPage: React.FC<PropertyAssuranceRequestPage
                     >
                       Property Value Range <span className="text-red-500">*</span>
                     </label>
-                    <select
-                      id="assurance-value-range"
-                      required
-                      value={propertyValueBracketId}
-                      onChange={(e) => setPropertyValueBracketId(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#072118] border border-slate-300 dark:border-emerald-800 text-xs sm:text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-600"
-                    >
-                      {pricing.brackets.map((b) => (
-                        <option key={b.id} value={b.id}>
-                          {b.label} —{' '}
-                          {b.isCustomQuote || b.fee === null
-                            ? 'Custom Quotation Required'
-                            : formatAssuranceRupees(b.fee)}
-                        </option>
-                      ))}
-                    </select>
+                    {resolvedProperty && Number(resolvedProperty.price) > 0 ? (
+                      <div
+                        id="assurance-value-range"
+                        className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#072118] border border-emerald-300 dark:border-emerald-700 text-xs sm:text-sm font-bold text-[#0E3A2B] dark:text-[#C2A691]"
+                      >
+                        {selectedBracket.label} —{' '}
+                        {selectedBracket.isCustomQuote || selectedBracket.fee === null
+                          ? 'Custom Quotation Required'
+                          : formatAssuranceRupees(selectedBracket.fee)}
+                      </div>
+                    ) : (
+                      <select
+                        id="assurance-value-range"
+                        required
+                        value={propertyValueBracketId}
+                        onChange={(e) => setPropertyValueBracketId(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#072118] border border-slate-300 dark:border-emerald-800 text-xs sm:text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                      >
+                        {pricing.brackets.map((b) => (
+                          <option key={b.id} value={b.id}>
+                            {b.label} —{' '}
+                            {b.isCustomQuote || b.fee === null
+                              ? 'Custom Quotation Required'
+                              : formatAssuranceRupees(b.fee)}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </div>
 
                   <div className="space-y-1">
@@ -922,105 +864,11 @@ export const PropertyAssuranceRequestPage: React.FC<PropertyAssuranceRequestPage
                 </label>
               </div>
 
-              {/* Optional: Private Document Uploads */}
-              <div className="space-y-2 pt-1">
-                <div className="flex items-center justify-between gap-2">
-                  <label className="text-xs font-bold text-slate-700 dark:text-emerald-100 flex items-center gap-1.5">
-                    <Lock className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
-                    <span>Upload Property Documents, If Shared by Seller (Optional)</span>
-                  </label>
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                    PDF, JPG, PNG, WEBP • Max 20 MB
-                  </span>
-                </div>
-
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  accept=".pdf,image/jpeg,image/png,image/webp"
-                  onChange={handleDocumentSelect}
-                  className="hidden"
-                />
-
-                <button
-                  type="button"
-                  disabled={uploadingDoc}
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full p-3.5 rounded-2xl border-2 border-dashed border-emerald-300 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/25 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-xs font-bold text-emerald-900 dark:text-emerald-200 flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                >
-                  {uploadingDoc ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Uploading securely to private vault...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="w-4 h-4" />
-                      <span>Attach Available Property Papers (Private Storage)</span>
-                    </>
-                  )}
-                </button>
-
-                {uploadError && (
-                  <div className="text-xs font-semibold text-red-600 dark:text-red-300 flex items-center gap-1.5">
-                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    <span>{uploadError}</span>
-                  </div>
-                )}
-
-                {uploadedDocs.length > 0 && (
-                  <div className="space-y-2 pt-1">
-                    {uploadedDocs.map((doc) => (
-                      <div
-                        key={doc.fileId}
-                        className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-xs"
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <FileText className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
-                          <span className="font-semibold text-slate-800 dark:text-white truncate">
-                            {doc.name}
-                          </span>
-                          <span className="text-[11px] text-slate-500 shrink-0">
-                            ({formatFileSize(doc.sizeBytes)})
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => removeUploadedDoc(doc.fileId)}
-                          className="p-1 rounded-lg hover:bg-red-100 dark:hover:bg-red-950/60 text-slate-500 hover:text-red-600 cursor-pointer"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Optional: Additional Message */}
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="assurance-additional-message"
-                  className="block text-xs font-bold text-slate-700 dark:text-emerald-100"
-                >
-                  Additional Message (Optional)
-                </label>
-                <textarea
-                  id="assurance-additional-message"
-                  rows={2}
-                  value={additionalMessage}
-                  onChange={(e) => setAdditionalMessage(e.target.value)}
-                  placeholder="Preferred callback time or notes for the UKG team..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F6] dark:bg-[#051A12] border border-slate-300 dark:border-emerald-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-600"
-                />
-              </div>
-
               <div className="pt-2 space-y-2.5">
                 <button
                   id="submit-assurance-request-btn"
                   type="submit"
-                  disabled={submitting || uploadingDoc}
+                  disabled={submitting}
                   className="w-full py-3.5 px-6 rounded-2xl bg-[#0E3A2B] hover:bg-[#09281d] dark:bg-[#C2A691] dark:hover:bg-[#d2b8a5] text-white dark:text-[#032D1F] font-extrabold text-sm shadow-lg transition-all active:scale-[0.99] disabled:opacity-60 cursor-pointer flex items-center justify-center gap-2"
                 >
                   {submitting ? (

@@ -30,7 +30,7 @@ export const Hero: React.FC<HeroProps> = ({
   return (
     <section 
       id="hero" 
-      className="relative flex flex-col justify-center items-center text-center pt-24 sm:pt-28 pb-12 sm:pb-16 overflow-visible transition-colors"
+      className="relative flex flex-col justify-center items-center text-center pt-24 sm:pt-28 pb-16 sm:pb-20 overflow-visible transition-colors"
     >
       {/* Solid Color Backdrop: Oaken Chalk Ivory in Light Mode & Deep Forest Evergreen in Dark Mode */}
       <div className="absolute inset-0 bg-gradient-to-b from-[#eaece8] via-[#f2f3f0] to-[#f1f2ef] dark:from-[#0E3A2B] dark:via-[#082F21] dark:to-[#032D1F] z-0 overflow-hidden" />
@@ -130,7 +130,7 @@ export const Hero: React.FC<HeroProps> = ({
         )}
 
         {/* UKG Assurance Info Button Below Search Bar */}
-        <div className="w-full flex justify-center mt-1 mb-1 relative z-30">
+        <div className="w-full max-w-2xl mx-auto flex justify-center mt-3.5 sm:mt-4 mb-2 px-1 relative z-30">
           <a
             id="hero-ukg-assurance-btn"
             href="/ukg-assurance"
@@ -140,16 +140,39 @@ export const Hero: React.FC<HeroProps> = ({
                 onAssuranceClick();
               }
             }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#0E3A2B] dark:bg-[#0C3628] hover:bg-[#09281d] dark:hover:bg-[#134433] text-[#FAF9F6] border border-[#C2A691]/50 shadow-md hover:scale-[1.02] active:scale-95 transition-all cursor-pointer text-xs sm:text-sm font-bold no-underline"
-            title={isHindi ? 'यूकेजी एश्योरेंस - प्रॉपर्टी दस्तावेज़ समीक्षा व निरीक्षण' : 'UKG Assurance — Property Document Review & Inspection'}
+            className="group w-full sm:w-auto sm:min-w-[460px] inline-flex items-center justify-between gap-3 sm:gap-4 px-3.5 sm:px-4 py-2.5 rounded-2xl sm:rounded-full bg-gradient-to-r from-[#082A1E] via-[#0E3A2B] to-[#0A3123] dark:from-[#062117] dark:via-[#0D3829] dark:to-[#08291D] hover:from-[#0B3325] hover:via-[#124534] hover:to-[#0E3A2B] text-[#FAF9F6] border border-[#C2A691]/65 hover:border-[#C2A691] shadow-lg shadow-[#032D1F]/20 hover:shadow-xl hover:-translate-y-0.5 active:scale-[0.99] transition-all duration-300 cursor-pointer no-underline text-left"
+            title={
+              isHindi
+                ? 'यूकेजी एश्योरेंस: खरीदने से पहले प्रॉपर्टी दस्तावेज़ और साइट की जांच'
+                : 'UKG Assurance: Verify Property Documents & Site Before You Buy'
+            }
           >
-            <ShieldCheck className="w-4 h-4 text-[#C2A691] shrink-0" />
-            <span>
-              {isHindi
-                ? 'यूकेजी एश्योरेंस — प्रॉपर्टी दस्तावेज़ समीक्षा व निरीक्षण'
-                : 'UKG Assurance — Document Review & Site Inspection'}
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-full bg-gradient-to-br from-[#D4B9A6] to-[#B6967E] text-[#032D1F] flex items-center justify-center shadow-sm shrink-0">
+                <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.3]" />
+              </div>
+
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs sm:text-sm font-extrabold tracking-wide text-white">
+                    {isHindi ? 'यूकेजी एश्योरेंस' : 'UKG Assurance'}
+                  </span>
+                  <span className="hidden min-[400px]:inline-block px-2 py-0.5 rounded-full bg-white/10 border border-[#C2A691]/40 text-[9px] font-extrabold uppercase tracking-wider text-[#E8D5C6]">
+                    {isHindi ? 'दस्तावेज़ व साइट जांच' : 'Pre-Purchase Review'}
+                  </span>
+                </div>
+                <p className="text-[11px] sm:text-xs text-emerald-100/90 font-medium leading-snug truncate">
+                  {isHindi
+                    ? 'खरीदने से पहले प्रॉपर्टी कागज़ात व साइट की जांच कराएं'
+                    : 'Verify Property Documents & Site Before You Buy'}
+                </p>
+              </div>
+            </div>
+
+            <span className="shrink-0 inline-flex items-center gap-1 px-3 sm:px-3.5 py-1.5 rounded-xl sm:rounded-full bg-[#C2A691] group-hover:bg-[#d6bda9] text-[#032D1F] text-[11px] sm:text-xs font-extrabold shadow-xs transition-colors">
+              <span>{isHindi ? 'जानें' : 'Explore'}</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
             </span>
-            <ArrowRight className="w-3.5 h-3.5 text-[#C2A691] shrink-0" />
           </a>
         </div>
 
