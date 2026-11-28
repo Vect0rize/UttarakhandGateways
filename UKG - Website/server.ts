@@ -2887,17 +2887,34 @@ app.post('/api/requirements', async (req, res) => {
       });
     }
 
-    // Honeypot spam check
-    if (req.body?.websiteUrl && String(req.body.websiteUrl).trim() !== '') {
-      return res.status(400).json({ success: false, error: 'Spam submission rejected.' });
-    }
-
     const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
     const limit = checkRateLimit(`post_req_${sessionUser.id}_${clientIp}`, 5, 15 * 60 * 1000);
     if (limit.limited) {
       return res.status(429).json({
         success: false,
         error: `Too many requirement submissions. Please wait ${limit.retryAfterSeconds} seconds.`,
+      });
+    }
+
+    const contactName = stripHtmlTags(String(req.body?.contactName || '')).trim().slice(0, 120);
+    if (contactName.length < 2) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please enter your name (at least 2 characters).',
+      });
+    }
+
+    const rawContactPhone = stripHtmlTags(String(req.body?.contactPhone || '')).trim();
+    const normalizedTenDigit = normalizePhone(rawContactPhone);
+    const rawPhoneDigits = rawContactPhone.replace(/\D/g, '');
+    const requiredPhone =
+      normalizedTenDigit.length >= 10 && normalizedTenDigit.length <= 15
+        ? normalizedTenDigit
+        : rawPhoneDigits;
+    if (!requiredPhone || requiredPhone.length < 10 || requiredPhone.length > 15) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please enter a valid 10-digit mobile number.',
       });
     }
 
@@ -2940,7 +2957,6 @@ app.post('/api/requirements', async (req, res) => {
       ? stripHtmlTags(String(req.body.requiredSize)).trim().slice(0, 60)
       : null;
     const description = stripHtmlTags(String(req.body?.description || '')).trim().slice(0, 2500);
-    const optionalPhone = stripHtmlTags(String(req.body?.contactPhone || (sessionUser as any).phone || '')).trim().slice(0, 20);
 
     // Duplicate submission protection (same user + same criteria within 24 hours)
     const existingAll = await db.getAllRequirements();
@@ -2979,9 +2995,9 @@ app.post('/api/requirements', async (req, res) => {
       requiredSize,
       description,
       userId: sessionUser.id,
-      userName: sessionUser.username || 'Registered User',
+      userName: contactName,
       userEmail: sessionUser.contact || '',
-      userPhone: optionalPhone || undefined,
+      userPhone: requiredPhone,
       approvalStatus: isAdmin ? 'approved' : 'pending',
       isFulfilled: false,
       createdAt: nowIso,
@@ -3053,6 +3069,27 @@ app.put('/api/requirements/:id', async (req, res) => {
         ? stripHtmlTags(String(req.body.description)).trim().slice(0, 2500)
         : existing.description;
 
+    let userName = existing.userName;
+    if (req.body?.contactName !== undefined) {
+      const nextName = stripHtmlTags(String(req.body.contactName)).trim().slice(0, 120);
+      if (nextName.length < 2) {
+        return res.status(400).json({ success: false, error: 'Please enter your name (at least 2 characters).' });
+      }
+      userName = nextName;
+    }
+
+    let userPhone = existing.userPhone;
+    if (req.body?.contactPhone !== undefined) {
+      const rawPhone = stripHtmlTags(String(req.body.contactPhone)).trim();
+      const normPhone = normalizePhone(rawPhone);
+      const digitsOnly = rawPhone.replace(/\D/g, '');
+      const nextPhone = normPhone.length >= 10 && normPhone.length <= 15 ? normPhone : digitsOnly;
+      if (!nextPhone || nextPhone.length < 10 || nextPhone.length > 15) {
+        return res.status(400).json({ success: false, error: 'Please enter a valid 10-digit mobile number.' });
+      }
+      userPhone = nextPhone;
+    }
+
     const nextApproval =
       isAdmin && ['pending', 'approved', 'rejected'].includes(req.body?.approvalStatus)
         ? req.body.approvalStatus
@@ -3069,6 +3106,8 @@ app.put('/api/requirements/:id', async (req, res) => {
       bedrooms,
       requiredSize,
       description,
+      userName,
+      userPhone,
       approvalStatus: nextApproval,
       updatedAt: new Date().toISOString(),
     });

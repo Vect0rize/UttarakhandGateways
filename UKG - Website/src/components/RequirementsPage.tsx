@@ -216,8 +216,8 @@ export const RequirementsPage: React.FC<RequirementsPageProps> = ({
   const [sizeValueInput, setSizeValueInput] = useState<string>('');
   const [sizeUnitInput, setSizeUnitInput] = useState<string>('Gaj');
   const [descriptionInput, setDescriptionInput] = useState<string>('');
+  const [contactNameInput, setContactNameInput] = useState<string>('');
   const [accountPhoneInput, setAccountPhoneInput] = useState<string>('');
-  const [honeypotWebsite, setHoneypotWebsite] = useState<string>('');
   const [submittingForm, setSubmittingForm] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -343,8 +343,8 @@ export const RequirementsPage: React.FC<RequirementsPageProps> = ({
     setSizeValueInput('');
     setSizeUnitInput('Gaj');
     setDescriptionInput('');
-    setAccountPhoneInput((currentUser as any)?.phone || '');
-    setHoneypotWebsite('');
+    setContactNameInput('');
+    setAccountPhoneInput('');
     setFormError(null);
     switchReqPageView('post');
   };
@@ -374,12 +374,23 @@ export const RequirementsPage: React.FC<RequirementsPageProps> = ({
       setSizeValueInput('');
     }
     setDescriptionInput(reqItem.description || '');
-    setAccountPhoneInput('');
+    setContactNameInput(reqItem.userName || '');
+    setAccountPhoneInput(reqItem.userPhone || '');
     setFormError(null);
     switchReqPageView('post');
   };
 
   const sanitizeDigits = (raw: string) => raw.replace(/[^0-9]/g, '');
+
+  const focusReqField = (id: string) => {
+    try {
+      const el = document.getElementById(id) as HTMLElement | null;
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.focus({ preventScroll: true });
+      }
+    } catch {}
+  };
 
   const handleSubmitRequirement = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -389,6 +400,35 @@ export const RequirementsPage: React.FC<RequirementsPageProps> = ({
     }
 
     setFormError(null);
+
+    const trimmedName = contactNameInput.trim();
+    if (trimmedName.length < 2) {
+      focusReqField('ukg-req-f1');
+      setFormError(
+        isHindi
+          ? 'कृपया अपना नाम दर्ज करें (कम से कम 2 अक्षर)।'
+          : 'Please enter your name (at least 2 characters).'
+      );
+      return;
+    }
+
+    const rawPhoneDigits = accountPhoneInput.replace(/\D/g, '');
+    const normalizedPhone =
+      rawPhoneDigits.length === 12 && rawPhoneDigits.startsWith('91')
+        ? rawPhoneDigits.slice(2)
+        : rawPhoneDigits.length === 11 && rawPhoneDigits.startsWith('0')
+          ? rawPhoneDigits.slice(1)
+          : rawPhoneDigits;
+    if (normalizedPhone.length < 10 || normalizedPhone.length > 15) {
+      focusReqField('ukg-req-f2');
+      setFormError(
+        isHindi
+          ? 'कृपया वैध 10-अंकीय मोबाइल नंबर दर्ज करें।'
+          : 'Please enter a valid 10-digit mobile number.'
+      );
+      return;
+    }
+
     const minB = Number(minBudgetInput) || 0;
     const maxB = Number(maxBudgetInput) || 0;
 
@@ -430,6 +470,8 @@ export const RequirementsPage: React.FC<RequirementsPageProps> = ({
       const res = await reqFetch(endpoint, {
         method,
         body: JSON.stringify({
+          contactName: trimmedName,
+          contactPhone: normalizedPhone,
           requirementType: reqType,
           propertyType: propType,
           city: preferredCity,
@@ -439,8 +481,6 @@ export const RequirementsPage: React.FC<RequirementsPageProps> = ({
           bedrooms: bedroomsNum,
           requiredSize: requiredSize || null,
           description: descriptionInput.trim(),
-          contactPhone: accountPhoneInput.trim() || undefined,
-          websiteUrl: honeypotWebsite,
         }),
       });
 
@@ -1292,6 +1332,8 @@ export const RequirementsPage: React.FC<RequirementsPageProps> = ({
               ) : (
                 <form
                   onSubmit={handleSubmitRequirement}
+                  autoComplete="off"
+                  noValidate
                   className="p-5 sm:p-7 space-y-5 text-xs sm:text-sm"
                 >
                   {formError && (
@@ -1300,16 +1342,57 @@ export const RequirementsPage: React.FC<RequirementsPageProps> = ({
                     </div>
                   )}
 
-                  {/* Honeypot anti-bot field */}
-                  <input
-                    type="text"
-                    name="websiteUrl"
-                    tabIndex={-1}
-                    autoComplete="off"
-                    value={honeypotWebsite}
-                    onChange={(e) => setHoneypotWebsite(e.target.value)}
-                    className="hidden"
-                  />
+                  {/* Manual Name & Mobile Number (Strictly No Autofill / No Pre-fill) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="ukg-req-f1" className="font-bold block mb-1">
+                        {isHindi ? 'आपका नाम *' : 'Your Name *'}
+                      </label>
+                      <input
+                        id="ukg-req-f1"
+                        name="ukg_req_f1"
+                        type="text"
+                        required
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={false}
+                        data-lpignore="true"
+                        data-1p-ignore="true"
+                        data-form-type="other"
+                        value={contactNameInput}
+                        onChange={(e) => setContactNameInput(e.target.value)}
+                        placeholder={isHindi ? 'अपना नाम लिखें' : 'Enter your full name'}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-[#051811]"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="ukg-req-f2" className="font-bold block mb-1">
+                        {isHindi ? 'मोबाइल नंबर *' : 'Mobile Number *'}
+                      </label>
+                      <input
+                        id="ukg-req-f2"
+                        name="ukg_req_f2"
+                        type="text"
+                        inputMode="numeric"
+                        required
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={false}
+                        data-lpignore="true"
+                        data-1p-ignore="true"
+                        data-form-type="other"
+                        value={accountPhoneInput}
+                        onChange={(e) =>
+                          setAccountPhoneInput(e.target.value.replace(/[^0-9+\s-]/g, ''))
+                        }
+                        placeholder={
+                          isHindi ? '10-अंकीय मोबाइल नंबर लिखें' : 'Enter 10-digit mobile number'
+                        }
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-[#051811] font-mono font-bold"
+                      />
+                    </div>
+                  </div>
 
                   {/* 1. Requirement Type: Buy or Rent */}
                   <div>
@@ -1508,6 +1591,15 @@ export const RequirementsPage: React.FC<RequirementsPageProps> = ({
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-emerald-800 bg-white dark:bg-[#051811]"
                     />
                   </div>
+
+                  {formError && (
+                    <div
+                      role="alert"
+                      className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs font-bold"
+                    >
+                      {formError}
+                    </div>
+                  )}
 
                   <div className="pt-2 flex items-center justify-end gap-2.5">
                     <button
